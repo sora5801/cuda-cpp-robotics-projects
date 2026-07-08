@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "multi-person-multi-camera-pose-tracking-with-gpu", "multi-person-multi-camera-pose-tracking-with-gpu.vcxproj", "{FBCF31D7-F99C-5E68-8B8D-0514D6248F8F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FBCF31D7-F99C-5E68-8B8D-0514D6248F8F}.Debug|x64.ActiveCfg = Debug|x64
+		{FBCF31D7-F99C-5E68-8B8D-0514D6248F8F}.Debug|x64.Build.0 = Debug|x64
+		{FBCF31D7-F99C-5E68-8B8D-0514D6248F8F}.Release|x64.ActiveCfg = Release|x64
+		{FBCF31D7-F99C-5E68-8B8D-0514D6248F8F}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

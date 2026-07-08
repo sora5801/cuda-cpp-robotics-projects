@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "high-dimensional-hamilton-jacobi-via-tensor", "high-dimensional-hamilton-jacobi-via-tensor.vcxproj", "{93F6E3F4-6B17-5320-B3B9-D5E803BB556D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{93F6E3F4-6B17-5320-B3B9-D5E803BB556D}.Debug|x64.ActiveCfg = Debug|x64
+		{93F6E3F4-6B17-5320-B3B9-D5E803BB556D}.Debug|x64.Build.0 = Debug|x64
+		{93F6E3F4-6B17-5320-B3B9-D5E803BB556D}.Release|x64.ActiveCfg = Release|x64
+		{93F6E3F4-6B17-5320-B3B9-D5E803BB556D}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

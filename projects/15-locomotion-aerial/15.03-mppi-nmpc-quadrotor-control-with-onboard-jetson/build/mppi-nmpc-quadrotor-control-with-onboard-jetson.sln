@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mppi-nmpc-quadrotor-control-with-onboard-jetson", "mppi-nmpc-quadrotor-control-with-onboard-jetson.vcxproj", "{BE112F1E-E7D9-5316-999F-F4C31F2F5436}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BE112F1E-E7D9-5316-999F-F4C31F2F5436}.Debug|x64.ActiveCfg = Debug|x64
+		{BE112F1E-E7D9-5316-999F-F4C31F2F5436}.Debug|x64.Build.0 = Debug|x64
+		{BE112F1E-E7D9-5316-999F-F4C31F2F5436}.Release|x64.ActiveCfg = Release|x64
+		{BE112F1E-E7D9-5316-999F-F4C31F2F5436}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

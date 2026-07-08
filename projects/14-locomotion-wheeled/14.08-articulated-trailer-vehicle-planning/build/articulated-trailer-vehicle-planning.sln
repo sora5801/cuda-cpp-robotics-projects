@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "articulated-trailer-vehicle-planning", "articulated-trailer-vehicle-planning.vcxproj", "{61A0DA9A-5DF9-5166-A030-88C57B6436E1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{61A0DA9A-5DF9-5166-A030-88C57B6436E1}.Debug|x64.ActiveCfg = Debug|x64
+		{61A0DA9A-5DF9-5166-A030-88C57B6436E1}.Debug|x64.Build.0 = Debug|x64
+		{61A0DA9A-5DF9-5166-A030-88C57B6436E1}.Release|x64.ActiveCfg = Release|x64
+		{61A0DA9A-5DF9-5166-A030-88C57B6436E1}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

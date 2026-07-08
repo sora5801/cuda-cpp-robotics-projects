@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ========================================================================
+  multi-robot-path-finding.vcxproj — Visual Studio 2026 CUDA project for
+  06.17 (Multi-robot path finding: CBS with GPU low-level searches)
+
+  This project file is a teaching surface too (CLAUDE.md paragraph 6): the
+  comments below explain every non-obvious choice. It builds out-of-the-box
+  on any machine with VS 2026 (v145 toolset) + CUDA Toolkit 13.3 — no manual
+  path edits, everything flows from $(CUDA_PATH) via the CUDA MSBuild
+  integration (CLAUDE.md paragraph 5).
+
+  Library policy: this template links ONLY the CUDA runtime. If the real
+  project adds cuBLAS/cuFFT/cuRAND/..., add each .lib to AdditionalDependencies
+  below WITH an XML comment explaining why it is linked (CLAUDE.md paragraph 5).
+======================================================================== -->
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- The two configurations every project ships (CLAUDE.md paragraph 5):
+       Debug|x64 (host /Od + device -G for Nsight source debugging) and
+       Release|x64 (optimized). x64 only: CUDA dropped 32-bit hosts long ago. -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <!-- Deterministic GUID: uuid5(NAMESPACE_URL, "cuda-cpp-robotics-projects/" + PROJECT_ID),
+         stamped by tools/scaffold.py — stable across re-scaffolds, unique per project. -->
+    <ProjectGuid>{CED2FAA2-19F6-5D8E-8430-25CA92193AAA}</ProjectGuid>
+    <ProjectName>multi-robot-path-finding</ProjectName>
+    <!-- RootNamespace is only meaningful for managed code; harmless here even
+         with hyphens in the slug, and kept for tooling that expects it. -->
+    <RootNamespace>multi-robot-path-finding</RootNamespace>
+    <!-- "10.0" (no third digit) = "use the newest installed Windows 10/11 SDK",
+         so the project builds on machines with any recent SDK. -->
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <!-- Standard C++ project scaffolding: default props first... -->
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>     <!-- a single runnable .exe (CLAUDE.md paragraph 5) -->
+    <UseDebugLibraries>true</UseDebugLibraries>            <!-- debug CRT: heap checks, assert diagnostics -->
+    <PlatformToolset>v145</PlatformToolset>                <!-- VS 2026 toolset (ratified repo standard) -->
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization> <!-- host LTCG: cross-TU inlining for the .cpp side -->
+  </PropertyGroup>
+
+  <!-- ...then the real props that consume the Configuration choices above. -->
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <!-- CUDA 13.3 MSBuild integration, part 1 (the .props half).
+       This import is what teaches MSBuild the <CudaCompile> item type and
+       defines $(CudaToolkitLibDir) etc. from $(CUDA_PATH). It lives under
+       ...\MSBuild\Microsoft\VC\v180\BuildCustomizations\ once the CUDA
+       toolkit's VS integration is installed. To retarget another CUDA
+       version, change "CUDA 13.3" here AND in the .targets import at the
+       bottom — nothing else (CLAUDE.md paragraph 5). -->
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 13.3.props" />
+  </ImportGroup>
+
+  <!-- Standard per-user property sheet hook (kept for VS's property-page UI;
+       harmless when the .user.props file does not exist). -->
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+
+  <!-- Deterministic output locations (a repo contract, not a preference):
+       demo/run_demo.ps1 looks for build\x64\Release\multi-robot-path-finding.exe and
+       the project .gitignore excludes x64/ — all three files agree on this
+       layout. $(ProjectDir) is this build\ folder. -->
+  <PropertyGroup>
+    <OutDir>$(ProjectDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)x64\$(Configuration)\obj\</IntDir>
+  </PropertyGroup>
+
+  <!-- ======================= Debug|x64 settings ========================= -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>                  <!-- warnings are defects to explain or fix (CLAUDE.md paragraph 9) -->
+      <Optimization>Disabled</Optimization>                <!-- /Od: debuggable host code -->
+      <SDLCheck>true</SDLCheck>                            <!-- extra security-relevant compile checks -->
+      <LanguageStandard>stdcpp17</LanguageStandard>        <!-- repo standard: C++17 host code (CLAUDE.md paragraph 12) -->
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>              <!-- /permissive-: standard C++, no MSVC legacy leniency -->
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>                       <!-- plain console app: demos print to stdout -->
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <!-- $(CudaToolkitLibDir) is defined by the CUDA 13.3.props import above
+           (resolves under $(CUDA_PATH)\lib\x64) — never hardcode CUDA paths. -->
+      <AdditionalLibraryDirectories>$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- cudart_static.lib: the CUDA runtime linked STATICALLY, so the built
+           .exe runs on a machine with just a driver — no cudart64_*.dll to
+           ship or lose. The static runtime is the CUDA-sample default and
+           costs little for a single-exe project. -->
+      <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CudaCompile>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <!-- Multi-architecture fatbinary (CLAUDE.md paragraph 5): real SASS for
+           sm_75 (Turing — the repo floor and the owner's RTX 2080), sm_86
+           (Ampere) and sm_89 (Ada), PLUS compute_89 PTX last so newer GPUs
+           (Blackwell and beyond) can JIT-compile at load time instead of
+           failing with cudaErrorNoKernelImageForDevice. CUDA 13 dropped
+           pre-Turing, so sm_75 is the oldest possible floor. -->
+      <CodeGeneration>compute_75,sm_75;compute_86,sm_86;compute_89,sm_89;compute_89,compute_89</CodeGeneration>
+      <!-- -G: full device debug (slow code, real breakpoints) — Debug only.
+           NOTE: -G already embeds line info and CONFLICTS with -lineinfo
+           (nvcc/ptxas warn and ignore -lineinfo), so Debug sets ONLY -G;
+           Release carries -lineinfo instead. This keeps the zero-warnings
+           gate (CLAUDE.md paragraph 9) while Nsight stays fully usable in
+           both configurations. -->
+      <GPUDebugInfo>true</GPUDebugInfo>
+    </CudaCompile>
+  </ItemDefinitionGroup>
+
+  <!-- ====================== Release|x64 settings ======================== -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>                <!-- /O2 host optimization (repo Release standard) -->
+      <FunctionLevelLinking>true</FunctionLevelLinking>    <!-- /Gy: per-function sections, enables COMDAT folding below -->
+      <IntrinsicFunctions>true</IntrinsicFunctions>        <!-- /Oi: intrinsic memcpy/sqrt etc. -->
+      <SDLCheck>true</SDLCheck>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation> <!-- PDBs even in Release: profilers need symbols -->
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>      <!-- /OPT:ICF -->
+      <OptimizeReferences>true</OptimizeReferences>        <!-- /OPT:REF: drop unreferenced code/data -->
+      <AdditionalLibraryDirectories>$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- See the Debug comment: static CUDA runtime => self-contained exe. -->
+      <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CudaCompile>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <!-- Same fatbin list as Debug — see the Debug comment for the reasoning.
+           NOTE: nvcc's fast-math switch (-use_fast_math) is deliberately NOT
+           set; many robotics kernels
+           need reproducible floats. Enable it per-project only where the
+           README documents the tolerance impact (CLAUDE.md paragraph 5). -->
+      <CodeGeneration>compute_75,sm_75;compute_86,sm_86;compute_89,sm_89;compute_89,compute_89</CodeGeneration>
+      <GenerateLineInfo>true</GenerateLineInfo>            <!-- -lineinfo is cheap and makes Nsight useful in Release -->
+    </CudaCompile>
+  </ItemDefinitionGroup>
+
+  <!-- Sources. .cu files go through <CudaCompile> (nvcc); plain .cpp through
+       <ClCompile> (cl.exe) — reference_cpu.cpp is deliberately host-only so
+       the correctness oracle never depends on nvcc (CLAUDE.md paragraph 5). -->
+  <ItemGroup>
+    <CudaCompile Include="..\src\main.cu" />
+    <CudaCompile Include="..\src\kernels.cu" />
+    <ClCompile Include="..\src\reference_cpu.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\kernels.cuh" />
+    <ClInclude Include="..\src\util\cuda_check.cuh" />
+    <ClInclude Include="..\src\util\timer.cuh" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+  <!-- CUDA 13.3 MSBuild integration, part 2 (the .targets half): the actual
+       build rules that invoke nvcc for <CudaCompile> items and hand the
+       results to the linker. Must pair with the .props import above. -->
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 13.3.targets" />
+  </ImportGroup>
+</Project>

@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "system-identification", "system-identification.vcxproj", "{A72C6D43-2EB9-5723-AAD1-4C13B8ACF979}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A72C6D43-2EB9-5723-AAD1-4C13B8ACF979}.Debug|x64.ActiveCfg = Debug|x64
+		{A72C6D43-2EB9-5723-AAD1-4C13B8ACF979}.Debug|x64.Build.0 = Debug|x64
+		{A72C6D43-2EB9-5723-AAD1-4C13B8ACF979}.Release|x64.ActiveCfg = Release|x64
+		{A72C6D43-2EB9-5723-AAD1-4C13B8ACF979}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

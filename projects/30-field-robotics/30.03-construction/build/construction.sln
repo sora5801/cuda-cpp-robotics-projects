@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "construction", "construction.vcxproj", "{A01AABDA-07AA-5ED3-B12D-0DA63BADDFDD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A01AABDA-07AA-5ED3-B12D-0DA63BADDFDD}.Debug|x64.ActiveCfg = Debug|x64
+		{A01AABDA-07AA-5ED3-B12D-0DA63BADDFDD}.Debug|x64.Build.0 = Debug|x64
+		{A01AABDA-07AA-5ED3-B12D-0DA63BADDFDD}.Release|x64.ActiveCfg = Release|x64
+		{A01AABDA-07AA-5ED3-B12D-0DA63BADDFDD}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,8 @@
+# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
+# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
+# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
+# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
+[demo] template placeholder demo for project 22.05 (formation-control)
+PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
+RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)

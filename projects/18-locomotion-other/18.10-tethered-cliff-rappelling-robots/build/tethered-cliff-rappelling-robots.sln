@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tethered-cliff-rappelling-robots", "tethered-cliff-rappelling-robots.vcxproj", "{7CDA9EC6-A655-5056-B297-13B757EB631A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7CDA9EC6-A655-5056-B297-13B757EB631A}.Debug|x64.ActiveCfg = Debug|x64
+		{7CDA9EC6-A655-5056-B297-13B757EB631A}.Debug|x64.Build.0 = Debug|x64
+		{7CDA9EC6-A655-5056-B297-13B757EB631A}.Release|x64.ActiveCfg = Release|x64
+		{7CDA9EC6-A655-5056-B297-13B757EB631A}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

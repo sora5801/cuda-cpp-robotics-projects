@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "neural-ode-fused-integrators-for-learned", "neural-ode-fused-integrators-for-learned.vcxproj", "{35059159-1781-5082-9EF3-210E8D928E15}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{35059159-1781-5082-9EF3-210E8D928E15}.Debug|x64.ActiveCfg = Debug|x64
+		{35059159-1781-5082-9EF3-210E8D928E15}.Debug|x64.Build.0 = Debug|x64
+		{35059159-1781-5082-9EF3-210E8D928E15}.Release|x64.ActiveCfg = Release|x64
+		{35059159-1781-5082-9EF3-210E8D928E15}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

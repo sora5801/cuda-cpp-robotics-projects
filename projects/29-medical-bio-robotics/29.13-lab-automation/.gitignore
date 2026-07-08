@@ -1,0 +1,43 @@
+# =============================================================================
+# Project-local .gitignore — 29.13 (Lab automation: cell detection/tracking, pipetting verification vision)
+# Keeps build artifacts and bulky/regenerable data out of git. The repo root
+# .gitignore adds repo-wide rules; this file makes each project folder safe
+# even in isolation (CLAUDE.md paragraph 4 self-containment).
+# =============================================================================
+
+# --- Visual Studio / MSBuild build output -----------------------------------
+# The .vcxproj pins OutDir/IntDir to build\x64\<Configuration>\ — everything
+# under any x64/ here is regenerable by building.
+x64/
+build/x64/
+
+# Compiled/link artifacts anywhere in the project (belt and suspenders).
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.log
+
+# Visual Studio user/IDE state (per-machine, never shared).
+.vs/
+*.vcxproj.user
+
+# --- Optional CMake path (demo/run_demo.sh builds here) ----------------------
+build-cmake/
+
+# --- Data ---------------------------------------------------------------------
+# Downloaded/large datasets are fetched by scripts/download_data.* and never
+# committed (CLAUDE.md paragraph 8). Only the tiny labeled sample under
+# data/sample/ is committed.
+data/downloaded/
+
+# --- Demo scratch outputs ------------------------------------------------------
+# Artifacts the demo writes at run time (PNG/CSV/OBJ) go to demo/out/ so they
+# never pollute the committed demo/ files (expected_output.txt is committed).
+demo/out/
+
+# --- Python bytecode from scripts/ ---------------------------------------------
+__pycache__/
+*.pyc

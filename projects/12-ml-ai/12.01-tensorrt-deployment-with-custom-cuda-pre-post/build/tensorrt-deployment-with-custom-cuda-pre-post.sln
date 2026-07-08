@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tensorrt-deployment-with-custom-cuda-pre-post", "tensorrt-deployment-with-custom-cuda-pre-post.vcxproj", "{17B03371-57A2-5E99-8493-550F0B0FCABA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{17B03371-57A2-5E99-8493-550F0B0FCABA}.Debug|x64.ActiveCfg = Debug|x64
+		{17B03371-57A2-5E99-8493-550F0B0FCABA}.Debug|x64.Build.0 = Debug|x64
+		{17B03371-57A2-5E99-8493-550F0B0FCABA}.Release|x64.ActiveCfg = Release|x64
+		{17B03371-57A2-5E99-8493-550F0B0FCABA}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

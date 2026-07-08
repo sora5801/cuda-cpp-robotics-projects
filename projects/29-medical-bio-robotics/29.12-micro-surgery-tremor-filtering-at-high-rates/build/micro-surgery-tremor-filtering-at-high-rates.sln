@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "micro-surgery-tremor-filtering-at-high-rates", "micro-surgery-tremor-filtering-at-high-rates.vcxproj", "{E5489DBA-8765-551B-8774-CA9E2DCA1F77}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E5489DBA-8765-551B-8774-CA9E2DCA1F77}.Debug|x64.ActiveCfg = Debug|x64
+		{E5489DBA-8765-551B-8774-CA9E2DCA1F77}.Debug|x64.Build.0 = Debug|x64
+		{E5489DBA-8765-551B-8774-CA9E2DCA1F77}.Release|x64.ActiveCfg = Release|x64
+		{E5489DBA-8765-551B-8774-CA9E2DCA1F77}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

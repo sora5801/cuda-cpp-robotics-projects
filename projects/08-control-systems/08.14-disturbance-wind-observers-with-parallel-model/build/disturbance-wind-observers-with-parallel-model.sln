@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "disturbance-wind-observers-with-parallel-model", "disturbance-wind-observers-with-parallel-model.vcxproj", "{CB23996C-4AF7-5461-8D94-91F48D6B224B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CB23996C-4AF7-5461-8D94-91F48D6B224B}.Debug|x64.ActiveCfg = Debug|x64
+		{CB23996C-4AF7-5461-8D94-91F48D6B224B}.Debug|x64.Build.0 = Debug|x64
+		{CB23996C-4AF7-5461-8D94-91F48D6B224B}.Release|x64.ActiveCfg = Release|x64
+		{CB23996C-4AF7-5461-8D94-91F48D6B224B}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

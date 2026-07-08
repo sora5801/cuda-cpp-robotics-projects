@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "livestock-monitoring-pipelines", "livestock-monitoring-pipelines.vcxproj", "{64749B38-E1DA-5248-B4A6-AB2D0C321A7D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{64749B38-E1DA-5248-B4A6-AB2D0C321A7D}.Debug|x64.ActiveCfg = Debug|x64
+		{64749B38-E1DA-5248-B4A6-AB2D0C321A7D}.Debug|x64.Build.0 = Debug|x64
+		{64749B38-E1DA-5248-B4A6-AB2D0C321A7D}.Release|x64.ActiveCfg = Release|x64
+		{64749B38-E1DA-5248-B4A6-AB2D0C321A7D}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
