@@ -10,26 +10,32 @@
 
 ## Overview
 
-Jump-flooding Voronoi/distance transforms (easy, visual, useful)
-
-
-
-TODO(scaffold): Expand this into one honest plain-language paragraph: what this project does, what a
-learner will understand after studying it, and what artifact the demo produces. If the catalog bullet
-bundles several components, list here which are implemented and which are documented-only (CLAUDE.md §2).
-
-> **Template placeholder notice.** As scaffolded, `src/` contains a tiny fully-working SAXPY
-> (`y = a*x + y`) placeholder that compiles, runs, and passes its own GPU-vs-CPU check. It exists to
-> validate your toolchain and to demonstrate the repo's coding/commenting standards. It is **not** this
-> project's real implementation — every file marks its replacement points with `TODO(scaffold):`.
+Scatter a handful of "seed" cells across a grid and answer, for **every** cell: *which seed is
+nearest, and how far is it?* The labels form a **Voronoi diagram**; the distances form a
+**distance transform**. In robotics clothing: seeds are obstacle cells, and the distance transform
+is the **clearance field** that local planners, costmap inflation, and safety monitors consume.
+This project computes both with the **jump-flooding algorithm (JFA)** — a classic GPU technique
+that replaces the exact O(W·H·N) scan with O(log max(W,H)) gather passes over the grid — verifies
+it every run against an *exact* brute-force CPU oracle under documented approximation bounds, and
+writes two viewable images (regions + clearance field). It is the repository's first
+**grid/stencil-pattern** project (after 33.01/09.01's thread-per-problem pattern) and its first
+whose oracle checks an *algorithm's promise* rather than a ported computation.
 
 ## What this computes & why the GPU helps
 
-Name the computation, the bottleneck being parallelized, and the parallelization pattern
-(map / reduce / stencil / scan / batched-solve / sampling). One short paragraph plus a bullet or two.
+The exact answer costs `W·H·N` distance evaluations (every cell × every seed) — 134 million for
+the demo's 1024²×128 batch. JFA gets within a whisker of it in `log₂(1024) + 1` passes of
+`W·H·9` cheap gathers:
 
-TODO(scaffold): Describe the real computation and its GPU pattern. (The placeholder computes SAXPY —
-a pure *map*: every output element is independent, so one thread per element saturates memory bandwidth.)
+- **Pattern:** grid/stencil map with ping-pong double buffering — one thread per **cell**, 2-D
+  16×16 blocks, each pass gathering from 8 neighbors at offset ±step (step halves every pass), the
+  read and write buffers swapped between passes.
+- **Why it fits the GPU:** every cell's update is independent within a pass; a million cells means
+  a million threads, and the "information hops exponentially far" schedule does in ~11 passes what
+  brute force does in 128 scans.
+- **The honest twist:** JFA is *approximate* (rare boundary cells settle on the second-best seed).
+  Quantifying that against the exact oracle — and fixing it with the **1+JFA** variant — is half
+  the teaching value ([THEORY.md](THEORY.md)).
 
 ## System context — where this sits in a robot
 
@@ -37,19 +43,37 @@ Where this project lives in the canonical autonomy stack (see
 [`../../../docs/SYSTEM_DESIGN.md`](../../../docs/SYSTEM_DESIGN.md)) and in the physical/commercial whole
 (see [`PRACTICE.md`](PRACTICE.md)).
 
-- **Stack position:** TODO(scaffold): which layer (sensors / perception / estimation / prediction / planning / control / actuation / cross-cutting)?
-- **Upstream inputs:** TODO(scaffold): what feeds it, named as message-shaped interfaces (e.g., `PointCloud`, `JointState`)?
-- **Downstream consumers:** TODO(scaffold): who consumes the output, and in what message shape?
-- **Rate / latency budget:** TODO(scaffold): realistic Hz and per-cycle latency on a real robot (cite SYSTEM_DESIGN.md item 1).
-- **Reference robot(s):** TODO(scaffold): which of the five reference robots use this (AMR / manipulator cell / quadruped / quadrotor / AV stack)?
-- **In production:** TODO(scaffold): what would replace or surround this component in a shipping stack?
-- **Owning team:** TODO(scaffold): one line — where this work lives in a robotics company (SYSTEM_DESIGN.md item 5).
+- **Stack position:** the geometry substrate of the **planning layer** (domain 07 serves 06/23),
+  with a safety-monitor branch (31/21): distance-to-obstacle fields are what those layers query.
+- **Upstream inputs:** an occupancy/costmap layer (message shape: `nav_msgs/OccupancyGrid` — a
+  W×H byte grid + resolution in m/cell) or any obstacle-cell list; here, a seed list
+  (`S,id,x,y` rows, layout in [`src/kernels.cuh`](src/kernels.cuh)).
+- **Downstream consumers:** costmap inflation and DWA scoring (23.01), trajectory-clearance costs
+  in local planners (06.x), speed-and-separation monitoring (21.04), and — with labels kept —
+  generalized-Voronoi skeleton extraction for topological maps (05.16) and coverage partitions
+  (22.04).
+- **Rate / latency budget:** costmap updates run at 5–20 Hz on real stacks (SYSTEM_DESIGN item 1);
+  the measured ~4–6 ms end-to-end JFA on a 1024² grid fits inside even the fast end with room for
+  the rest of the costmap pipeline.
+- **Reference robot(s):** the **warehouse AMR** (clearance for DWA/costmaps) and the
+  **autonomous-vehicle stack** (drivable-space distance fields); the manipulator cell uses the 3-D
+  cousin (see "In production").
+- **In production:** costmap_2d's inflation layer (CPU, incremental), OpenCV `distanceTransform`
+  (CPU, exact, image-sized), and for 3-D the ESDF builders in nvblox/Voxblox — JFA's 3-D extension
+  is one of the standard GPU routes there.
+- **Owning team:** navigation/planning within an autonomy group; the safety-monitor consumers live
+  with the functional-safety team (SYSTEM_DESIGN item 5).
 
 ## The algorithm in brief
 
-Bullet list of the key algorithms this project implements; link to [`THEORY.md`](THEORY.md) for depth.
-
-- TODO(scaffold): list the algorithms named in the catalog bullet, one bullet each, with a THEORY.md anchor.
+- **JFA proper** — initialize seeds; passes at step = P/2, P/4, …, 1 (P = grid size rounded up to a
+  power of two): each cell adopts the closest seed any of its 9 step-offset samples knows. →
+  [THEORY.md](THEORY.md) §The algorithm.
+- **1+JFA** — one extra step-1 pass *before* the schedule; suppresses JFA's rare long-range misses
+  (adopted here after the plain variant exceeded the error bound — the story is in
+  [THEORY.md](THEORY.md) §How we verify correctness).
+- **Exact oracle** — brute-force nearest-seed scan on the CPU, integer arithmetic throughout, so
+  verification is exact counting, not float tolerance.
 
 ## Build
 
@@ -63,8 +87,7 @@ live in [`../../../docs/BUILD_GUIDE.md`](../../../docs/BUILD_GUIDE.md).
 Optional cross-platform path: `CMakeLists.txt` at the project root (a bonus for Linux learners; the VS
 solution is the required deliverable, CLAUDE.md §5).
 
-Optional dependencies and their fallbacks: TODO(scaffold): list any (default: none — CUDA toolkit
-libraries + C++17 standard library only).
+Optional dependencies and their fallbacks: **none** — CUDA runtime + C++17 standard library only.
 
 ## Run the demo
 
@@ -75,58 +98,87 @@ One command, from this folder (builds first if needed, runs on `data/sample/`, c
 ```
 
 Linux/CMake equivalent: `./demo/run_demo.sh`. See [`demo/README.md`](demo/README.md) for what you are
-looking at.
+looking at — **including the two images the demo writes to `demo/out/`**.
 
 ## Data
 
-What the committed sample is (synthetic by default, per CLAUDE.md §8), how to regenerate or download it,
-and its licensing. Details and provenance in [`data/README.md`](data/README.md).
-
-TODO(scaffold): describe this project's sample data, how `scripts/make_synthetic.py` generates it, and
-(if a public dataset applies) what `scripts/download_data.ps1` fetches and under what license.
+Fully **synthetic** (labeled so everywhere): `data/sample/jfa_seeds.csv` (~1.2 KiB, committed) — 64
+distinct seed cells on the 512×512 sample grid, generated by
+[`scripts/make_synthetic.py`](scripts/make_synthetic.py) with seed 42, byte-identical on
+regeneration. No public dataset applies (seed cells are fully synthesizable; the oracle supplies
+ground truth at run time), so `scripts/download_data.ps1` is an honest no-op. Format and checksum:
+[`data/README.md`](data/README.md).
 
 ## Expected output
 
-What success looks like, and how the GPU result is checked against the CPU reference
-(`src/reference_cpu.cpp`) within a documented tolerance. The canonical lines live in
-[`demo/expected_output.txt`](demo/expected_output.txt).
-
-TODO(scaffold): describe the real output, the verification tolerance, and any artifact (PNG/CSV/OBJ)
-the demo writes. (The placeholder prints a `PROBLEM:` line and a `RESULT: PASS` line; timings vary by
-GPU and are deliberately not diffed.)
+Eight stable lines — banner, `PROBLEM:`, `SAMPLE:`, `SAMPLE RESULT: PASS`, `ARTIFACT:`, `BATCH:`,
+`BATCH RESULT: PASS`, `RESULT: PASS` — checked as a subset diff by
+[`demo/expected_output.txt`](demo/expected_output.txt). Verification is a **bounds check against
+exactness**: label mismatches ≤ 0.5% of cells (exact-distance ties count as agreement — a tie cell
+has two true answers) and max distance error ≤ 2 cells. The entire comparison is integer
+arithmetic, so the `[info]` mismatch counts are deterministic: on this machine the 512² sample
+matches the exact field **perfectly** (0 mismatches), and the 1024²/128-seed batch mismatches 4
+cells in a million with max error 0.88 cells. The demo also writes `demo/out/voronoi.pgm` and
+`demo/out/distance.pgm` (git-ignored, regenerated every run).
 
 ## Code tour
 
 A guided reading order through `src/`:
 
-1. [`src/main.cu`](src/main.cu) — entry point: arguments, data, CPU reference, GPU path, verification, timing.
-2. [`src/kernels.cuh`](src/kernels.cuh) — the kernel interface and why it is shaped that way.
-3. [`src/kernels.cu`](src/kernels.cu) — the GPU kernels themselves (the heart of the project).
-4. [`src/reference_cpu.cpp`](src/reference_cpu.cpp) — the plain-C++ correctness oracle.
-5. [`src/util/`](src/util/README.md) — `CUDA_CHECK`, timers, and why they are copied, not shared.
-
-TODO(scaffold): update this tour for the real implementation (add files, name the most interesting kernel).
+1. [`src/main.cu`](src/main.cu) — the two stages, the bounds-check comparator (read its
+   tie-handling), the PGM artifact writer.
+2. [`src/kernels.cuh`](src/kernels.cuh) — the cell-state layout (why `int4`), the seed-list layout,
+   and the approximation contract.
+3. [`src/reference_cpu.cpp`](src/reference_cpu.cpp) — the *exact* oracle, and the header comment on
+   why this oracle is a different algorithm, not a serial twin.
+4. [`src/kernels.cu`](src/kernels.cu) — the heart: the JFA pass kernel and the ping-pong launcher.
+   The single most interesting thing: the **1+JFA priming pass** and the comment explaining the
+   bug-hunt that put it there.
+5. [`src/util/`](src/util/README.md) — `CUDA_CHECK`, timers (copied, not shared — §4 rule).
 
 ## Prior art & further reading
 
 The real tools and papers this project teaches toward — study them, do not copy them (CLAUDE.md §4.1).
 
-- TODO(scaffold): 3–6 entries (e.g., PCL, OpenCV CUDA, nvblox, cuRobo, GTSAM, OMPL, Drake, MuJoCo,
-  PX4, Nav2, MoveIt), one line each on what to learn from it.
+- **Rong & Tan (2006), "Jump Flooding in GPU with Applications to Voronoi Diagram and Distance
+  Transform"** — the original paper; the 1+JFA and JFA² variants live there too.
+- **OpenCV `distanceTransform`** — the exact CPU answer (Felzenszwalb/Borgefors families); know
+  when image-sized exact beats grid-sized approximate.
+- **Felzenszwalb & Huttenlocher (2012)** — the exact O(W·H) separable distance transform; the
+  strongest CPU competitor and Exercise 5's subject.
+- **nvblox / Voxblox ESDF builders** — production 3-D distance fields for planning; JFA's 3-D
+  extension (26 neighbors) is one standard GPU route.
+- **costmap_2d (Nav2)** — how classic stacks *incrementally* inflate costs instead of recomputing
+  fields; the engineering trade against a 4 ms full recompute.
+- **`thrust`/CUB** — not used here on purpose; everything is a hand-rolled kernel so the pass
+  structure stays visible.
 
 ## Exercises
 
-3–5 "try this next" extensions for the learner, ordered easiest first.
-
-1. TODO(scaffold): exercise 1.
-2. TODO(scaffold): exercise 2.
-3. TODO(scaffold): exercise 3.
+1. **Draw more seeds:** bump the sample to 512 seeds and look at `voronoi.pgm` — then explain why
+   JFA cost is *independent* of seed count while the CPU oracle scales linearly in it.
+2. **Wavefront contrast:** implement the naive brute-force GPU kernel (one thread per cell, loop
+   all seeds) and time it against JFA at N = 16, 128, 1024 — find the crossover and explain it.
+3. **3-D JFA:** extend cells to `int4`(x,y,z,id) and the gather to 26 neighbors — you have built
+   the core of an ESDF pipeline (the nvblox connection).
+4. **Shared-memory tiling for the small-step passes:** cache a (16+2·step)² tile when step < 8 and
+   measure whether it ever wins (spoiler worth verifying: the early long-range passes dominate).
+5. **Exact separable transform:** implement Felzenszwalb–Huttenlocher on the CPU (or GPU per-row/
+   per-column) and compare exactness *and* speed against JFA — then argue which your robot needs.
 
 ## Limitations & honesty
 
-What is simplified, what is synthetic, and what would differ in production.
-
-- TODO(scaffold): list the real limitations and scoping decisions (including any reduced-scope choice
-  for `[R&D]` bullets, and the sim-validated-only / not-safety-certified caveat where motion of real
-  hardware is conceivable — CLAUDE.md §1, §8).
-- As scaffolded, `src/` is the SAXPY toolchain-validation placeholder, not this project's algorithm.
+- **JFA is approximate** — documented, measured (4/1,048,576 cells, ≤0.88-cell error on the batch),
+  and bounded by the verification contract; if your application needs *exact* fields (safety
+  certification arguments do), use an exact algorithm (Exercise 5) and pay its structure.
+- **The plain-JFA failure was real:** the first implementation exceeded the 2-cell bound
+  (3.9-cell max error) and was upgraded to 1+JFA — kept in the record (push-note 2026-07-08-03)
+  because "the oracle caught it" is the whole point of oracles.
+- **2-D only, unweighted, point seeds** — no obstacle footprints/polygons (rasterize first),
+  no anisotropic metrics; 3-D is Exercise 3.
+- **Euclidean metric on cell centers** — real costmaps often want obstacle-boundary distance;
+  consumers handle the half-cell subtleties.
+- **Timings are teaching artifacts** — end-to-end JFA including its internal allocations
+  (deliberately honest accounting), single-shot, one machine.
+- **Nothing here commands hardware**; the sim-only caveat applies to consumers (planners, monitors)
+  that act on these fields.

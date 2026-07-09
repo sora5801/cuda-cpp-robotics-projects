@@ -1,108 +1,84 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 07.09 (Jump-flooding Voronoi/distance transforms (easy, visual, useful)).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample generator for project 07.09
+(jump-flooding Voronoi / distance transforms).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+The input to a Voronoi/distance transform is just a set of SEED CELLS on a
+grid — in robotics, obstacle cells on a costmap. Fully synthesizable, and
+ground truth is not stored at all: the demo computes the answer twice (GPU
+jump-flooding vs the EXACT brute-force CPU oracle) and checks the JFA's
+documented approximation bounds. This file therefore carries only inputs.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What it writes: ../data/sample/jfa_seeds.csv — 64 distinct seed cells on the
+demo's fixed 512x512 sample grid:
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    S,<id>,x,y      ids sequential from 0; x in [0,512), y in [0,512)
+
+Seeds are drawn uniformly with rejection (no duplicate cells — the GPU
+scatter kernel relies on distinctness), seed 42, reproducible byte-for-byte
+(python's random.Random is platform-stable).
+
+Usage:
+    python make_synthetic.py            # defaults: seed 42, 64 seeds
+    python make_synthetic.py --seed 7   # experiments; do not commit
 """
 
 import argparse
-import csv
 import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
-
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+GRID_W = 512   # fixed sample grid — matches the constants in src/main.cu
+GRID_H = 512   # (the demo's stable SAMPLE line names 512x512; change together)
+DEFAULT_SEEDS = 64
 
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--seed", type=int, default=42,
+                    help="RNG seed (default 42 — the committed sample's seed)")
+    ap.add_argument("--count", type=int, default=DEFAULT_SEEDS,
+                    help=f"number of Voronoi seeds (default {DEFAULT_SEEDS})")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample" / "jfa_seeds.csv")
+    args = ap.parse_args()
 
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
+    rng = random.Random(args.seed)
 
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
-    """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    # Rejection-sample distinct cells; a set of (x, y) enforces the
+    # no-duplicates contract the GPU scatter kernel documents.
+    cells: list[tuple[int, int]] = []
+    seen: set[tuple[int, int]] = set()
+    while len(cells) < args.count:
+        xy = (rng.randrange(GRID_W), rng.randrange(GRID_H))
+        if xy in seen:
+            continue
+        seen.add(xy)
+        cells.append(xy)
 
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 07.09\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+    lines = [
+        "# jfa_seeds.csv - SYNTHETIC sample data for project 07.09",
+        f"# generated by scripts/make_synthetic.py (python random.Random, seed {args.seed})",
+        f"# format: S,<id>,x,y  - one Voronoi seed cell on the {GRID_W}x{GRID_H} sample grid",
+        "# robotics reading: each seed is an 'obstacle cell'; the demo's distance",
+        "# field is then the clearance map a local planner would consume",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+    ]
+    for i, (x, y) in enumerate(cells):
+        lines.append(f"S,{i},{x},{y}")
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:   # LF pinned
+        f.write("\n".join(lines) + "\n")
 
-
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
-
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 07.09 (Jump-flooding Voronoi/distance transforms (easy, visual, useful)).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
-
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    print(f"wrote {args.out} ({args.out.stat().st_size} bytes, {args.count} seeds "
+          f"on {GRID_W}x{GRID_H}, seed {args.seed}) - labeled SYNTHETIC")
+    if args.seed != 42 or args.count != DEFAULT_SEEDS:
+        print("note: non-default sample - fine for experiments, do NOT commit this file")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

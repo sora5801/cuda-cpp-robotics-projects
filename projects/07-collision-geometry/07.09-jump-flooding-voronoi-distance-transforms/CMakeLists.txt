@@ -75,4 +75,6 @@ target_compile_options(jump-flooding-voronoi-distance-transforms PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(jump-flooding-voronoi-distance-transforms PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 07.09 note: the source list above is complete for this project and no
+# extra libraries are linked — JFA is a handful of hand-rolled kernels
+# (that being teachable is the whole point; see README.md §Prior art).

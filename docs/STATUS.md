@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 2/505 done** (0.4%)
+**Overall: 3/505 done** (0.6%)
 
 | Status | Count |
 |--------|-------|
-| todo | 503 |
+| todo | 502 |
 | in-progress | 0 |
-| done | 2 |
+| done | 3 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -36,7 +36,7 @@
 | 04 Sensor Fusion & State Estimation | 0/13 |
 | 05 SLAM, Mapping & Localization | 0/18 |
 | 06 Motion Planning | 0/20 |
-| 07 Collision Detection & Geometry | 0/13 |
+| 07 Collision Detection & Geometry | 1/13 |
 | 08 Control Systems | 0/16 |
 | 09 Robot Dynamics & Kinematics | 1/14 |
 | 10 Physics Simulation | 0/20 |
@@ -205,7 +205,7 @@
 | 06.19 | Task-and-motion planning with batch-sim feasibility screening | [R&D] research |  | todo |  |  |
 | 06.20 | Diffusion/flow-based motion samplers with custom inference kernels | [R&D] research |  | todo |  |  |
 
-## 7. Collision Detection & Geometry (`07-collision-geometry`) — 0/13 done
+## 7. Collision Detection & Geometry (`07-collision-geometry`) — 1/13 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -217,7 +217,7 @@
 | 07.06 | Continuous collision detection (conservative advancement) batches | intermediate |  | todo |  |  |
 | 07.07 | Convex decomposition (V-HACD-style) acceleration | intermediate |  | todo |  |  |
 | 07.08 | Minkowski-sum C-space obstacle grids | intermediate |  | todo |  |  |
-| 07.09 | Jump-flooding Voronoi/distance transforms (easy, visual, useful) | ★ beginner | ⭐ | todo |  |  |
+| 07.09 | Jump-flooding Voronoi/distance transforms (easy, visual, useful) | ★ beginner | ⭐ | done | lead | all §9 gates green 2026-07-08 (RTX 2080 SUPER); 1+JFA variant |
 | 07.10 | Ray-mesh intersection library or OptiX wrapper for planning + sensor sim | intermediate |  | todo |  |  |
 | 07.11 | Visibility/occlusion evaluation: next-best-view scoring over candidate poses | intermediate |  | todo |  |  |
 | 07.12 | Mesh decimation/simplification for collision proxies | intermediate |  | todo |  |  |

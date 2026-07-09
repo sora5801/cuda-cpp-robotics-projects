@@ -1,10 +1,11 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 07.09 (Jump-flooding Voronoi/distance transforms (easy, visual, useful))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 07.09 DECISION: no public dataset applies — the input is a set of seed
+# cells on a grid (obstacle cells, in robotics terms), which synthetic
+# generation covers completely; the exact CPU oracle supplies ground truth
+# at run time. This script stays the honest no-op below;
+# ../scripts/make_synthetic.py is the data source (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
