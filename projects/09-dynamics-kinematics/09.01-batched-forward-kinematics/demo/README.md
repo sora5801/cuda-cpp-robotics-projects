@@ -12,13 +12,22 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+**Batched forward kinematics** — the pose of a 6-DoF arm's end-effector computed for many joint
+configurations at once, one GPU thread per configuration. The demo:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+1. loads the committed synthetic sample (`../data/sample/fk_sample.csv`: the arm model + 64
+   configurations), validates and uploads the model to GPU **constant memory** once, then computes
+   every pose on the GPU (`../src/kernels.cu`) *and* on the single-threaded CPU oracle
+   (`../src/reference_cpu.cpp`), comparing within tolerance (position 1e-4 m; quaternion 1e-4 per
+   component **after hemisphere alignment** — q and −q are the same rotation);
+2. regenerates 200,000 configurations in memory (seed 42, angles in (−π, π]), verifies GPU == CPU
+   on all of them, and times both paths.
+
+What to notice: the worst deviations sit near **1e-7** (pure FP32 + trig-implementation rounding,
+two-plus orders inside tolerance), and the speed-up comes from batch parallelism alone — the FK
+chain itself is inherently sequential (joint *j* needs joint *j−1*'s frame); parallelism lives
+*across* configurations, never along the chain. No artifact file is written — poses are verified,
+not visualized (the visual FK story belongs to consumers like reachability maps, 09.06).
 
 ## How to read the output
 

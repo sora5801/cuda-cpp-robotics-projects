@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 1/505 done** (0.2%)
+**Overall: 2/505 done** (0.4%)
 
 | Status | Count |
 |--------|-------|
-| todo | 504 |
+| todo | 503 |
 | in-progress | 0 |
-| done | 1 |
+| done | 2 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -38,7 +38,7 @@
 | 06 Motion Planning | 0/20 |
 | 07 Collision Detection & Geometry | 0/13 |
 | 08 Control Systems | 0/16 |
-| 09 Robot Dynamics & Kinematics | 0/14 |
+| 09 Robot Dynamics & Kinematics | 1/14 |
 | 10 Physics Simulation | 0/20 |
 | 11 Sensor Simulation & Digital Twins | 0/11 |
 | 12 Machine Learning & AI for Robots | 0/25 |
@@ -244,11 +244,11 @@
 | 08.15 | Friction observer banks + compensation | intermediate |  | todo |  |  |
 | 08.16 | H∞ synthesis parameter sweeps offline | intermediate |  | todo |  |  |
 
-## 9. Robot Dynamics & Kinematics (`09-dynamics-kinematics`) — 0/14 done
+## 9. Robot Dynamics & Kinematics (`09-dynamics-kinematics`) — 1/14 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 09.01 | Batched forward kinematics (10⁵ configurations — the foundation for everything above) | ★ beginner | ⭐ | todo |  |  |
+| 09.01 | Batched forward kinematics (10⁵ configurations — the foundation for everything above) | ★ beginner | ⭐ | done | lead | all §9 gates green 2026-07-08 (RTX 2080 SUPER) |
 | 09.02 | Batched geometric/analytic Jacobians | intermediate |  | todo |  |  |
 | 09.03 | GPU Featherstone: batched ABA forward dynamics + RNEA inverse dynamics (mini rigid-body library) | intermediate |  | todo |  |  |
 | 09.04 | Composite-rigid-body mass matrices in parallel | intermediate |  | todo |  |  |

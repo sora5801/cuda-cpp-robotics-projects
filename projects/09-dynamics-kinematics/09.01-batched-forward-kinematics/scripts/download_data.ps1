@@ -1,10 +1,11 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 09.01 (Batched forward kinematics (10⁵ configurations — the foundation for everything above))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 09.01 DECISION: no public dataset applies — the inputs are a robot model
+# (a list of numbers) and joint angles, which synthetic generation covers
+# completely with free ground truth (real robots' URDFs exist, but teach
+# nothing extra here and drag in vendor licensing). This script stays the
+# honest no-op below; ../scripts/make_synthetic.py is the data source.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

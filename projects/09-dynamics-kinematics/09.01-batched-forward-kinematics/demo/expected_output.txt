@@ -1,8 +1,13 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 09.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 09.01 (batched-forward-kinematics)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — never timings ("[time]") or device/path lines ("[info]"), which vary
+# by machine and run. The output contract is documented at the top of ../src/main.cu; change the
+# program's stable lines and this file together, in the same commit.
+[demo] batched forward kinematics (project 09.01)
+PROBLEM: serial-chain FK T_base_ee(q) -> pose (p [m], quat (w,x,y,z)), FP32
+MODEL: 6 revolute joints [synthetic 6-DoF arm]
+SAMPLE: 64 configurations [synthetic, seed 42]
+SAMPLE RESULT: PASS (GPU vs CPU within tol: position abs 1e-4 m, quaternion abs 1e-4)
+BATCH: 200000 configurations, generated in-memory [seed 42]
+RESULT: PASS (all GPU poses match the CPU reference within documented tolerances)

@@ -75,4 +75,6 @@ target_compile_options(batched-forward-kinematics PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(batched-forward-kinematics PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 09.01 note: the source list above is complete for this project and no
+# extra libraries are linked — the kinematics helpers are hand-rolled on
+# purpose (the point of the project; see README.md §Prior art).
