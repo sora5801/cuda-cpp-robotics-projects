@@ -1,8 +1,14 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 04.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 04.01 (massive-particle-filter-localization)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (device, deviations, RMSE, ESS) and "[time]" lines vary by
+# machine and are deliberately unchecked; the RMSE gate behind RESULT carries a wide margin
+# (measured ~0.02 m vs the 0.15 m threshold) so the verdict is stable even where libm/ulp
+# differences ripple through resampling across platforms (see the determinism note at the top of
+# ../src/main.cu). Change the program's stable lines and this file together.
+[demo] massive particle filter localization: range-beam MCL on a 2-D grid (project 04.01)
+PROBLEM: bootstrap particle filter, K=100000 particles, B=16 beams/scan, 64x64 grid map @ 0.25 m, FP32
+SAMPLE: 120 steps @ 10 Hz, noisy odometry + noisy range scans, ground truth known [synthetic]
+VERIFY: PASS (GPU predict/weight match CPU reference within documented tolerances)
+ARTIFACT: wrote demo/out/trajectory_est.csv (120 steps)
+RESULT: PASS (closed-loop position RMSE < 0.15 m vs ground truth)

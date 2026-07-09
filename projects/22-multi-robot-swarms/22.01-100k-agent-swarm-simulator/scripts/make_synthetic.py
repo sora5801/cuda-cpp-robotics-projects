@@ -1,108 +1,85 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 22.01 (100k-agent swarm simulator: flocking, pheromone grids, stigmergy).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample generator for project 22.01
+(100k-agent swarm simulator: flocking, pheromone grids, stigmergy).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+A swarm simulator's "dataset" is a SCENARIO, not recordings: how many
+agents, how long to simulate, and which seed to spawn them from. That
+scenario is this project's committed sample — the agents themselves
+(uniform positions, random headings) are spawned inside the demo from the
+scenario's seed with the repo's portable xorshift32 generator, and
+correctness comes from the brute-force CPU oracle run in lockstep plus the
+end-of-run flock statistics, not from stored ground truth. (08.01 set this
+scenario-as-data precedent; see ../data/README.md.)
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What it writes: ../data/sample/swarm_scenario.csv
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    N,n        agent count (the catalog's headline: 100,000)
+    STEPS,t    simulation steps at dt = 0.05 s (20 Hz); 300 = 15 s
+    SEED,s     xorshift32 spawn seed (uniform positions, random headings)
+
+No RNG runs in THIS script — a scenario is constants (the seed is a
+constant too; the randomness happens inside the demo, deterministically).
+The file is trivially byte-reproducible; LF line endings are pinned so the
+committed bytes and their SHA-256 are identical on every platform.
+
+Usage:
+    python make_synthetic.py                       # the committed scenario
+    python make_synthetic.py --agents 10000        # experiments; do not commit
 """
 
 import argparse
-import csv
-import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
+# The committed defaults — the exact configuration demo/expected_output.txt
+# was written against (changing them changes the demo's stable PROBLEM /
+# SCENARIO lines, and the diff will flag it).
+DEFAULT_AGENTS = 100000
+DEFAULT_STEPS = 300
 DEFAULT_SEED = 42
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
 
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--agents", type=int, default=DEFAULT_AGENTS,
+                    help=f"agent count (default {DEFAULT_AGENTS})")
+    ap.add_argument("--steps", type=int, default=DEFAULT_STEPS,
+                    help=f"simulation steps at 20 Hz (default {DEFAULT_STEPS} = 15 s)")
+    ap.add_argument("--seed", type=int, default=DEFAULT_SEED,
+                    help=f"xorshift32 spawn seed used by the demo (default {DEFAULT_SEED})")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample" / "swarm_scenario.csv")
+    args = ap.parse_args()
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+    if args.agents < 1 or args.steps < 1 or args.seed < 0:
+        ap.error("--agents and --steps must be >= 1, --seed must be >= 0")
 
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
+    lines = [
+        "# swarm_scenario.csv - SYNTHETIC scenario for project 22.01",
+        "# generated by scripts/make_synthetic.py (no RNG - a scenario is constants;",
+        "# the seed below drives the demo's deterministic xorshift32 spawn)",
+        "# N,n     : agent count",
+        "# STEPS,t : simulation steps at dt = 0.05 s (20 Hz)",
+        "# SEED,s  : spawn seed (uniform positions, random headings, |v| = 1 m/s)",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+        f"N,{args.agents}",
+        f"STEPS,{args.steps}",
+        f"SEED,{args.seed}",
+    ]
 
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
-    """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:   # LF pinned
+        f.write("\n".join(lines) + "\n")
 
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 22.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
-
-
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
-
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 22.01 (100k-agent swarm simulator: flocking, pheromone grids, stigmergy).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
-
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    print(f"wrote {args.out} ({args.out.stat().st_size} bytes: N={args.agents}, "
+          f"steps={args.steps}, seed={args.seed}) - labeled SYNTHETIC")
+    if args.agents != DEFAULT_AGENTS or args.steps != DEFAULT_STEPS or args.seed != DEFAULT_SEED:
+        print("note: non-default scenario - fine for experiments, do NOT commit this file")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

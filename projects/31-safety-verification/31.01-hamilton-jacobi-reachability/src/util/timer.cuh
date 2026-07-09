@@ -49,9 +49,10 @@
 //    recorded before the stop event has finished. Callers rely on this
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
-//    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    single-stream structure of the demos. 31.01 runs entirely in stream 0
+//    — the sweep kernels ping-pong in launch order, so recording begin/end
+//    around launch_hj_solve times the whole backward-time integration
+//    (including the launcher's internal alloc/copy, labeled so on [time]).
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

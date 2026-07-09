@@ -75,4 +75,5 @@ target_compile_options(massive-particle-filter-localization PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(massive-particle-filter-localization PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 04.01 links nothing extra: the predict/weight kernels and the host-side
+# resampler need only the CUDA runtime + the C++17 standard library.

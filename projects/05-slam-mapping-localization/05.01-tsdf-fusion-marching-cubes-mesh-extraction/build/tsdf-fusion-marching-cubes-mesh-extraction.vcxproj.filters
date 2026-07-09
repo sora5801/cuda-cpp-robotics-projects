@@ -34,6 +34,9 @@
     <ClInclude Include="..\src\kernels.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\mc_tables.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\util\cuda_check.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>

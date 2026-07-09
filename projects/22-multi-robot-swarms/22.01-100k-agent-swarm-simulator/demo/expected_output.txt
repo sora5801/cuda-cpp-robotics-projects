@@ -1,8 +1,15 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 22.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 22.01 (100k-agent-swarm-simulator)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (device name, measured deviations, flock metrics) and
+# "[time]" lines vary by machine and run and are deliberately unchecked. The RESULT thresholds
+# carry wide margins (measured mean local alignment ~0.97 vs the 0.5 gate; verify deviations
+# ~1e-5 vs tol 1e-3) so the verdict survives the documented run-to-run atomic-ordering ulps and
+# cross-platform libm ulps (see the determinism notes at the top of ../src/main.cu and in
+# ../src/kernels.cuh). Change the program's stable lines and this file together.
+[demo] 100k-agent swarm simulator: flocking + pheromone stigmergy (project 22.01)
+PROBLEM: N=100000 boids + 256x256 pheromone grid, uniform-grid neighbor search, 256 m arena, FP32
+SCENARIO: uniform spawn, random headings (seed 42); 300 steps @ dt=0.05 s (15 s of swarm time) [synthetic]
+VERIFY: PASS (GPU lockstep-matches CPU brute-force oracle: N=4096, 100 steps, pos/vel/pheromone within tol 1e-3)
+ARTIFACT: wrote demo/out/density.pgm, demo/out/pheromone.pgm, demo/out/positions.csv (first 1000 agents)
+RESULT: PASS (all agents bounded in the arena; flocking emerged: mean local alignment >= 0.5)

@@ -1,108 +1,106 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 31.01 (Hamilton-Jacobi reachability: level-set grid solvers (stencil ops — GPU-perfect)).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample generator for project 31.01
+(Hamilton-Jacobi reachability, double-integrator teaching core).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+A reachability solver's "dataset" is a PROBLEM DEFINITION, not recordings:
+the state-space grid, the control bound, the target set, and the horizon.
+That scenario is this project's committed sample — everything else (the
+initial level function, the PDE sweeps) is computed inside the demo, and
+correctness comes from the CPU twin plus the CLOSED-FORM minimum-time
+solution of the double integrator, not from stored ground truth.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What it writes: ../data/sample/double_integrator_scenario.csv
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    GRID,nx,nv        state-space grid cells (x fast axis, v slow axis)
+    XDOM,xmin,xmax    position domain (m), node-centered
+    VDOM,vmin,vmax    velocity domain (m/s)
+    UMAX,u            acceleration bound |u| <= umax (m/s^2)
+    TTARGET,t0        target = the min-time sublevel set {T*(x,v) <= t0} (s)
+    HORIZON,T         reachability horizon (s)
+
+The default scenario is the ratified teaching setup: a 256x256 grid over
+[-3,3] m x [-2,2] m/s, umax = 0.8 m/s^2, target level t0 = 0.6 s, horizon
+T = 1.5 s. These numbers are chosen so the final reachable tube (which the
+math says spans |x| <= 1.77 m, |v| <= 1.68 m/s) stays >20 cells away from
+every grid edge — the extrapolating boundary condition then never touches
+the answer (THEORY.md, numerical considerations).
+
+No RNG is involved (a scenario is constants), so the file is trivially
+byte-reproducible; the conventional --seed flag is accepted for uniformity
+with the repo's other generators (default 42) but changes nothing.
+
+Usage:
+    python make_synthetic.py                 # the committed scenario
+    python make_synthetic.py --umax 1.2      # experiments; do not commit
 """
 
 import argparse
-import csv
-import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--nx", type=int, default=256, help="grid cells along x (default 256)")
+    ap.add_argument("--nv", type=int, default=256, help="grid cells along v (default 256)")
+    ap.add_argument("--umax", type=float, default=0.8,
+                    help="acceleration bound in m/s^2 (default 0.8)")
+    ap.add_argument("--ttarget", type=float, default=0.6,
+                    help="target level t0 in s: target = {T* <= t0} (default 0.6)")
+    ap.add_argument("--horizon", type=float, default=1.5,
+                    help="reachability horizon T in s (default 1.5)")
+    ap.add_argument("--seed", type=int, default=42,
+                    help="unused (no RNG in a scenario); kept for repo-wide CLI uniformity")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample"
+                            / "double_integrator_scenario.csv")
+    args = ap.parse_args()
 
+    # Guard the one silent failure mode this project must never have: a
+    # scenario whose final tube (analytic extent umax*(t0+T) in v, and
+    # umax*(t0+T)^2/2 in x at the tube's corners) is clipped by the grid.
+    # A clipped tube would make the demo's analytic check fail confusingly;
+    # better to refuse here with an explanation.
+    tau_f = args.ttarget + args.horizon
+    v_extent = args.umax * tau_f                     # max |v| of the tube (on the switching curve)
+    x_extent = args.umax * tau_f * tau_f / 2.0       # max |x| of the tube (at its corners)
+    if v_extent >= 2.0 * 0.9 or x_extent >= 3.0 * 0.9:
+        print(f"error: tube extent (|x|<={x_extent:.2f} m, |v|<={v_extent:.2f} m/s) "
+              f"would approach the fixed [-3,3]x[-2,2] domain edges; "
+              f"reduce --umax/--ttarget/--horizon", file=sys.stderr)
+        return 1
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+    lines = [
+        "# double_integrator_scenario.csv - SYNTHETIC scenario for project 31.01",
+        "# generated by scripts/make_synthetic.py (no RNG - a scenario is constants)",
+        "# GRID,nx,nv     : state-space grid cells (x fast, v slow; node-centered)",
+        "# XDOM,xmin,xmax : position domain in m",
+        "# VDOM,vmin,vmax : velocity domain in m/s",
+        "# UMAX,u         : acceleration bound |u| <= umax in m/s^2",
+        "# TTARGET,t0     : target set = {min-time-to-origin <= t0}, t0 in s",
+        "# HORIZON,T      : reachability horizon in s",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+        f"GRID,{args.nx},{args.nv}",
+        "XDOM,-3,3",
+        "VDOM,-2,2",
+        f"UMAX,{args.umax:.9g}",
+        f"TTARGET,{args.ttarget:.9g}",
+        f"HORIZON,{args.horizon:.9g}",
+    ]
 
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:   # LF pinned
+        f.write("\n".join(lines) + "\n")
 
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
-    """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 31.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
-
-
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
-
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 31.01 (Hamilton-Jacobi reachability: level-set grid solvers (stencil ops — GPU-perfect)).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
-
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    print(f"wrote {args.out} ({args.out.stat().st_size} bytes: {args.nx}x{args.nv}, "
+          f"umax={args.umax:.6g}, t0={args.ttarget:.6g}, T={args.horizon:.6g}) - labeled SYNTHETIC")
+    if (args.nx, args.nv, args.umax, args.ttarget, args.horizon) != (256, 256, 0.8, 0.6, 1.5):
+        print("note: non-default scenario - fine for experiments, do NOT commit this file")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

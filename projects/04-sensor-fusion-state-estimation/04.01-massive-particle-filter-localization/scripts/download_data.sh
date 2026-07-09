@@ -3,10 +3,13 @@
 # download_data.sh — public-dataset fetcher for 04.01 (Massive particle filter localization (10⁵–10⁶ particles, GPU likelihoods + resampling))
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 04.01 DECISION: no public dataset — this script stays the honest no-op
+# below. The classic public candidates (TUM RGB-D, EuRoC, KITTI) carry the
+# wrong sensor for this project's teaching core (cameras/3-D LiDAR, not a
+# planar range fan) and would bury the algorithm under format parsing; the
+# synthetic world gives the same estimation problem WITH exact ground truth,
+# which the closed-loop RMSE gate needs. ../scripts/make_synthetic.py writes
+# the map + trajectory + scans (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

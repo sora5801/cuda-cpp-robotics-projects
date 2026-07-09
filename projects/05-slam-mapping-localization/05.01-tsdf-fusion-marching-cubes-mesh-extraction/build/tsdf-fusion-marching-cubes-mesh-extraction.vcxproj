@@ -175,6 +175,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\kernels.cuh" />
+    <!-- mc_tables.h: the 256-case marching-cubes table (data, not code) —
+         included by BOTH kernels.cu (as a __constant__ initializer) and
+         reference_cpu.cpp (host copy for the exact recount). -->
+    <ClInclude Include="..\src\mc_tables.h" />
     <ClInclude Include="..\src\util\cuda_check.cuh" />
     <ClInclude Include="..\src\util\timer.cuh" />
   </ItemGroup>
