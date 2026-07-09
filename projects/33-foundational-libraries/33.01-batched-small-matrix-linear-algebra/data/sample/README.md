@@ -16,7 +16,7 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `smallmat_sample.csv` (~59 KiB, synthetic, seed 42) — 64/32/16 matmul
+input pairs at *n*=3/4/6 plus 32 SPD 6×6 systems with right-hand sides. Format, field meanings, and
+the SHA-256 checksum are documented in [`../README.md`](../README.md); regenerate byte-identically
+with `python ../../scripts/make_synthetic.py`.

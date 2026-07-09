@@ -1,8 +1,12 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 33.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 33.01 (batched-small-matrix-linear-algebra)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — never timings ("[time]") or device/path lines ("[info]"), which vary
+# by machine and run. The output contract is documented at the top of ../src/main.cu; change the
+# program's stable lines and this file together, in the same commit.
+[demo] batched small-matrix linear algebra (project 33.01)
+PROBLEM: batched matmul C=A*B (n=3,4,6) + batched Cholesky solve A*x=b (n=6, SPD), FP32
+SAMPLE: 64 pairs n=3, 32 pairs n=4, 16 pairs n=6; 32 SPD solves n=6 [synthetic, seed 42]
+SAMPLE RESULT: PASS (GPU vs CPU within tol: matmul abs 1e-5, solve rel 1e-4)
+BATCH: 200000 pairs per size (n=3,4,6) + 100000 SPD solves (n=6), generated in-memory [seed 42]
+RESULT: PASS (all GPU results match the CPU reference within documented tolerances)

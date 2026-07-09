@@ -75,4 +75,7 @@ target_compile_options(batched-small-matrix-linear-algebra PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(batched-small-matrix-linear-algebra PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 33.01 note: the source list above is complete for this project, and no
+# extra libraries are linked ON PURPOSE — these kernels are hand-rolled
+# precisely so cuBLAS stays a comparison point, not a dependency (see
+# README.md §Prior art).

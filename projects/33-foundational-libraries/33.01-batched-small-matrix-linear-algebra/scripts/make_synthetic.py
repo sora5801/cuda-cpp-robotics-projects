@@ -1,108 +1,140 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 33.01 (Batched small-matrix linear algebra (3×3, 4×4, 6×6 — the robotics sizes)).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample generator for project 33.01
+(batched small-matrix linear algebra, the 3x3 / 4x4 / 6x6 robotics sizes).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+Robotics data can almost always be synthesized with full ground truth, so
+synthetic generation is this repository's DEFAULT data source. For a linear-
+algebra library the "sensor data" simply IS matrices — this script writes the
+tiny committed sample under ../data/sample/ that lets demo/run_demo.ps1 run
+offline, with zero downloads, on every clone (CLAUDE.md paragraph 4).
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+There is deliberately NO ground-truth column in the file: the demo computes
+the answers twice (GPU kernels vs. the plain-C++ CPU oracle) and compares —
+the oracle is the ground truth. The file only has to provide reproducible,
+well-conditioned INPUTS.
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+What it writes (format shared with the loader in src/main.cu — change both
+together, and data/README.md third):
+    # comment lines           provenance, seed, the SYNTHETIC label
+    label,index,v0,v1,...     one problem per row, row-major values
+labels: A3/B3 (9 values), A4/B4 (16), A6/B6 (36) — matmul input pairs;
+        S6 (36) — SPD matrices; b6 (6) — their right-hand sides.
+
+SPD construction — identical to make_spd_batch in src/main.cu: A = G*G^T + n*I
+with G uniform in [-1, 1). G*G^T is positive SEMI-definite for any G; the
++n*I shifts every eigenvalue up by n, so A is strictly positive definite and
+single-digit-conditioned — which keeps the demo's FP32 GPU-vs-CPU comparison
+about code correctness, not amplified rounding.
+
+Determinism: python's random.Random(seed) is specified by the language
+reference and stable across platforms/versions, so the committed file is
+reproducible byte-for-byte with the default seed. (The demo's BIG batch is
+generated in C++ with a hand-rolled xorshift32 for the same reason — see the
+RNG note in src/main.cu; the two generators don't need to match each other,
+only to each be reproducible.)
+
+Usage:
+    python make_synthetic.py                  # defaults: seed 42, 64/32/16/32 rows
+    python make_synthetic.py --seed 7 --out other.csv   # experiments (don't commit)
 """
 
 import argparse
-import csv
 import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
-
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+# Counts for the committed sample — small enough that the file stays a few
+# tens of kilobytes, large enough to exercise the ragged-tail guard once
+# batched (all counts < one 256-thread block on purpose: the demo's BATCH
+# stage covers the multi-block case; the sample covers the small-count case).
+DEFAULT_ROWS = {"n3_pairs": 64, "n4_pairs": 32, "n6_pairs": 16, "spd6": 32}
 
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
-
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
-    """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 33.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+def uniform_pm1(rng: random.Random) -> float:
+    """One uniform draw in [-1, 1) — the same range src/main.cu uses."""
+    return 2.0 * rng.random() - 1.0
 
 
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+def random_matrix(rng: random.Random, n: int) -> list[float]:
+    """A dense n x n matrix, row-major, entries uniform in [-1, 1)."""
+    return [uniform_pm1(rng) for _ in range(n * n)]
 
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 33.01 (Batched small-matrix linear algebra (3×3, 4×4, 6×6 — the robotics sizes)).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
+def spd_matrix(rng: random.Random, n: int) -> list[float]:
+    """A guaranteed-SPD n x n matrix: A = G*G^T + n*I (see module docstring)."""
+    g = random_matrix(rng, n)  # the random factor G, row-major
+    a = [0.0] * (n * n)
+    for i in range(n):
+        for j in range(n):
+            # (G*G^T)(i,j) = row i of G . row j of G ; +n on the diagonal.
+            acc = n if i == j else 0.0
+            for p in range(n):
+                acc += g[i * n + p] * g[j * n + p]
+            a[i * n + j] = acc
+    return a
 
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+
+def fmt(values: list[float]) -> str:
+    """Format values for the CSV: %.9g round-trips a float32-precision value
+    through text exactly (9 significant digits cover FP32), keeps the file
+    compact, and parses with strtof on the C++ side."""
+    return ",".join(f"{v:.9g}" for v in values)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--seed", type=int, default=42,
+                    help="RNG seed (default 42 — the committed sample's seed; "
+                         "changing it makes a file the demo will still PASS on, "
+                         "but do not commit non-default samples)")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample" / "smallmat_sample.csv",
+                    help="output path (default: ../data/sample/smallmat_sample.csv)")
+    args = ap.parse_args()
+
+    rng = random.Random(args.seed)  # ONE stream for the whole file: rows are
+    # drawn in a fixed order below, so the byte-for-byte content is pinned by
+    # the seed alone.
+
+    lines: list[str] = [
+        "# smallmat_sample.csv - SYNTHETIC sample data for project 33.01",
+        "# generated by scripts/make_synthetic.py (python random.Random, seed "
+        f"{args.seed})",
+        "# format: label,index,v0,v1,...  (matrices row-major; see data/README.md)",
+        "# labels: A3/B3, A4/B4, A6/B6 = matmul input pairs; S6 = SPD matrix; b6 = its rhs",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+    ]
+
+    # Matmul pairs at each size. Order (A then B per index) is cosmetic — the
+    # loader in main.cu keys on labels — but keeping pairs adjacent makes the
+    # file human-readable, and the fixed emission order pins determinism.
+    for n, count in ((3, DEFAULT_ROWS["n3_pairs"]),
+                     (4, DEFAULT_ROWS["n4_pairs"]),
+                     (6, DEFAULT_ROWS["n6_pairs"])):
+        for k in range(count):
+            lines.append(f"A{n},{k},{fmt(random_matrix(rng, n))}")
+            lines.append(f"B{n},{k},{fmt(random_matrix(rng, n))}")
+
+    # SPD solve problems (n=6): matrix + right-hand side per index.
+    for k in range(DEFAULT_ROWS["spd6"]):
+        lines.append(f"S6,{k},{fmt(spd_matrix(rng, 6))}")
+        lines.append(f"b6,{k},{fmt([uniform_pm1(rng) for _ in range(6)])}")
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    # newline='\n' pins LF endings so the committed bytes are identical no
+    # matter which OS regenerates the file (.gitattributes agrees).
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+    size_kb = args.out.stat().st_size / 1024.0
+    print(f"wrote {args.out} ({size_kb:.1f} KiB, seed {args.seed}) - labeled SYNTHETIC")
+    if args.seed != 42:
+        print("note: non-default seed - fine for experiments, do NOT commit this file")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

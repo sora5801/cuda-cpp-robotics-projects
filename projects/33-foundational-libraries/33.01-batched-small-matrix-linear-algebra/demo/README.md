@@ -12,13 +12,25 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The **thread-per-problem batch pattern** — the single most reused GPU idiom in this repository. The
+demo runs two stages:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+1. **Sample stage** — loads the committed synthetic sample (`../data/sample/smallmat_sample.csv`:
+   64/32/16 matmul pairs at *n*=3/4/6 and 32 SPD 6×6 systems), computes every problem on the GPU
+   (`../src/kernels.cu`) **and** on the single-threaded CPU oracle (`../src/reference_cpu.cpp`), and
+   compares within documented tolerances (matmul: 1e-5 absolute; Cholesky solve: 1e-4 relative).
+2. **Batch stage** — regenerates 200,000 matmul pairs *per size* and 100,000 SPD solves in memory
+   from a fixed seed, verifies GPU == CPU on **all** of it, and times the *n*=6 kernels against the
+   CPU loop.
+
+What to notice in the output: the worst sample deviations sit near **1e-7** — two orders below
+tolerance — which is FP32 rounding plus FMA-contraction difference, *not* error (THEORY.md
+§Numerical considerations tells that story); and the speed-up comes purely from batch parallelism —
+one thread per matrix, no shared memory, no tuning — which is the whole lesson of the project.
+
+No artifact file is written: the result of a linear-algebra check is a verdict, not an image, so
+the demo's output is its text (the repo writes PNG/CSV artifacts only where results are inherently
+visual, per CLAUDE.md §6.3).
 
 ## How to read the output
 

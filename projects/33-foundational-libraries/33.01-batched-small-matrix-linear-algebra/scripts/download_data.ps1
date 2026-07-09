@@ -1,10 +1,11 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 33.01 (Batched small-matrix linear algebra (3×3, 4×4, 6×6 — the robotics sizes))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 33.01 DECISION: no public dataset applies — this project's inputs are
+# random test matrices, which synthetic generation covers completely (there
+# is nothing a downloaded dataset could teach here). This script stays the
+# honest no-op below, per repo policy; ../scripts/make_synthetic.py is the
+# data source (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

@@ -1,64 +1,118 @@
 // ===========================================================================
-// kernels.cuh — kernel & reference declarations for project 33.01
-//               (Batched small-matrix linear algebra (3×3, 4×4, 6×6 — the robotics sizes))
+// kernels.cuh — interface for project 33.01
+//               Batched small-matrix linear algebra (3×3, 4×4, 6×6 —
+//               the robotics sizes)
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real interface.
-// TODO(scaffold): declare the real kernels/launchers here, each with a full
-// doc-comment (purpose, params with units/frames, launch config, memory
-// spaces) mirroring the definition in kernels.cu.
+// Role in the project
+// -------------------
+// This header is the CONTRACT between the three translation units:
+//   * main.cu           — the driver: builds batches, calls both paths, compares
+//   * kernels.cu        — the GPU implementation (nvcc-compiled)
+//   * reference_cpu.cpp — the CPU correctness oracle (cl.exe-compiled)
+// Declaring the GPU launcher and the CPU reference side by side, with the
+// SAME shapes and layout rules, is what keeps the two paths comparable at
+// compile time instead of drifting apart silently.
 //
-// Why ".cuh"?
-// -----------
-// The repo convention (CLAUDE.md §12): .cuh headers may contain CUDA-specific
-// constructs (__global__, __device__, kernel launches) and are meant to be
-// included from nvcc-compiled .cu files; plain .h headers stay host-only.
-// This particular header is ALSO included by reference_cpu.cpp, which is
-// compiled by the HOST compiler (cl.exe) — cl.exe does not know the word
-// __global__, so the device-only declarations below are fenced behind
-// #ifdef __CUDACC__ (a macro only nvcc defines). This is the standard trick
-// for headers shared across the host/device boundary; you will see it in
-// most projects in this repository.
+// The one data-layout rule everything here shares
+// -----------------------------------------------
+// A "batch" is `count` square N×N matrices stored CONTIGUOUSLY, row-major,
+// matrix-after-matrix ("array of matrices"):
 //
-// What belongs in this file
-// -------------------------
-// Declarations ONLY — the contract between translation units:
-//   * __global__ kernel signatures (device side; nvcc-only),
-//   * host-callable launch wrappers (visible to everyone),
-//   * the CPU reference prototype (so main.cu and reference_cpu.cpp agree on
-//     the signature at compile time instead of drifting apart silently).
-// Definitions live in kernels.cu (GPU) and reference_cpu.cpp (CPU oracle).
+//     element (i,j) of matrix k lives at   ptr[k*N*N + i*N + j]
 //
-// Read this after: main.cu.  Read this before: kernels.cu.
+// and a batch of right-hand-side vectors stores vector k at ptr[k*N + i].
+// This layout is documented ONCE, here, and every function below references
+// it (CLAUDE.md §12: state layouts are single-sourced). THEORY.md §GPU-mapping
+// discusses why this "matrix-contiguous" layout is chosen for clarity, what
+// it costs in memory-coalescing terms, and the SoA alternative real libraries
+// (cuBLAS gemmBatched, MAGMA) use to win those loads back.
+//
+// Why there is no __CUDACC__-fenced __global__ section here (unlike the
+// repository template): every kernel launch happens inside kernels.cu, next
+// to the kernel definitions, so no other translation unit ever needs to see
+// a __global__ signature. The header stays host-only and any compiler —
+// nvcc or cl.exe — can include it without fences. Simpler is better to read.
+//
+// Why N is a runtime `int` here but a compile-time template inside kernels.cu:
+// callers (main.cu) want one function that handles the three robotics sizes;
+// kernels want N known at compile time so matrices live in REGISTERS and all
+// loops fully unroll. The launchers below bridge the two worlds with a
+// switch(n) that dispatches to the N=3 / N=4 / N=6 instantiation, and reject
+// any other size loudly (fail-fast beats a silently-wrong fallback).
+//
+// Read this after: main.cu.  Read this before: kernels.cu, reference_cpu.cpp.
 // ===========================================================================
 #ifndef PROJECT_KERNELS_CUH   // classic include guard: safe on every compiler
-#define PROJECT_KERNELS_CUH   // (#pragma once also works; the guard is the more portable teaching choice)
+#define PROJECT_KERNELS_CUH
 
-#ifdef __CUDACC__  // ---- device-aware section: only nvcc sees this ---------
+// ---------------------------------------------------------------------------
+// launch_batched_matmul — GPU batched product  C_k = A_k * B_k,  k = 0..count-1.
+//
+// Parameters
+//   n       : matrix dimension; MUST be 3, 4, or 6 (any other value aborts
+//             with a message — see the dispatch comment in kernels.cu).
+//   count   : number of independent matrix pairs in the batch (>= 0).
+//   d_A,d_B : DEVICE pointers, count*n*n floats each, layout as above. Never
+//             written. Unitless in this demo; in a real consumer these carry
+//             whatever the caller's units are (e.g. rotation composition —
+//             dimensionless; inertia transforms — kg·m²).
+//   d_C     : DEVICE pointer, count*n*n floats, OVERWRITTEN with the products.
+//             May NOT alias d_A or d_B (each thread reads its full A_k/B_k
+//             before writing C_k, but only within its own k; aliasing across
+//             the batch is not defended against — documented, not checked).
+//
+// Launch configuration: one THREAD per matrix pair, 256-thread blocks,
+// ceil(count/256) blocks — the reasoning lives with the kernel in kernels.cu.
+// Synchronization: none; work is enqueued on the default stream. The caller
+// times/synchronizes via cudaEvents (util/timer.cuh) or cudaMemcpy.
+// Complexity: O(count · n³) multiply-adds, perfectly parallel across k.
+// ---------------------------------------------------------------------------
+void launch_batched_matmul(int n, int count,
+                           const float* d_A, const float* d_B, float* d_C);
 
-// saxpy_kernel — grid-stride map computing y[i] = a * x[i] + y[i].
-// Full documentation (thread mapping, coalescing, numerics) sits with the
-// definition in kernels.cu; headers carry the one-line summary, definitions
-// carry the essay — so there is exactly one place to keep deeply in sync.
-// x, y are DEVICE pointers of n floats; y is updated in place.
-__global__ void saxpy_kernel(int n, float a,
-                             const float* __restrict__ x,
-                             float*       __restrict__ y);
+// ---------------------------------------------------------------------------
+// launch_batched_cholesky_solve — GPU batched SPD solve  A_k x_k = b_k.
+//
+// Solves count independent linear systems whose matrices are symmetric
+// positive definite (SPD) — the bread-and-butter robotics case: joint-space
+// mass matrices M(q), Gauss-Newton normal equations JᵀJ + λI, covariance
+// matrices. Method: in-register Cholesky factorization A = L·Lᵀ followed by
+// forward substitution (L y = b) and back substitution (Lᵀ x = y).
+//
+// Parameters
+//   n     : matrix dimension; MUST be 3, 4, or 6 (else abort, as above).
+//   count : number of systems (>= 0).
+//   d_A   : DEVICE pointer, count*n*n floats, SPD matrices (layout above).
+//           Only the lower triangle including the diagonal is READ — exactly
+//           what Cholesky consumes; the strict upper triangle is ignored, so
+//           a caller that only filled the lower half is fine.
+//   d_b   : DEVICE pointer, count*n floats, right-hand sides. Never written.
+//   d_x   : DEVICE pointer, count*n floats, OVERWRITTEN with solutions.
+//
+// Non-SPD input: if a pivot is not strictly positive the matrix is not SPD
+// (or is numerically singular); that system's x_k is filled with NaN so the
+// failure is IMPOSSIBLE to miss downstream, and computation continues for
+// the other k (one bad system must not poison a 100k-system batch). The CPU
+// reference implements the identical policy so the comparison stays valid.
+// ---------------------------------------------------------------------------
+void launch_batched_cholesky_solve(int n, int count,
+                                   const float* d_A, const float* d_b,
+                                   float* d_x);
 
-#endif // __CUDACC__ --------------------------------------------------------
+// ---------------------------------------------------------------------------
+// CPU references (defined in reference_cpu.cpp — the correctness oracle).
+//
+// Same math, same layout rule, same NaN-on-non-SPD policy, plain single-
+// threaded C++ with no CUDA anywhere — slow on purpose and easy to read.
+// main.cu runs BOTH paths on identical inputs and asserts agreement within
+// the tolerances documented in main.cu's output contract (CLAUDE.md §5:
+// every project verifies GPU against CPU).
+// All pointers are HOST pointers with the same shapes as the GPU twins.
+// ---------------------------------------------------------------------------
+void batched_matmul_cpu(int n, int count,
+                        const float* A, const float* B, float* C);
 
-// launch_saxpy — host wrapper owning the grid/block math + post-launch error
-// check. d_x/d_y are DEVICE pointers the caller allocated (see main.cu).
-// Declared outside the __CUDACC__ fence: it is a plain host function, so any
-// translation unit may call it (only its DEFINITION needs nvcc).
-void launch_saxpy(int n, float a, const float* d_x, float* d_y);
-
-// saxpy_cpu — the CPU correctness oracle (defined in reference_cpu.cpp).
-// Same math, plain C++, single thread. x/y are HOST pointers of n floats;
-// y is updated in place. Declared here so the compiler enforces that the GPU
-// path and the oracle share one signature.
-void saxpy_cpu(int n, float a, const float* x, float* y);
-
-// TODO(scaffold): replace the three declarations above with this project's
-// real kernel/launcher/reference interface.
+void batched_cholesky_solve_cpu(int n, int count,
+                                const float* A, const float* b, float* x);
 
 #endif // PROJECT_KERNELS_CUH
