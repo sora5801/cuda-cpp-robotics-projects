@@ -3,10 +3,10 @@
 # download_data.sh — public-dataset fetcher for 08.01 (MPPI controller — the canonical GPU controller: cart-pole → quadrotor → AGV → off-road racer)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 08.01 DECISION: no public dataset applies — a controller's input is a
+# scenario (start state + duration); everything else is generated in-demo
+# from fixed seeds. This script stays the honest no-op below;
+# ../scripts/make_synthetic.py writes the scenario (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

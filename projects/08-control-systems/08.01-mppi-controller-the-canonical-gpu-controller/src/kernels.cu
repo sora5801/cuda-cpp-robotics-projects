@@ -1,131 +1,215 @@
 // ===========================================================================
-// kernels.cu — GPU kernels for project 08.01 (MPPI controller — the canonical GPU controller: cart-pole → quadrotor → AGV → off-road racer)
+// kernels.cu — GPU implementation for project 08.01
+//              MPPI controller — the canonical GPU controller
+//              (teaching core: force-limited cart-pole swing-up)
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real kernels.
-// TODO(scaffold): delete the SAXPY kernel and implement the real ones (one
-// teaching-focused kernel per concept, each commented to the standard shown
-// here and in CLAUDE.md §6.2 / docs/COMMENTING_STANDARD.md).
+// The big idea (CLAUDE.md §6.2 uses this very kernel as its style example)
+// ------------------------------------------------------------------------
+// MPPI steers by SAMPLING. Each GPU thread simulates ONE candidate control
+// sequence ("rollout") of the system dynamics over the horizon, adds up its
+// cost, and the host then blends all sequences with softmin weights. K
+// rollouts are fully independent → one thread per rollout is the natural
+// GPU mapping (K ~ thousands; a CPU manages dozens). The same
+// thread-per-problem pattern as 33.01/09.01 — here the "problem" is a whole
+// 1-second simulated future of the plant.
 //
-// Role in the project
-// -------------------
-// All __global__ (GPU) code lives here, together with the small host-side
-// launch wrappers that own the grid/block math. Keeping the launch math next
-// to the kernel means the launch-configuration reasoning (the comments the
-// repo standard requires) sits beside the code it configures.
+// What is NEW here beyond 33.01/09.01/07.09:
+//   * a full ODE integrator (RK4) living inside the kernel loop;
+//   * a COST FUNCTIONAL accumulated along a trajectory — the object
+//     optimal control actually optimizes;
+//   * the coalescing fix applied from the start: the noise array is stored
+//     TRANSPOSED (eps[t*K + k]) so that at each time step a warp's 32
+//     noise reads are consecutive floats — one 128-byte transaction —
+//     instead of strides of T floats (the layout 33.01 taught the cost of);
+//   * uniform reads (u_nom[t]: every thread, same address) served by L2/
+//     read-only cache — the same-address-read spectrum runs 09.01's
+//     __constant__ broadcast → this → 07.09's divergent global reads.
 //
-// Big idea of the placeholder kernel
-// ----------------------------------
-// SAXPY is a pure MAP: out[i] depends only on in[i]. The GPU mapping is
-// therefore the simplest one that exists — one thread per element — written
-// here in its robust production form, the GRID-STRIDE LOOP. Learn this
-// pattern well: a large fraction of the kernels in this repository are maps
-// or start from one.
+// All model constants and layouts come from kernels.cuh — the single
+// source shared with the CPU oracle; the dynamics function below is a
+// deliberate line-by-line twin of the one in reference_cpu.cpp.
 //
-// Read this after: main.cu, kernels.cuh.  Read this before: reference_cpu.cpp.
+// Read this after: kernels.cuh.  Companion oracle: reference_cpu.cpp.
 // ===========================================================================
 
-#include "kernels.cuh"           // our own interface — keeps decl/def in sync at compile time
-#include "util/cuda_check.cuh"   // CUDA_CHECK_LAST_ERROR for post-launch error surfacing
+#include "kernels.cuh"
+#include "util/cuda_check.cuh"      // CUDA_CHECK / CUDA_CHECK_LAST_ERROR (§6.1 rule 7)
+
+#include <cstdio>
+#include <cstdlib>
 
 // ---------------------------------------------------------------------------
-// saxpy_kernel — one grid-stride pass computing y[i] = a * x[i] + y[i].
+// cartpole_deriv — the plant's equations of motion: xdot = f(x, u).
 //
-// Thread-to-data mapping:
-//   Thread (blockIdx.x, threadIdx.x) starts at global element
-//       i0 = blockIdx.x * blockDim.x + threadIdx.x
-//   and then strides by the TOTAL number of threads in the grid
-//       stride = gridDim.x * blockDim.x
-//   visiting i0, i0+stride, i0+2*stride, ... < n.
+// Frictionless cart-pole in the standard form (θ = 0 upright; gravity is
+// the destabilizing term — THEORY.md derives these from the Lagrangian):
 //
-// Why a grid-stride loop instead of the naive "one thread = one element,
-// return if i >= n"?
-//   1) Correct for ANY n, even n larger than the maximum grid size —
-//      the loop just runs more iterations per thread.
-//   2) Lets the CALLER choose the grid size for occupancy reasons instead of
-//      being forced to launch exactly ceil(n/block) blocks.
-//   3) It is the idiom used throughout CUDA's own samples and libraries, so
-//      learning it here pays off everywhere.
-//   The cost: two extra registers and a loop branch — negligible for a
-//   memory-bound kernel.
+//     tmp   = (u + m_p·l·θ̇²·sinθ) / (m_c + m_p)
+//     θ̈     = (g·sinθ − cosθ·tmp) / ( l·(4/3 − m_p·cos²θ/(m_c+m_p)) )
+//     p̈     = tmp − m_p·l·θ̈·cosθ / (m_c + m_p)
 //
-// Memory behavior (the whole performance story for SAXPY):
-//   Adjacent threads (threadIdx.x, threadIdx.x+1) read adjacent addresses
-//   x[i], x[i+1] — so each 32-thread warp touches one contiguous 128-byte
-//   span, which the hardware COALESCES into the minimum number of memory
-//   transactions. Coalescing is THE first-order GPU optimization; a strided
-//   or random access pattern here could cost 10-30x. No shared memory is
-//   used because no data is reused between threads — shared memory only pays
-//   when threads share or revisit data (see THEORY.md "The GPU mapping").
-//
-// Parameters:
-//   n   — element count (> 0); unitless placeholder data
-//   a   — the SAXPY scalar (FP32, exactly representable 2.0 in the demo)
-//   x   — [n] device pointer, read-only input. __restrict__ promises the
-//         compiler x and y do not alias, unlocking wider loads/scheduling.
-//   y   — [n] device pointer, read AND written in place (input y, output
-//         a*x+y). In-place is safe because element i never reads element j.
-//
-// Numerical note: the compiler typically fuses a*x[i]+y[i] into one FMA
-// (fused multiply-add, a single rounding step). The CPU reference may round
-// twice (mul, then add). Max divergence ~1 ULP — which is exactly why
-// main.cu compares with a small tolerance instead of demanding bit equality.
-//
-// Launch configuration: owned by launch_saxpy() below — see its comment.
+// Units: SI throughout (m, m/s, rad, rad/s; u in N). State layout is the
+// kernels.cuh contract. __forceinline__ + fixed-size arrays keep everything
+// in registers (the 33.01 lesson, applied).
 // ---------------------------------------------------------------------------
-__global__ void saxpy_kernel(int n,
-                             float a,
-                             const float* __restrict__ x,
-                             float*       __restrict__ y)
+__device__ __forceinline__ void cartpole_deriv(const float* x, float u, float* xdot)
 {
-    // This thread's first element, and the whole-grid stride (see mapping
-    // note above). Both fit in int here because n is int; a real project
-    // handling >2^31 elements would use long long / size_t indexing.
-    int i      = blockIdx.x * blockDim.x + threadIdx.x;  // my starting element
-    int stride = gridDim.x * blockDim.x;                 // total threads in the grid
+    const float sin_th = sinf(x[2]);   // precise sinf/cosf, not the __sinf
+    const float cos_th = cosf(x[2]);   // intrinsics — same reasoning as 09.01:
+                                       // intrinsic error grows with |θ|, and
+                                       // rollouts integrate UNWRAPPED angles
+                                       // that pass ±π routinely during swing-up
 
-    // Each iteration: 2 loads (x[i], y[i]), 1 FMA, 1 store — ~12 bytes moved
-    // per 2 FLOPs. Memory-bound, as promised. The loop condition also guards
-    // the ragged tail: threads whose i starts beyond n simply do nothing.
-    for (; i < n; i += stride) {
-        y[i] = a * x[i] + y[i];
-    }
+    const float total_mass = kMassCart + kMassPole;
+    const float ml = kMassPole * kPoleHalfLen;
+
+    // tmp = acceleration the cart would have if the pole were a point mass
+    // riding along (force + centrifugal term from the swinging pole).
+    const float tmp = (u + ml * x[3] * x[3] * sin_th) / total_mass;
+
+    // Pole angular acceleration: gravity torque vs the cart's reaction.
+    const float th_acc = (kGravity * sin_th - cos_th * tmp)
+        / (kPoleHalfLen * (4.0f / 3.0f - kMassPole * cos_th * cos_th / total_mass));
+
+    // Cart acceleration: tmp minus the pole's back-reaction.
+    const float p_acc = tmp - ml * th_acc * cos_th / total_mass;
+
+    xdot[0] = x[1];      // ṗ
+    xdot[1] = p_acc;     // p̈
+    xdot[2] = x[3];      // θ̇
+    xdot[3] = th_acc;    // θ̈
 }
 
 // ---------------------------------------------------------------------------
-// launch_saxpy — host wrapper that owns the launch configuration.
+// rk4_step — classic 4th-order Runge–Kutta under ZERO-ORDER HOLD (u constant
+// across the step, exactly how a 50 Hz controller drives a real actuator).
 //
-// Purpose: keep the <<<grid, block>>> math, its reasoning, and the mandatory
-// post-launch error check in ONE place, so callers (main.cu) stay clean and
-// no launch in the codebase goes unchecked (CLAUDE.md §6.1 rule 7).
-//
-// Parameters: as saxpy_kernel, but x/y are DEVICE pointers the CALLER owns —
-// this function allocates nothing, frees nothing, and synchronizes nothing
-// (the caller times/syncs via events; see main.cu step 3).
-//
-// Launch configuration reasoning:
-//   block = 256 threads — a solid default on sm_75..sm_89: a multiple of the
-//     32-thread warp (mandatory for full warps), large enough for good
-//     occupancy, small enough to keep per-block resources (registers) free.
-//     Powers of two between 128 and 512 are all reasonable; measure before
-//     believing any single number.
-//   grid = ceil(n / block), capped at 4096 blocks — enough blocks to fill
-//     every SM on any current GPU many times over (an RTX 2080 has 46 SMs);
-//     beyond that, more blocks add scheduling overhead without adding
-//     parallelism, and the grid-stride loop absorbs the remainder anyway.
-//     The integer ceil idiom (n + block - 1) / block is used all over this
-//     repo — it rounds UP so the last partial block is not lost.
+// Why RK4 and not Euler? The swing-up trajectory has fast pole dynamics near
+// the bottom (θ̇ up to ~8 rad/s); at dt = 0.02 s Euler's O(dt²) local error
+// visibly distorts the pendulum's energy, and an MPC "optimizing" a wrong
+// model steers the wrong plant. RK4's O(dt⁵) local error makes the model
+// trustworthy at this dt for 4 extra derivative evaluations — the classic
+// robotics accuracy/cost trade (THEORY.md §numerics quantifies it).
 // ---------------------------------------------------------------------------
-void launch_saxpy(int n, float a, const float* d_x, float* d_y)
+__device__ __forceinline__ void rk4_step(float* x, float u, float dt)
 {
-    const int block = 256;                              // threads per block (warp multiple; see above)
-    int grid = (n + block - 1) / block;                 // ceil(n/block): cover every element
-    if (grid > 4096) grid = 4096;                       // cap: grid-stride loop covers the rest
+    float k1[kNX], k2[kNX], k3[kNX], k4[kNX], xt[kNX];   // all registers (fixed size, literal indices)
 
-    saxpy_kernel<<<grid, block>>>(n, a, d_x, d_y);
+    cartpole_deriv(x, u, k1);
+#pragma unroll
+    for (int i = 0; i < kNX; ++i) xt[i] = fmaf(0.5f * dt, k1[i], x[i]);
+    cartpole_deriv(xt, u, k2);
+#pragma unroll
+    for (int i = 0; i < kNX; ++i) xt[i] = fmaf(0.5f * dt, k2[i], x[i]);
+    cartpole_deriv(xt, u, k3);
+#pragma unroll
+    for (int i = 0; i < kNX; ++i) xt[i] = fmaf(dt, k3[i], x[i]);
+    cartpole_deriv(xt, u, k4);
 
-    // Kernel launches return errors ASYNCHRONOUSLY: an invalid configuration
-    // or a crashed kernel surfaces on a LATER call unless we ask. This macro
-    // (util/cuda_check.cuh) calls cudaGetLastError() right away so a broken
-    // launch is reported HERE, at the launch site, not three calls later.
-    CUDA_CHECK_LAST_ERROR("saxpy_kernel launch");
+    // x += dt/6 · (k1 + 2k2 + 2k3 + k4) — the standard RK4 blend.
+#pragma unroll
+    for (int i = 0; i < kNX; ++i)
+        x[i] += dt * (1.0f / 6.0f) * (k1[i] + 2.0f * k2[i] + 2.0f * k3[i] + k4[i]);
+}
+
+// ---------------------------------------------------------------------------
+// stage_cost — what "good" means, evaluated at every step of every rollout.
+//
+// Weights from kernels.cuh (the tuning story is THEORY.md's):
+//   angle: kWAngle·(1 − cosθ) — smooth, minimal at upright, and WRAP-FREE
+//          (cos never cares that rollouts integrate θ past ±π; using θ²
+//          here would punish a pole that swung the "long way" up, which is
+//          exactly the kind of accidental prior that ruins swing-up);
+//   damping/position/effort terms: standard quadratics.
+// ---------------------------------------------------------------------------
+__device__ __forceinline__ float stage_cost(const float* x, float u)
+{
+    const float upright = 1.0f - cosf(x[2]);   // 0 at top, 2 at bottom
+    return kWAngle * upright
+         + kWThdot * x[3] * x[3]
+         + kWPos   * x[0] * x[0]
+         + kWPdot  * x[1] * x[1]
+         + kWCtrl  * u * u;
+}
+
+// ===========================================================================
+// The MPPI rollout kernel: one thread = one candidate future.
+//
+// Thread-to-data mapping: thread k = blockIdx.x*blockDim.x + threadIdx.x
+// owns rollout k. Grid: ceil(K/256) × 256 (repo default; ragged tail
+// guarded).
+//
+// Memory spaces per thread and per step t:
+//   registers : the simulated state x[4] + RK4 scratch (~30 regs)
+//   global    : u_nom[t]      — UNIFORM read (all threads, same address):
+//                               served by the read-only/L2 cache path at
+//                               broadcast-like cost after first touch;
+//               eps[t*K + k]  — COALESCED read thanks to the transposed
+//                               layout (warp reads 32 consecutive floats;
+//                               the layout decision lives in kernels.cuh);
+//               cost[k]       — one coalesced write at the very end.
+// No shared memory, no atomics, no divergence beyond the tail guard: the
+// rollouts never interact — by construction, and that is the whole point.
+// ===========================================================================
+__global__ void mppi_rollouts_kernel(const float* __restrict__ x0,     // [4] shared start state (current plant state)
+                                     const float* __restrict__ u_nom,  // [T] nominal control sequence (N)
+                                     const float* __restrict__ eps,    // [T*K] noise, TRANSPOSED: eps[t*K + k]
+                                     float*       __restrict__ cost,   // [K] OUT: total rollout costs
+                                     int K)                            // number of rollouts
+{
+    const int k = blockIdx.x * blockDim.x + threadIdx.x;   // this thread's rollout index
+    if (k >= K) return;                                    // ragged-tail guard
+
+    // Every rollout starts from the SAME state — the plant's now. Four
+    // uniform reads, then registers for the whole simulated second.
+    float x[kNX];
+#pragma unroll
+    for (int i = 0; i < kNX; ++i) x[i] = x0[i];
+
+    float S = 0.0f;    // this rollout's accumulated cost (unitless, weighted)
+
+    // March the horizon: at each step take the nominal control, add MY
+    // noise, clamp to what the actuator can actually do, integrate, pay.
+    for (int t = 0; t < kHorizon; ++t) {
+        // Clamp BEFORE integrating — the rollout must experience the same
+        // saturation the real actuator will impose, or MPPI optimizes with
+        // forces the motor cannot deliver (a classic sim-to-real gap in
+        // miniature; THEORY.md §algorithm).
+        float u = u_nom[t] + eps[t * K + k];
+        u = fminf(fmaxf(u, -kUmax), kUmax);
+
+        rk4_step(x, u, kDt);
+        S += stage_cost(x, u);
+    }
+
+    cost[k] = S;   // one coalesced write; the host's softmin blend consumes this
+}
+
+// ===========================================================================
+// Host launcher (declared in kernels.cuh).
+// ===========================================================================
+void launch_mppi_rollouts(int K, const float* x0,
+                          const float* d_u_nom, const float* d_eps,
+                          float* d_cost)
+{
+    if (K < 1 || !x0 || !d_u_nom || !d_eps || !d_cost) {
+        std::fprintf(stderr, "launch_mppi_rollouts: invalid arguments (K=%d)\n", K);
+        std::exit(EXIT_FAILURE);
+    }
+
+    // The start state is 16 bytes — upload it fresh each call. A dedicated
+    // device buffer per call keeps the API stateless; the alloc/free cost
+    // is trivial next to K×T RK4 steps (and pooling is domain-32 business).
+    float* d_x0 = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_x0, kNX * sizeof(float)));
+    CUDA_CHECK(cudaMemcpy(d_x0, x0, kNX * sizeof(float), cudaMemcpyHostToDevice));
+
+    const int threads = 256;                      // repo default geometry
+    const int blocks = (K + threads - 1) / threads;
+    mppi_rollouts_kernel<<<blocks, threads>>>(d_x0, d_u_nom, d_eps, d_cost, K);
+    CUDA_CHECK_LAST_ERROR("mppi_rollouts_kernel launch");
+
+    // Free after the launch: cudaFree synchronizes with the work using the
+    // buffer, so this is safe — and it keeps the function self-contained.
+    CUDA_CHECK(cudaFree(d_x0));
 }

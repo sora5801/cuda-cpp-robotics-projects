@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `cartpole_scenario.csv` (~0.4 KiB, synthetic) — the task definition:
+start state (`X0` row: hanging straight down at rest) and closed-loop duration (`STEPS,400` at
+50 Hz). A controller's data *is* its scenario; noise, rollouts, and the plant are generated
+in-demo from fixed seeds and verified against the CPU oracle. Format and checksum:
+[`../README.md`](../README.md); regenerate byte-identically with
+`python ../../scripts/make_synthetic.py`.

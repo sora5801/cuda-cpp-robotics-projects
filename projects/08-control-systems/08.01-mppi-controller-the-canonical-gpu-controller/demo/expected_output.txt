@@ -1,8 +1,13 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 08.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 08.01 (mppi-controller-the-canonical-gpu-controller)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (final state, streaks) and "[time]" lines vary by machine
+# and are deliberately unchecked; the success thresholds behind RESULT carry wide margins so the
+# verdict is stable even where noise-stream low bits differ across platforms (see the determinism
+# note at the top of ../src/main.cu). Change the program's stable lines and this file together.
+[demo] MPPI controller: cart-pole swing-up (project 08.01)
+PROBLEM: sampling MPC, K=4096 rollouts x T=50 steps @ dt=0.02 s (1.0 s horizon), force limit 10 N, FP32
+SCENARIO: start hanging (theta=pi), goal upright at p=0; 400 control steps @ 50 Hz [synthetic]
+VERIFY: PASS (GPU rollout costs match CPU reference within rel tol 1e-3)
+ARTIFACT: wrote demo/out/trajectory.csv (400 steps)
+RESULT: PASS (swing-up achieved; pole balanced upright for the final 100 steps)

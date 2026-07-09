@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 3/505 done** (0.6%)
+**Overall: 4/505 done** (0.8%)
 
 | Status | Count |
 |--------|-------|
-| todo | 502 |
+| todo | 501 |
 | in-progress | 0 |
-| done | 3 |
+| done | 4 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -37,7 +37,7 @@
 | 05 SLAM, Mapping & Localization | 0/18 |
 | 06 Motion Planning | 0/20 |
 | 07 Collision Detection & Geometry | 1/13 |
-| 08 Control Systems | 0/16 |
+| 08 Control Systems | 1/16 |
 | 09 Robot Dynamics & Kinematics | 1/14 |
 | 10 Physics Simulation | 0/20 |
 | 11 Sensor Simulation & Digital Twins | 0/11 |
@@ -223,11 +223,11 @@
 | 07.12 | Mesh decimation/simplification for collision proxies | intermediate |  | todo |  |  |
 | 07.13 | Batched inertia-tensor / mass-property computation from CAD meshes | intermediate |  | todo |  |  |
 
-## 8. Control Systems (`08-control-systems`) — 0/16 done
+## 8. Control Systems (`08-control-systems`) — 1/16 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 08.01 | MPPI controller — the canonical GPU controller: cart-pole → quadrotor → AGV → off-road racer | ★ beginner | ⭐ | todo |  |  |
+| 08.01 | MPPI controller — the canonical GPU controller: cart-pole → quadrotor → AGV → off-road racer | ★ beginner | ⭐ | done | lead | all §9 gates green 2026-07-08 (RTX 2080 SUPER); swing-up in 2.3 s |
 | 08.02 | Cross-entropy-method MPC | intermediate |  | todo |  |  |
 | 08.03 | iLQR/DDP with batched line search + parallel-shooting integrators | intermediate |  | todo |  |  |
 | 08.04 | Batched QP solver (ADMM / interior-point) for families of MPC problems | intermediate |  | todo |  |  |
