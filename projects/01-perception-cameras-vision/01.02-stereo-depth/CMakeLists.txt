@@ -75,4 +75,9 @@ target_compile_options(stereo-depth PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(stereo-depth PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 01.02 note: no extra libraries are linked. Census, the Hamming cost
+# volume, SGM path aggregation, winner-take-all, the left-right check, and
+# the median filter are all hand-rolled kernels (CLAUDE.md paragraph 5's
+# "prefer hand-rolled teaching versions" default) — popcount is the one
+# "library call" this project makes, and it is a single hardware
+# intrinsic (__popcll) explained where it is used, in src/kernels.cu.

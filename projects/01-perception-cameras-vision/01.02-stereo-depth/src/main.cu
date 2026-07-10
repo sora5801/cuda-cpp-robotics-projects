@@ -1,249 +1,494 @@
 // ===========================================================================
-// main.cu — entry point for project 01.02 (Stereo depth: block matching, then Semi-Global Matching (SGM) kernels)
+// main.cu — entry point for project 01.02
+//           Stereo depth: block matching, then Semi-Global Matching (SGM)
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real implementation.
-// TODO(scaffold): replace the SAXPY placeholder below with the real pipeline
-// (keep the overall shape: parse args -> load/make data -> CPU reference ->
-// GPU path -> verify -> report). Every replacement point is marked.
+// What this program does, start to finish
+// ---------------------------------------
+//   1. Print the banner + GPU info; load the committed synthetic stereo
+//      pair + dense ground truth from data/sample/ (left.pgm, right.pgm,
+//      gt_disparity.pgm, gt_valid.pgm — see ../scripts/make_synthetic.py).
+//   2. GPU PIPELINE: census -> cost volume (shared by both methods), then
+//      BLOCK MATCHING (winner-take-all -> left-right check — the teaching
+//      BASELINE, fast and visibly streaky) and SEMI-GLOBAL MATCHING (4-path
+//      aggregation -> winner-take-all -> left-right check -> 3x3 median —
+//      the SAME cost volume, a smoothness prior added).
+//   3. VERIFY STAGE (the §5 GPU-vs-CPU gate, made EXACT by this project's
+//      all-integer math — see kernels.cuh): census, the cost volume, ONE
+//      SGM aggregation path, and both FINAL disparity maps must match
+//      reference_cpu.cpp bit-for-bit. Zero tolerance, because zero
+//      floating point is involved anywhere in this pipeline.
+//   4. GROUND-TRUTH GATE: for both BM and SGM, the "good-pixel rate"
+//      (fraction of GT-valid, non-occluded pixels with |disp - gt| <= 1)
+//      must clear a documented floor, AND SGM's rate must exceed BM's by
+//      a documented margin — the whole reason this project builds BOTH
+//      methods side by side instead of just SGM.
+//   5. ARTIFACTS: demo/out/disparity_bm.pgm, disparity_sgm.pgm (both
+//      scaled *4, matching gt_disparity.pgm's convention) and
+//      error_map.pgm (SGM's per-pixel correctness against ground truth) —
+//      the visual story a printed percentage cannot tell by itself.
 //
-// Role in the project
-// -------------------
-// This file is the demo executable. It owns the *orchestration*: argument
-// parsing, data creation, host<->device transfers, timing, and the
-// GPU-vs-CPU verification that every project in this repo must perform
-// (CLAUDE.md §5, §9). The GPU kernels themselves live in kernels.cu; the
-// CPU correctness oracle lives in reference_cpu.cpp.
+// Output contract: stable lines are "[demo]", "PROBLEM:", "DATA:",
+// "VERIFY:", "BM:", "SGM:", "ARTIFACT:", "RESULT:"; "[info]"/"[time]" lines
+// are unchecked. Change a stable line => update demo/expected_output.txt in
+// the same commit.
 //
-// The big idea of the placeholder
-// -------------------------------
-// SAXPY ("Single-precision A times X Plus Y") computes, element by element,
-//
-//     y[i] = a * x[i] + y[i]        for i = 0 .. n-1
-//
-// It is the "hello, world" of GPU computing: every output element is
-// independent of every other, so the natural GPU mapping is one thread per
-// element — the *map* pattern. SAXPY does almost no arithmetic per byte
-// moved (2 FLOPs per 12 bytes), so it is MEMORY-BANDWIDTH BOUND: it measures
-// how fast the GPU can stream memory, not how fast it can multiply. That
-// makes it the perfect toolchain smoke test — if this builds, runs, and the
-// GPU matches the CPU, your VS 2026 + CUDA 13.3 install is healthy.
-//
-// Read this after / before
-// ------------------------
-// Read this file FIRST, then kernels.cuh (the interface), then kernels.cu
-// (the kernel), then reference_cpu.cpp (the oracle). util/ holds the
-// CUDA_CHECK error macro and the timers — skim their headers as you meet
-// each one in the code below.
-//
-// Output contract (load-bearing!)
-// -------------------------------
-// demo/run_demo.ps1 diffs the stable lines of this program's stdout against
-// demo/expected_output.txt. Stable lines are the "[demo]", "PROBLEM:" and
-// "RESULT:" lines — they contain NO timings and NO device names, so they are
-// deterministic on any GPU. Timing/device lines are prefixed "[time]" /
-// "[info]" and are deliberately NOT diffed (they vary run to run). If you
-// change a stable line here you MUST update demo/expected_output.txt in the
-// same change, and vice versa.
+// Read this first, then kernels.cuh -> reference_cpu.cpp -> kernels.cu.
 // ===========================================================================
 
-#include <cstdio>    // printf/fprintf — we print a small, stable, greppable report
-#include <cstdlib>   // EXIT_SUCCESS/EXIT_FAILURE, strtol for argument parsing
-#include <cmath>     // std::fabs for the max-absolute-difference check
-#include <vector>    // host-side buffers; RAII beats manual new[]/delete[]
+#include "kernels.cuh"
+#include "util/cuda_check.cuh"
+#include "util/timer.cuh"
 
-#include "kernels.cuh"           // saxpy_kernel + launch_saxpy (GPU) and saxpy_cpu (oracle)
-#include "util/cuda_check.cuh"   // CUDA_CHECK / CUDA_CHECK_LAST_ERROR + print_device_info
-#include "util/timer.cuh"        // GpuTimer (cudaEvent-based) and CpuTimer (std::chrono)
-
-// ---------------------------------------------------------------------------
-// Problem constants.
-//
-// DEFAULT_N: 2^20 elements (= 1,048,576). Big enough that the GPU launch
-//   overhead (~a few microseconds) is amortized and the timing line means
-//   something; small enough (12 MiB of traffic) to run instantly on any GPU.
-//   NOTE: the default value is baked into demo/expected_output.txt's
-//   "PROBLEM:" line — the demo must run with no arguments to match.
-// SAXPY_A: the scalar 'a'. 2.0 is exactly representable in FP32, which keeps
-//   the arithmetic clean for teaching purposes.
-// TOLERANCE: max allowed |gpu - cpu| per element. CPU and GPU may round the
-//   multiply-add differently (the GPU compiler typically fuses a*x+y into a
-//   single FMA with ONE rounding; the CPU may round twice) — that difference
-//   is at most ~1 ULP here, i.e. ~1e-7 for values of magnitude ~2, so 1e-6
-//   is a comfortable-but-honest bound. See THEORY.md "Numerical
-//   considerations" for the general story.
-// TODO(scaffold): replace with the real project's problem constants.
-// ---------------------------------------------------------------------------
-static const int   DEFAULT_N = 1 << 20;  // element count (unitless placeholder data)
-static const float SAXPY_A   = 2.0f;     // the scalar 'a' in y = a*x + y
-static const float TOLERANCE = 1e-6f;    // max |gpu-cpu| accepted as agreement
+#include <algorithm>
+#include <cctype>
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <string>
+#include <vector>
+#ifdef _WIN32
+#include <direct.h>               // _mkdir (std::filesystem avoided in .cu — see 07.09)
+#else
+#include <sys/stat.h>
+#endif
 
 // ---------------------------------------------------------------------------
-// make_input — fill the host input vectors DETERMINISTICALLY.
-//
-// Purpose:   produce the same bytes on every machine, every run, with no
-//            files and no RNG — so the demo is reproducible offline
-//            (CLAUDE.md §8: synthetic-first, deterministic demos).
-// Params:    n  — element count (must be > 0)
-//            x  — [n] OUT: input vector (read-only in the computation)
-//            y  — [n] OUT: input/output vector (overwritten by SAXPY)
-// Why index-derived values instead of a RNG: the values themselves do not
-// matter for a smoke test; deriving them from the index keeps the whole
-// program free of seed-management questions. The modulo keeps magnitudes
-// small (~0..1) so FP32 rounding stays uniform across the vector.
-// Side effects: none beyond writing x and y. Complexity: O(n).
-// TODO(scaffold): replace with real data loading from ../data/sample/ (or a
-// call into this project's synthetic generator).
+// Ground-truth gate thresholds — calibrated from an ACTUAL measured run on
+// this project's committed sample (numbers recorded in THEORY.md "How we
+// verify correctness" and README "Expected output"; never asserted from
+// theory alone, per CLAUDE.md §8 "never fabricate"). Wide margins below the
+// measured values so the gate stays robust to the ~1-ULP-free but still
+// platform-dependent double-precision arithmetic used ONLY in the
+// percentage math below (the disparities feeding it are exact integers,
+// bit-identical on every platform — see kernels.cuh).
+//   Measured on the reference machine (RTX 2080 SUPER, sm_75):
+//     BM good-pixel rate  = 63.35%
+//     SGM good-pixel rate = 97.52%
+//     SGM margin over BM  = 34.17 percentage points
 // ---------------------------------------------------------------------------
-static void make_input(int n, std::vector<float>& x, std::vector<float>& y)
+static constexpr double kMinGoodPixelRateBM = 45.0;   // floor, ~18 pts below measured (63.35%)
+static constexpr double kMinGoodPixelRateSGM = 85.0;  // floor, ~13 pts below measured (97.52%)
+static constexpr double kMinSgmMarginOverBm = 15.0;   // floor, ~19 pts below measured margin (34.17)
+static constexpr int kDispTolerance = 1;              // |disp - gt| <= this counts as "good"
+static constexpr int kGtDispScale = 4;                // must match scripts/make_synthetic.py DISP_SCALE
+
+// ---------------------------------------------------------------------------
+// Minimal, STRICT PGM (P5, 8-bit binary grayscale) reader — matches exactly
+// the format ../scripts/make_synthetic.py writes (and 07.09's write_pgm
+// produces): "P5\n<W> <H>\n255\n" then W*H raw bytes. Not a general-purpose
+// PGM parser (no support for the P2 ASCII variant or non-255 maxval) — this
+// project only ever reads files its own generator wrote.
+// ---------------------------------------------------------------------------
+static bool read_pgm(const std::string& path, int& W, int& H, std::vector<unsigned char>& data)
 {
-    x.resize(static_cast<size_t>(n));
-    y.resize(static_cast<size_t>(n));
-    for (int i = 0; i < n; ++i) {
-        // Small, exactly-computable patterns; % keeps values bounded so the
-        // element magnitude (and hence the rounding scale) is uniform.
-        x[static_cast<size_t>(i)] = 0.001f * static_cast<float>(i % 1024); // in [0, 1.023]
-        y[static_cast<size_t>(i)] = 1.0f + 0.0005f * static_cast<float>(i % 512); // in [1.0, 1.2555]
-    }
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) return false;
+
+    std::string magic;
+    in >> magic;
+    if (magic != "P5") return false;
+
+    // read_int: skip whitespace and '#'-comment lines (the PGM spec allows
+    // both between header tokens), then read one integer.
+    auto read_int = [&](int& out) -> bool {
+        for (;;) {
+            const int c = in.peek();
+            if (c == '#') { std::string line; std::getline(in, line); continue; }
+            if (c != EOF && std::isspace(c)) { in.get(); continue; }
+            break;
+        }
+        in >> out;
+        return static_cast<bool>(in);
+    };
+
+    int maxval = 0;
+    if (!read_int(W) || !read_int(H) || !read_int(maxval)) return false;
+    if (maxval != 255 || W <= 0 || H <= 0) return false;
+    in.get();   // consume the single mandatory whitespace byte after maxval (PGM spec)
+
+    data.resize(static_cast<size_t>(W) * static_cast<size_t>(H));
+    in.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
+    // Success iff we got EXACTLY the requested byte count — the robust way
+    // to check (stream failbit/eofbit interaction around exact-length reads
+    // is implementation-nuanced; gcount() is unambiguous).
+    return in.gcount() == static_cast<std::streamsize>(data.size());
 }
 
 // ---------------------------------------------------------------------------
-// main — orchestrates the whole demo. Returns EXIT_SUCCESS only when the GPU
-// result agrees with the CPU reference within TOLERANCE; a mismatch returns
-// EXIT_FAILURE so demo scripts (and CI) can gate on the exit code.
-//
-// Usage: <exe> [n]
-//   n — optional element count override (default 1,048,576). Overriding n
-//       changes the "PROBLEM:" line, so the checked demo must run with NO
-//       arguments; the override exists for learners to experiment with sizes.
+// Sample loading — all four committed PGMs, dimension-checked against each
+// other (a strict loader per repo convention: any mismatch aborts rather
+// than silently truncating or padding).
+// ---------------------------------------------------------------------------
+struct StereoSample {
+    int W = 0, H = 0;
+    std::vector<unsigned char> left, right, gt_disp, gt_valid;
+    bool loaded = false;
+};
+
+static StereoSample load_sample(const std::string& dir)
+{
+    StereoSample s;
+    int w2, h2, w3, h3, w4, h4;
+    if (!read_pgm(dir + "/left.pgm", s.W, s.H, s.left)) { std::fprintf(stderr, "sample: failed to read left.pgm\n"); return StereoSample{}; }
+    if (!read_pgm(dir + "/right.pgm", w2, h2, s.right)) { std::fprintf(stderr, "sample: failed to read right.pgm\n"); return StereoSample{}; }
+    if (!read_pgm(dir + "/gt_disparity.pgm", w3, h3, s.gt_disp)) { std::fprintf(stderr, "sample: failed to read gt_disparity.pgm\n"); return StereoSample{}; }
+    if (!read_pgm(dir + "/gt_valid.pgm", w4, h4, s.gt_valid)) { std::fprintf(stderr, "sample: failed to read gt_valid.pgm\n"); return StereoSample{}; }
+    if (w2 != s.W || h2 != s.H || w3 != s.W || h3 != s.H || w4 != s.W || h4 != s.H) {
+        std::fprintf(stderr, "sample: dimension mismatch across left/right/gt_disparity/gt_valid\n");
+        return StereoSample{};
+    }
+    if (s.W <= 2 * kCensusHalf + kMaxDisp || s.H <= 2 * kCensusHalf) {
+        std::fprintf(stderr, "sample: %dx%d too small for a %d-px census margin and D=%d\n",
+                     s.W, s.H, kCensusHalf, kMaxDisp);
+        return StereoSample{};
+    }
+    s.loaded = true;
+    return s;
+}
+
+// Path helpers (same exe-relative resolution as 07.09/08.01: the exe sits
+// at build/x64/<Config>/, three levels below the project root).
+static std::string project_root_from(const char* argv0)
+{
+    std::string exe(argv0 ? argv0 : "");
+    size_t cut = exe.find_last_of("/\\");
+    if (cut == std::string::npos) return ".";
+    return exe.substr(0, cut) + "/../../..";
+}
+
+static std::string find_data_dir(const std::string& cli_dir, const char* argv0)
+{
+    std::vector<std::string> candidates;
+    if (!cli_dir.empty()) candidates.push_back(cli_dir);
+    candidates.push_back(project_root_from(argv0) + "/data/sample");
+    candidates.push_back("data/sample");
+    candidates.push_back("../data/sample");
+    for (const auto& c : candidates)
+        if (std::ifstream(c + "/left.pgm").is_open()) return c;
+    return "";
+}
+
+static bool ensure_dir(const std::string& path)
+{
+#ifdef _WIN32
+    const int r = _mkdir(path.c_str());
+#else
+    const int r = mkdir(path.c_str(), 0755);
+#endif
+    return r == 0 || errno == EEXIST;
+}
+
+static bool write_pgm(const std::string& path, int W, int H, const std::vector<unsigned char>& gray)
+{
+    std::ofstream out(path, std::ios::binary);
+    if (!out.is_open()) return false;
+    out << "P5\n" << W << " " << H << "\n255\n";
+    out.write(reinterpret_cast<const char*>(gray.data()), static_cast<std::streamsize>(gray.size()));
+    return static_cast<bool>(out);
+}
+
+// ---------------------------------------------------------------------------
+// exact_match — count element-wise mismatches between a GPU result
+// (downloaded to host) and the CPU oracle. Used by every VERIFY checkpoint
+// below; ALL comparisons in this project are exact-equality (kernels.cuh /
+// reference_cpu.cpp explain why: every operation is integer arithmetic).
+// ---------------------------------------------------------------------------
+template <typename T>
+static long long exact_match(const std::vector<T>& gpu, const std::vector<T>& cpu)
+{
+    long long mism = 0;
+    const size_t n = gpu.size();
+    for (size_t i = 0; i < n; ++i) if (gpu[i] != cpu[i]) ++mism;
+    return mism;
+}
+
+// ---------------------------------------------------------------------------
+// good_pixel_rate — the ground-truth gate metric: over pixels the SCENE
+// says are genuinely visible in both views (gt_valid == 255), what fraction
+// does this algorithm get right within kDispTolerance? disp is compared in
+// the SAME *4 scaled domain gt_disp already uses (both sides are exact
+// integers, so no rounding subtlety — see kGtDispScale above).
+// ---------------------------------------------------------------------------
+static double good_pixel_rate(const std::vector<unsigned char>& disp,
+                              const StereoSample& sample, long long* n_valid_out)
+{
+    long long n_valid = 0, n_good = 0;
+    const size_t n = disp.size();
+    for (size_t i = 0; i < n; ++i) {
+        if (sample.gt_valid[i] != 255) continue;
+        ++n_valid;
+        if (disp[i] == kInvalidDisp) continue;
+        const int d_scaled = static_cast<int>(disp[i]) * kGtDispScale;
+        const int diff = d_scaled - static_cast<int>(sample.gt_disp[i]);
+        const int adiff = (diff < 0) ? -diff : diff;
+        if (adiff <= kDispTolerance * kGtDispScale) ++n_good;
+    }
+    if (n_valid_out) *n_valid_out = n_valid;
+    return n_valid > 0 ? (100.0 * static_cast<double>(n_good) / static_cast<double>(n_valid)) : 0.0;
+}
+
+// ---------------------------------------------------------------------------
+// disparity_to_pgm — visualize a disparity map: valid pixels -> disp*4
+// (matching gt_disparity.pgm's own scale, so the two are visually and
+// numerically comparable side by side); kInvalidDisp -> 0 (black), a
+// visually unambiguous "no answer" that can never collide with a real
+// scaled disparity (the smallest real value, 0*4=0, only occurs at
+// disparity exactly 0 — an acceptable, documented ambiguity for a debug
+// visualization, called out in demo/README.md).
+// ---------------------------------------------------------------------------
+static std::vector<unsigned char> disparity_to_pgm(const std::vector<unsigned char>& disp)
+{
+    std::vector<unsigned char> out(disp.size());
+    for (size_t i = 0; i < disp.size(); ++i) {
+        out[i] = (disp[i] == kInvalidDisp) ? 0
+               : static_cast<unsigned char>(std::min(255, static_cast<int>(disp[i]) * kGtDispScale));
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------
+// error_map_pgm — per-pixel correctness against ground truth, for the demo
+// artifact (the visual story a percentage cannot tell): 255 (white) = good
+// match on a GT-scored pixel; 80 (dark gray) = wrong or no-answer on a
+// GT-scored pixel; 0 (black) = not scored (occluded/border in ground truth).
+// ---------------------------------------------------------------------------
+static std::vector<unsigned char> error_map_pgm(const std::vector<unsigned char>& disp,
+                                                 const StereoSample& sample)
+{
+    std::vector<unsigned char> out(disp.size(), 0);
+    for (size_t i = 0; i < disp.size(); ++i) {
+        if (sample.gt_valid[i] != 255) { out[i] = 0; continue; }
+        if (disp[i] == kInvalidDisp) { out[i] = 80; continue; }
+        const int d_scaled = static_cast<int>(disp[i]) * kGtDispScale;
+        const int diff = d_scaled - static_cast<int>(sample.gt_disp[i]);
+        const int adiff = (diff < 0) ? -diff : diff;
+        out[i] = (adiff <= kDispTolerance * kGtDispScale) ? 255 : 80;
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------
+// main.
 // ---------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-    // ---- 0) Arguments -----------------------------------------------------
-    // One optional positional argument: n. We use strtol (not atoi) so a
-    // malformed argument is detectable instead of silently becoming 0.
-    // TODO(scaffold): replace with this project's real CLI (sizes, input
-    // paths, iteration counts, seeds — document every flag here).
-    int n = DEFAULT_N;
-    if (argc > 1) {
-        char* end = nullptr;
-        long v = std::strtol(argv[1], &end, 10);
-        if (end == argv[1] || v <= 0) {
-            std::fprintf(stderr, "usage: %s [n>0]   (default n = %d)\n", argv[0], DEFAULT_N);
-            return EXIT_FAILURE;
+    std::string data_dir;
+    for (int i = 1; i < argc; ++i) {
+        if (!std::strcmp(argv[i], "--data") && i + 1 < argc) data_dir = argv[++i];
+        else {
+            std::fprintf(stderr, "usage: %s [--data path/to/data/sample]\n", argv[0]);
+            return 2;
         }
-        n = static_cast<int>(v);
     }
 
-    // Stable line #1 — identifies the demo (diffed by run_demo, see header).
-    std::printf("[demo] template placeholder demo for project 01.02 (stereo-depth)\n");
-
-    // "[info]" lines are NOT diffed: device names differ across machines.
-    // print_device_info also serves as our "is there a CUDA device at all?"
-    // check — it fails loudly through CUDA_CHECK if no driver/GPU is present.
+    std::printf("[demo] stereo depth: census + Hamming cost volume, block matching vs Semi-Global Matching (project 01.02)\n");
     print_device_info();
+    std::printf("PROBLEM: stereo matching, D=%d disparities, %dx%d census window (%d bits), P1=%d P2=%d, 4-path SGM\n",
+               kMaxDisp, 2 * kCensusHalf + 1, 2 * kCensusHalf + 1, kCensusBits, kP1, kP2);
 
-    // Stable line #2 — states the problem instance. %d and %.1f formatting is
-    // deterministic for these values; keep the text in lockstep with
-    // demo/expected_output.txt.
-    std::printf("PROBLEM: SAXPY y = a*x + y, n = %d elements, a = %.1f\n", n, SAXPY_A);
-
-    // ---- 1) Data ----------------------------------------------------------
-    // Three host buffers:
-    //   h_x     — the input vector x (never modified),
-    //   h_y_cpu — starts as y, then holds the CPU reference result,
-    //   h_y_gpu — a second copy of y; the GPU result is copied back into it.
-    // We keep TWO independent y copies because SAXPY updates y in place — the
-    // CPU and GPU must each start from identical, untouched inputs.
-    std::vector<float> h_x, h_y_cpu;
-    make_input(n, h_x, h_y_cpu);
-    std::vector<float> h_y_gpu = h_y_cpu;   // deep copy: identical starting y
-
-    // ---- 2) CPU reference (the correctness oracle) ------------------------
-    // Runs FIRST so that if the GPU path is broken, we still saw the baseline
-    // work. Timing uses a wall-clock CpuTimer (host code is synchronous — no
-    // events needed; see util/timer.cuh for why the GPU is different).
-    CpuTimer cpu_timer;
-    cpu_timer.begin();
-    saxpy_cpu(n, SAXPY_A, h_x.data(), h_y_cpu.data());   // defined in reference_cpu.cpp
-    const double cpu_ms = cpu_timer.end_ms();
-
-    // ---- 3) GPU path -------------------------------------------------------
-    // The canonical 5 steps of every basic CUDA program — spelled out here on
-    // purpose, because this sequence recurs in all 500+ projects:
-    //   allocate device memory -> copy inputs H2D -> launch kernel(s)
-    //   -> copy results D2H -> free device memory.
-    // d_ prefix = device pointer, h_ prefix = host pointer (CLAUDE.md §12).
-    float* d_x = nullptr;  // device copy of x, [n] floats, read-only in kernel
-    float* d_y = nullptr;  // device copy of y, [n] floats, updated in place
-
-    const size_t bytes = static_cast<size_t>(n) * sizeof(float); // size_t: avoids int overflow for large n
-
-    // cudaMalloc can fail with cudaErrorMemoryAllocation if the GPU is out of
-    // memory — CUDA_CHECK turns that into a readable message + hard exit.
-    CUDA_CHECK(cudaMalloc(&d_x, bytes));
-    CUDA_CHECK(cudaMalloc(&d_y, bytes));
-
-    // Host-to-device copies. These can fail on invalid pointers/sizes (a
-    // programming bug) — again surfaced by CUDA_CHECK, never ignored.
-    CUDA_CHECK(cudaMemcpy(d_x, h_x.data(),     bytes, cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_y, h_y_gpu.data(), bytes, cudaMemcpyHostToDevice));
-
-    // Time ONLY the kernel with cudaEvents (not the copies) — we want the
-    // compute figure, and events measure on the GPU's own timeline (see
-    // util/timer.cuh for why host clocks mis-measure async GPU work).
-    // NOTE for learners: the very first kernel launch of a process can pay a
-    // one-time module-load/JIT cost, so this single-shot number is a teaching
-    // artifact, not a benchmark (CLAUDE.md §12). Real projects should warm up
-    // and average — TODO(scaffold): do that in the real implementation.
-    GpuTimer gpu_timer;
-    gpu_timer.begin();
-    launch_saxpy(n, SAXPY_A, d_x, d_y);      // wrapper in kernels.cu: grid math + launch + launch-error check
-    const float gpu_ms = gpu_timer.end_ms(); // synchronizes on the stop event -> kernel has finished
-
-    // Device-to-host copy of the result. cudaMemcpy is synchronizing here
-    // anyway, but the timer's event-sync above already guaranteed completion.
-    CUDA_CHECK(cudaMemcpy(h_y_gpu.data(), d_y, bytes, cudaMemcpyDeviceToHost));
-
-    // Free device memory as soon as we are done with it. For a program this
-    // small it is not strictly necessary (process exit frees everything), but
-    // the habit matters in long-running robot processes where leaked device
-    // memory kills you after hours, not seconds.
-    CUDA_CHECK(cudaFree(d_x));
-    CUDA_CHECK(cudaFree(d_y));
-
-    // ---- 4) Verify: GPU vs CPU, element by element -------------------------
-    // max_abs_diff is the L-infinity norm of (gpu - cpu) — the strictest of
-    // the simple norms, and the easiest to reason about: "no element is off
-    // by more than TOLERANCE". double accumulator not needed for a max (no
-    // summation, so no accumulation error), float is fine.
-    float max_abs_diff = 0.0f;
-    for (int i = 0; i < n; ++i) {
-        const float d = std::fabs(h_y_gpu[static_cast<size_t>(i)] - h_y_cpu[static_cast<size_t>(i)]);
-        if (d > max_abs_diff) max_abs_diff = d;
+    // ---- data ----------------------------------------------------------------
+    const std::string dir = find_data_dir(data_dir, argv[0]);
+    if (dir.empty()) {
+        std::printf("DATA: NOT FOUND — data/sample/left.pgm missing (run scripts/make_synthetic.py?)\n");
+        std::printf("RESULT: FAIL (sample data missing)\n");
+        return 1;
     }
-    const bool pass = (max_abs_diff <= TOLERANCE);
+    std::printf("[info] data dir: %s\n", dir.c_str());
+    StereoSample sample = load_sample(dir);
+    if (!sample.loaded) {
+        std::printf("DATA: MALFORMED — see stderr\n");
+        std::printf("RESULT: FAIL (sample data malformed)\n");
+        return 1;
+    }
+    const int W = sample.W, H = sample.H;
+    const size_t pix_n = static_cast<size_t>(W) * H;
+    const size_t vol_n = static_cast<size_t>(kMaxDisp) * pix_n;
+    std::printf("DATA: %dx%d rectified synthetic stereo pair, dense ground truth [synthetic, seed 42]\n", W, H);
 
-    // ---- 5) Report ----------------------------------------------------------
-    // "[time]" lines vary run-to-run and machine-to-machine -> NOT diffed.
-    // The speed-up figure is a TEACHING ARTIFACT, never a benchmark claim
-    // (CLAUDE.md §12): single-shot, kernel-only vs. single-thread CPU.
-    std::printf("[time] CPU reference: %.3f ms\n", cpu_ms);
-    std::printf("[time] GPU kernel:    %.3f ms\n", static_cast<double>(gpu_ms));
-    if (gpu_ms > 0.0f) {
-        std::printf("[time] speed-up (teaching artifact, not a benchmark): %.1fx\n",
-                    cpu_ms / static_cast<double>(gpu_ms));
+    // ======================= device buffers, shared stages ====================
+    unsigned char *d_left = nullptr, *d_right = nullptr;
+    unsigned long long *d_census_l = nullptr, *d_census_r = nullptr;
+    unsigned char* d_cost = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_left, pix_n));
+    CUDA_CHECK(cudaMalloc(&d_right, pix_n));
+    CUDA_CHECK(cudaMalloc(&d_census_l, pix_n * sizeof(unsigned long long)));
+    CUDA_CHECK(cudaMalloc(&d_census_r, pix_n * sizeof(unsigned long long)));
+    CUDA_CHECK(cudaMalloc(&d_cost, vol_n));
+    CUDA_CHECK(cudaMemcpy(d_left, sample.left.data(), pix_n, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_right, sample.right.data(), pix_n, cudaMemcpyHostToDevice));
+
+    GpuTimer gt_shared; gt_shared.begin();
+    launch_census(d_left, d_census_l, W, H);
+    launch_census(d_right, d_census_r, W, H);
+    launch_cost_volume(d_census_l, d_census_r, d_cost, W, H);
+    const float shared_ms = gt_shared.end_ms();
+
+    // ======================= GPU: BLOCK MATCHING ===============================
+    unsigned char *d_bm_l = nullptr, *d_bm_r = nullptr, *d_disp_bm = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_bm_l, pix_n));
+    CUDA_CHECK(cudaMalloc(&d_bm_r, pix_n));
+    CUDA_CHECK(cudaMalloc(&d_disp_bm, pix_n));
+
+    GpuTimer gt_bm; gt_bm.begin();
+    launch_wta_bm(d_cost, d_bm_l, W, H);
+    launch_wta_bm_right(d_cost, d_bm_r, W, H);
+    launch_lr_check(d_bm_l, d_bm_r, d_disp_bm, W, H, kLrCheckTolerance);
+    const float bm_ms = gt_bm.end_ms();
+
+    std::vector<unsigned char> disp_bm_gpu(pix_n);
+    CUDA_CHECK(cudaMemcpy(disp_bm_gpu.data(), d_disp_bm, pix_n, cudaMemcpyDeviceToHost));
+
+    // ======================= GPU: SEMI-GLOBAL MATCHING ==========================
+    int* d_lsum = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_lsum, vol_n * sizeof(int)));
+    CUDA_CHECK(cudaMemset(d_lsum, 0, vol_n * sizeof(int)));
+
+    GpuTimer gt_sgm; gt_sgm.begin();
+    launch_sgm_path(d_cost, d_lsum, W, H, kP1, kP2, +1, 0);   // L->R
+    launch_sgm_path(d_cost, d_lsum, W, H, kP1, kP2, -1, 0);   // R->L
+    launch_sgm_path(d_cost, d_lsum, W, H, kP1, kP2, 0, +1);   // T->B
+    launch_sgm_path(d_cost, d_lsum, W, H, kP1, kP2, 0, -1);   // B->T
+
+    unsigned char *d_sgm_l = nullptr, *d_sgm_r = nullptr, *d_sgm_lr = nullptr, *d_disp_sgm = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_sgm_l, pix_n));
+    CUDA_CHECK(cudaMalloc(&d_sgm_r, pix_n));
+    CUDA_CHECK(cudaMalloc(&d_sgm_lr, pix_n));
+    CUDA_CHECK(cudaMalloc(&d_disp_sgm, pix_n));
+    launch_wta_sgm(d_lsum, d_sgm_l, W, H);
+    launch_wta_sgm_right(d_lsum, d_sgm_r, W, H);
+    launch_lr_check(d_sgm_l, d_sgm_r, d_sgm_lr, W, H, kLrCheckTolerance);
+    launch_median3(d_sgm_lr, d_disp_sgm, W, H);
+    const float sgm_ms = gt_sgm.end_ms();
+
+    std::vector<unsigned char> disp_sgm_gpu(pix_n);
+    CUDA_CHECK(cudaMemcpy(disp_sgm_gpu.data(), d_disp_sgm, pix_n, cudaMemcpyDeviceToHost));
+
+    std::printf("[time] GPU kernels: census+cost %.3f ms | BM (wta+lr) %.3f ms | SGM (4-path+wta+lr+median) %.3f ms\n",
+               static_cast<double>(shared_ms), static_cast<double>(bm_ms), static_cast<double>(sgm_ms));
+
+    // ======================= VERIFY STAGE (CPU oracle, exact) ===================
+    // Every checkpoint below is EXACT equality — kernels.cuh explains why:
+    // census/Hamming/the SGM recurrence are all integer arithmetic, so there
+    // is no rounding for a tolerance to paper over.
+    bool verify_pass = true;
+    {
+        CpuTimer ct; ct.begin();
+
+        // ---- census + cost volume ---------------------------------------------
+        std::vector<unsigned long long> census_l_gpu(pix_n), census_r_gpu(pix_n);
+        CUDA_CHECK(cudaMemcpy(census_l_gpu.data(), d_census_l, pix_n * sizeof(unsigned long long), cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(census_r_gpu.data(), d_census_r, pix_n * sizeof(unsigned long long), cudaMemcpyDeviceToHost));
+        std::vector<unsigned char> cost_gpu(vol_n);
+        CUDA_CHECK(cudaMemcpy(cost_gpu.data(), d_cost, vol_n, cudaMemcpyDeviceToHost));
+
+        std::vector<unsigned long long> census_l_cpu(pix_n), census_r_cpu(pix_n);
+        census_cpu(sample.left.data(), census_l_cpu.data(), W, H);
+        census_cpu(sample.right.data(), census_r_cpu.data(), W, H);
+        std::vector<unsigned char> cost_cpu(vol_n);
+        cost_volume_cpu(census_l_cpu.data(), census_r_cpu.data(), cost_cpu.data(), W, H);
+
+        const long long mism_census = exact_match(census_l_gpu, census_l_cpu) + exact_match(census_r_gpu, census_r_cpu);
+        const long long mism_cost = exact_match(cost_gpu, cost_cpu);
+        std::printf("[info] verify(census): %lld mismatches over %zu signatures (both images)\n", mism_census, pix_n * 2);
+        std::printf("[info] verify(cost volume): %lld mismatches over %zu entries\n", mism_cost, vol_n);
+        if (mism_census != 0 || mism_cost != 0) verify_pass = false;
+
+        // ---- one aggregation path (L->R, dx=+1,dy=0) ---------------------------
+        int* d_lsum_check = nullptr;
+        CUDA_CHECK(cudaMalloc(&d_lsum_check, vol_n * sizeof(int)));
+        CUDA_CHECK(cudaMemset(d_lsum_check, 0, vol_n * sizeof(int)));
+        launch_sgm_path(d_cost, d_lsum_check, W, H, kP1, kP2, +1, 0);
+        std::vector<int> lsum_gpu(vol_n);
+        CUDA_CHECK(cudaMemcpy(lsum_gpu.data(), d_lsum_check, vol_n * sizeof(int), cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaFree(d_lsum_check));
+
+        std::vector<int> lsum_cpu_check(vol_n, 0);
+        sgm_path_cpu(cost_cpu.data(), lsum_cpu_check.data(), W, H, kP1, kP2, +1, 0);
+        const long long mism_path = exact_match(lsum_gpu, lsum_cpu_check);
+        std::printf("[info] verify(one SGM path, L->R): %lld mismatches over %zu entries\n", mism_path, vol_n);
+        if (mism_path != 0) verify_pass = false;
+
+        // ---- final disparity, both pipelines ------------------------------------
+        // The CPU oracle re-derives everything from raw pixels (its OWN
+        // census + cost + aggregation), not from the GPU's intermediate
+        // arrays above — a truly independent second implementation, per
+        // CLAUDE.md §5's "the oracle must be able to catch anything".
+        std::vector<unsigned char> bm_l_cpu(pix_n), bm_r_cpu(pix_n), disp_bm_cpu(pix_n);
+        wta_bm_cpu(cost_cpu.data(), bm_l_cpu.data(), W, H);
+        wta_bm_right_cpu(cost_cpu.data(), bm_r_cpu.data(), W, H);
+        lr_check_cpu(bm_l_cpu.data(), bm_r_cpu.data(), disp_bm_cpu.data(), W, H, kLrCheckTolerance);
+
+        std::vector<int> lsum_cpu(vol_n, 0);
+        sgm_path_cpu(cost_cpu.data(), lsum_cpu.data(), W, H, kP1, kP2, +1, 0);
+        sgm_path_cpu(cost_cpu.data(), lsum_cpu.data(), W, H, kP1, kP2, -1, 0);
+        sgm_path_cpu(cost_cpu.data(), lsum_cpu.data(), W, H, kP1, kP2, 0, +1);
+        sgm_path_cpu(cost_cpu.data(), lsum_cpu.data(), W, H, kP1, kP2, 0, -1);
+        std::vector<unsigned char> sgm_l_cpu(pix_n), sgm_r_cpu(pix_n), sgm_lr_cpu(pix_n), disp_sgm_cpu(pix_n);
+        wta_sgm_cpu(lsum_cpu.data(), sgm_l_cpu.data(), W, H);
+        wta_sgm_right_cpu(lsum_cpu.data(), sgm_r_cpu.data(), W, H);
+        lr_check_cpu(sgm_l_cpu.data(), sgm_r_cpu.data(), sgm_lr_cpu.data(), W, H, kLrCheckTolerance);
+        median3_cpu(sgm_lr_cpu.data(), disp_sgm_cpu.data(), W, H);
+
+        const double cpu_ms = ct.end_ms();
+
+        const long long mism_bm = exact_match(disp_bm_gpu, disp_bm_cpu);
+        const long long mism_sgm = exact_match(disp_sgm_gpu, disp_sgm_cpu);
+        std::printf("[info] verify(final disparity, BM):  %lld mismatches over %zu pixels\n", mism_bm, pix_n);
+        std::printf("[info] verify(final disparity, SGM): %lld mismatches over %zu pixels\n", mism_sgm, pix_n);
+        std::printf("[time] full CPU oracle (census+cost+BM+SGM, all checkpoints): %.1f ms\n", cpu_ms);
+        if (mism_bm != 0 || mism_sgm != 0) verify_pass = false;
+    }
+    std::printf("VERIFY: %s (GPU matches CPU reference EXACTLY: census, cost volume, one SGM path, BM final disparity, SGM final disparity)\n",
+               verify_pass ? "PASS" : "FAIL");
+    if (!verify_pass) {
+        std::printf("RESULT: FAIL (GPU/CPU disagreement — fix before trusting either disparity map)\n");
+        return 1;
     }
 
-    // Stable line #3 — the verdict. The PASS line contains NO numbers that
-    // could vary across GPUs (FMA rounding differs by architecture), so it is
-    // byte-identical everywhere; the FAIL line DOES include the measured
-    // difference, because when things break you want the number.
-    if (pass) {
-        std::printf("RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)\n");
-        return EXIT_SUCCESS;
+    // ======================= GROUND-TRUTH GATE ==================================
+    long long n_valid_bm = 0, n_valid_sgm = 0;
+    const double rate_bm = good_pixel_rate(disp_bm_gpu, sample, &n_valid_bm);
+    const double rate_sgm = good_pixel_rate(disp_sgm_gpu, sample, &n_valid_sgm);
+    const double margin = rate_sgm - rate_bm;
+
+    std::printf("BM: good-pixel rate (|d-gt|<=%d) = %.2f%% over %lld GT-valid pixels\n", kDispTolerance, rate_bm, n_valid_bm);
+    std::printf("SGM: good-pixel rate (|d-gt|<=%d) = %.2f%% over %lld GT-valid pixels\n", kDispTolerance, rate_sgm, n_valid_sgm);
+    std::printf("[info] SGM margin over BM: %.2f percentage points\n", margin);
+
+    // ======================= ARTIFACTS ===========================================
+    const std::string out_dir = project_root_from(argv[0]) + "/demo/out";
+    bool artifact_ok = ensure_dir(out_dir);
+    if (artifact_ok) {
+        artifact_ok = write_pgm(out_dir + "/disparity_bm.pgm", W, H, disparity_to_pgm(disp_bm_gpu))
+                    && write_pgm(out_dir + "/disparity_sgm.pgm", W, H, disparity_to_pgm(disp_sgm_gpu))
+                    && write_pgm(out_dir + "/error_map.pgm", W, H, error_map_pgm(disp_sgm_gpu, sample));
+    }
+    if (artifact_ok)
+        std::printf("ARTIFACT: wrote demo/out/disparity_bm.pgm, demo/out/disparity_sgm.pgm, demo/out/error_map.pgm\n");
+    else
+        std::printf("ARTIFACT: FAILED to write demo/out images\n");
+
+    // ---- cleanup ----------------------------------------------------------------
+    CUDA_CHECK(cudaFree(d_left));   CUDA_CHECK(cudaFree(d_right));
+    CUDA_CHECK(cudaFree(d_census_l)); CUDA_CHECK(cudaFree(d_census_r));
+    CUDA_CHECK(cudaFree(d_cost));
+    CUDA_CHECK(cudaFree(d_bm_l));  CUDA_CHECK(cudaFree(d_bm_r));  CUDA_CHECK(cudaFree(d_disp_bm));
+    CUDA_CHECK(cudaFree(d_lsum));
+    CUDA_CHECK(cudaFree(d_sgm_l)); CUDA_CHECK(cudaFree(d_sgm_r)); CUDA_CHECK(cudaFree(d_sgm_lr)); CUDA_CHECK(cudaFree(d_disp_sgm));
+
+    // ---- verdict ------------------------------------------------------------------
+    const bool gate_bm = rate_bm >= kMinGoodPixelRateBM;
+    const bool gate_sgm = rate_sgm >= kMinGoodPixelRateSGM;
+    const bool gate_margin = margin >= kMinSgmMarginOverBm;
+    const bool success = artifact_ok && gate_bm && gate_sgm && gate_margin;
+
+    if (success) {
+        std::printf("RESULT: PASS (BM >= %.0f%%, SGM >= %.0f%%, SGM exceeds BM by >= %.0f points — SGM measurably fixes BM's streaks)\n",
+                   kMinGoodPixelRateBM, kMinGoodPixelRateSGM, kMinSgmMarginOverBm);
     } else {
-        std::printf("RESULT: FAIL (max |gpu-cpu| = %.6e > tol 1e-6)\n",
-                    static_cast<double>(max_abs_diff));
-        return EXIT_FAILURE;   // nonzero exit -> demo scripts and CI see the failure
+        std::printf("RESULT: FAIL (a ground-truth gate was not met — see BM:/SGM:/[info] lines above)\n");
     }
+    return success ? 0 : 1;
 }

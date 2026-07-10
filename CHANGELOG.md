@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-09 — flagship 01.02 stereo BM→SGM done (13/505); exact GPU/CPU equality over ~14M values; SGM beats BM by 34 points — [push-note](push-notes/2026-07-09-08-flagship-01-02-stereo-sgm.md)
 - 2026-07-09 — flagship 23.01 GPU costmaps + DWA done (12/505) — batch 1b complete; byte-exact costmap verification — [push-note](push-notes/2026-07-09-07-flagship-23-01-costmaps-dwa-batch-1b-complete.md)
 - 2026-07-09 — flagship 17.01 Lambert + porkchop done (11/505); grid minimum lands 0.14% above the closed-form Hohmann optimum — [push-note](push-notes/2026-07-09-06-flagship-17-01-lambert-porkchop.md)
 - 2026-07-09 — flagship 15.01 minimum-snap batches done (10/505); constraint-definition audit over all 10k sets — [push-note](push-notes/2026-07-09-05-flagship-15-01-minimum-snap.md)

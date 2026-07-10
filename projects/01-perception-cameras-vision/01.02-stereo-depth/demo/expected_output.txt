@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 01.02.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.02 (stereo-depth)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (GPU name, per-checkpoint mismatch counts) and "[time]"
+# lines vary by machine and are deliberately unchecked. Every number on the lines below comes
+# from this project's all-INTEGER pipeline (census/Hamming/SGM recurrence — see kernels.cuh), so
+# it is bit-for-bit reproducible on any CUDA-capable machine, unlike most floating-point demos in
+# this repo — the good-pixel percentages ARE part of the stable contract for exactly that reason.
+# Change the program's stable lines and this file together.
+[demo] stereo depth: census + Hamming cost volume, block matching vs Semi-Global Matching (project 01.02)
+PROBLEM: stereo matching, D=64 disparities, 7x7 census window (48 bits), P1=8 P2=48, 4-path SGM
+DATA: 384x288 rectified synthetic stereo pair, dense ground truth [synthetic, seed 42]
+VERIFY: PASS (GPU matches CPU reference EXACTLY: census, cost volume, one SGM path, BM final disparity, SGM final disparity)
+BM: good-pixel rate (|d-gt|<=1) = 63.35% over 95448 GT-valid pixels
+SGM: good-pixel rate (|d-gt|<=1) = 97.52% over 95448 GT-valid pixels
+ARTIFACT: wrote demo/out/disparity_bm.pgm, demo/out/disparity_sgm.pgm, demo/out/error_map.pgm
+RESULT: PASS (BM >= 45%, SGM >= 85%, SGM exceeds BM by >= 15 points — SGM measurably fixes BM's streaks)

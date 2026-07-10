@@ -49,9 +49,13 @@
 //    recorded before the stop event has finished. Callers rely on this
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
-//    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    single-stream structure of this project's pipeline: every kernel
+//    (census, cost volume, all 4 SGM path passes, both winner-take-all
+//    variants, the left-right check, the median filter) runs sequentially
+//    in stream 0, so default-stream ordering is also what makes the SGM
+//    path kernel's plain (non-atomic) accumulation into d_lsum safe across
+//    its 4 separate launches (see kernels.cu). Multi-stream projects should
+//    record into their own streams instead.
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

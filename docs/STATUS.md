@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 12/505 done** (2.4%)
+**Overall: 13/505 done** (2.6%)
 
 | Status | Count |
 |--------|-------|
-| todo | 493 |
+| todo | 492 |
 | in-progress | 0 |
-| done | 12 |
+| done | 13 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 0/24 |
+| 01 Perception — Cameras & Vision | 1/24 |
 | 02 Perception — LiDAR & Point Clouds | 0/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 0/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,12 +67,12 @@
 | 35 Micro & Nano Robotics | 0/9 |
 | 36 Modular & Self-Reconfigurable Robots | 0/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 0/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 1/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 01.01 | Full GPU image pipeline: debayer → undistort → rectify → resize → normalize, zero CPU copies | ★ beginner |  | todo |  |  |
-| 01.02 | Stereo depth: block matching, then Semi-Global Matching (SGM) kernels | ★ beginner | ⭐ | todo |  |  |
+| 01.02 | Stereo depth: block matching, then Semi-Global Matching (SGM) kernels | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); BM 63% vs SGM 98% good pixels, exact GPU/CPU |
 | 01.03 | Optical flow: pyramidal Lucas-Kanade, Farneback, census-transform flow | intermediate |  | todo |  |  |
 | 01.04 | Feature pipeline: FAST/Harris detection, ORB descriptors, brute-force Hamming matcher | ★ beginner |  | todo |  |  |
 | 01.05 | SIFT/SURF on GPU (harder, warp-level reductions) | intermediate |  | todo |  |  |
