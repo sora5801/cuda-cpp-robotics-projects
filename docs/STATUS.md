@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 11/505 done** (2.2%)
+**Overall: 12/505 done** (2.4%)
 
 | Status | Count |
 |--------|-------|
-| todo | 494 |
+| todo | 493 |
 | in-progress | 0 |
-| done | 11 |
+| done | 12 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -52,7 +52,7 @@
 | 20 Tactile & Force Sensing | 0/7 |
 | 21 Human-Robot Interaction & Teleoperation | 0/12 |
 | 22 Multi-Robot Systems & Swarms | 1/12 |
-| 23 Navigation Stack (Mobile Robots) | 0/11 |
+| 23 Navigation Stack (Mobile Robots) | 1/11 |
 | 24 Actuators & Motors | 0/14 |
 | 25 Power & Energy | 0/14 |
 | 26 Mechanical Design & Structures | 0/16 |
@@ -504,11 +504,11 @@
 | 22.11 | Adversarial/pursuit-evasion swarm games | [R&D] research |  | todo |  |  |
 | 22.12 | Multi-agent RL training infrastructure | [R&D] research |  | todo |  |  |
 
-## 23. Navigation Stack (Mobile Robots) (`23-navigation-stack`) — 0/11 done
+## 23. Navigation Stack (Mobile Robots) (`23-navigation-stack`) — 1/11 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 23.01 | GPU costmaps: inflation, raytrace clearing, multi-layer fusion | ★ beginner | ⭐ | todo |  |  |
+| 23.01 | GPU costmaps: inflation, raytrace clearing, multi-layer fusion | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); byte-exact costmap verify; goal in 288 steps |
 | 23.02 | DWA local planner scoring 10⁵ velocity samples per cycle | intermediate |  | todo |  |  |
 | 23.03 | Parallel elastic-band planner with multiple homotopy candidates | intermediate |  | todo |  |  |
 | 23.04 | Freespace segmentation + drivable-corridor extraction | intermediate |  | todo |  |  |

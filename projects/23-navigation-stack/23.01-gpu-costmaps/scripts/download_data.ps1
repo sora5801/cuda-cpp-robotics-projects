@@ -1,12 +1,15 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 23.01 (GPU costmaps: inflation, raytrace clearing, multi-layer fusion)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (resolved, not a placeholder): this project uses SYNTHETIC data
+# only (data/README.md) — a 2-D occupancy grid and a start/goal scenario are
+# exactly the kind of thing this repo can synthesize with full ground truth,
+# and a solvability-verified synthetic map teaches the costmap+DWA pipeline
+# at least as well as any public dataset would. No public dataset was found
+# to genuinely teach more, so this script is an intentional no-op, kept only
+# for interface consistency with every other project's scripts/ folder.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any future real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

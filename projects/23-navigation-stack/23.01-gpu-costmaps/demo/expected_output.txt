@@ -1,8 +1,20 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 23.01 (gpu-costmaps)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Expected output for project 23.01 (GPU costmaps: inflation, raytrace
+# clearing, multi-layer fusion + a DWA local-planner consumer).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore
+# them when diffing. Every non-comment line below must appear VERBATIM in
+# the demo's stdout (subset check — "[info]"/"[time]" lines are NOT listed
+# here: they vary by machine and are deliberately unchecked, per the output
+# contract documented in src/main.cu).
+#
+# Measured on: NVIDIA GeForce RTX 2080 SUPER (sm_75), CUDA 13.3, Release|x64,
+# 2026-07-09. Both Release and Debug produced byte-identical stable lines —
+# the whole pipeline is deterministic (no RNG anywhere in this project).
+[demo] GPU costmaps + DWA local planner: warehouse AMR navigation loop (project 23.01)
+PROBLEM: 256x256 grid @ 0.05 m/cell (12.8 x 12.8 m), 360-beam LiDAR (max range 6.0 m), DWA 64x64=4096 (v,w) samples, FP32
+MAP: 256x256 cells, 6171 lethal cells (9.4% occupied) [synthetic, seed 42]
+SCENARIO: start (1.00, 1.00, 0.00) -> goal (11.00, 11.00), step cap 500 [synthetic, seed 42]
+VERIFY COSTMAP: PASS (GPU master costmap byte-exact vs CPU reference over one full update cycle)
+VERIFY DWA: PASS (GPU DWA scores match CPU reference within rel tol 1e-3)
+ARTIFACT: wrote demo/out/path.csv (289 rows)
+ARTIFACT: wrote demo/out/costmap.pgm (256x256, master costmap at the final tick)
+RESULT: PASS (goal reached in 288/500 steps; 0 lethal-cell entries along the driven path)

@@ -50,8 +50,11 @@
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
 //    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    record into their own streams; this project's four kernels
+//    (raytrace -> inflation -> fusion -> dwa_score) all launch into the
+//    default stream too, so stream-order alone gives the correct
+//    read-after-write sequencing between them — no explicit sync needed
+//    between kernel launches, only around the timed regions.
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

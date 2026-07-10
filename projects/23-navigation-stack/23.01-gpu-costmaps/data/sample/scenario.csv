@@ -1,0 +1,10 @@
+# SYNTHETIC scenario for project 23.01 gpu-costmaps (seed 42)
+# regenerate: python make_synthetic.py --seed 42
+# MAP,<filename>,<width_cells>,<height_cells>,<resolution_m>
+# START,<x_m>,<y_m>,<theta_rad>
+# GOAL,<x_m>,<y_m>
+# STEPS,<control_tick_cap>
+MAP,world_map.pgm,256,256,0.05
+START,1.0,1.0,0.0
+GOAL,11.0,11.0
+STEPS,500

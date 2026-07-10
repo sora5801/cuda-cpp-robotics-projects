@@ -1,249 +1,676 @@
 // ===========================================================================
-// main.cu — entry point for project 23.01 (GPU costmaps: inflation, raytrace clearing, multi-layer fusion)
+// main.cu — entry point for project 23.01
+//           GPU costmaps: inflation, raytrace clearing, multi-layer fusion
+//           + a DWA local-planner consumer, closed loop
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real implementation.
-// TODO(scaffold): replace the SAXPY placeholder below with the real pipeline
-// (keep the overall shape: parse args -> load/make data -> CPU reference ->
-// GPU path -> verify -> report). Every replacement point is marked.
+// What this program does, start to finish
+// ---------------------------------------
+//   1. Print the banner + GPU info; load the committed synthetic world
+//      (data/sample/world_map.pgm) and scenario (data/sample/scenario.csv).
+//   2. VERIFY STAGE (the §5 GPU-vs-CPU gate, TWO independent checks):
+//        a. one full costmap update cycle (tick 0's scan) — GPU master
+//           costmap vs CPU oracle, BYTE-EXACT (every layer is pure integer
+//           arithmetic — kernels.cu explains why this is possible here).
+//        b. one DWA scoring pass over the tick-0 dynamic window — GPU vs
+//           CPU, within a documented relative tolerance (trig-heavy, like
+//           08.01's rollout costs).
+//   3. CLOSED LOOP: sense (simulated LiDAR) -> GPU costmap update -> GPU
+//      DWA scoring -> pick the best admissible (v,w) -> drive the plant one
+//      control tick -> repeat, until the goal is reached or the scenario's
+//      step cap is hit. Logs the driven path to demo/out/path.csv and the
+//      final costmap to demo/out/costmap.pgm.
+//   4. SUCCESS CHECK: exit 0 only if both verify stages passed, the goal
+//      was reached within the step cap, and the driven path never entered
+//      a lethal-cost cell.
 //
-// Role in the project
-// -------------------
-// This file is the demo executable. It owns the *orchestration*: argument
-// parsing, data creation, host<->device transfers, timing, and the
-// GPU-vs-CPU verification that every project in this repo must perform
-// (CLAUDE.md §5, §9). The GPU kernels themselves live in kernels.cu; the
-// CPU correctness oracle lives in reference_cpu.cpp.
+// Message-shape correspondence (SYSTEM_DESIGN.md §3.6) — named here once so
+// every "scan"/"pose"/"costmap" below reads as a real interface, not an ad
+// hoc array: the LiDAR scan this file simulates and discretizes corresponds
+// to `sensor_msgs/LaserScan`; world_map/master_costmap correspond to
+// `nav_msgs/OccupancyGrid`; the chosen (v,w) applied to the plant
+// corresponds to `geometry_msgs/Twist` (linear.x = v, angular.z = w).
 //
-// The big idea of the placeholder
-// -------------------------------
-// SAXPY ("Single-precision A times X Plus Y") computes, element by element,
+// Determinism: the world, the scan (DDA against a fixed map), and the plant
+// are all deterministic given the committed seed-42 map and scenario — no
+// RNG anywhere in this file. The whole closed loop is therefore
+// bit-reproducible on one machine; the stable output lines below still
+// avoid embedding trajectory FLOATS that could drift a ULP across
+// architectures (THEORY.md §numerics), reporting counts and PASS/FAIL
+// instead, with wide margins.
 //
-//     y[i] = a * x[i] + y[i]        for i = 0 .. n-1
+// Output contract: stable lines "[demo]", "PROBLEM:", "MAP:", "SCENARIO:",
+// "VERIFY COSTMAP:", "VERIFY DWA:", "ARTIFACT:", "RESULT:" — "[info]"/
+// "[time]" unchecked. Change a stable line => update demo/expected_output.txt
+// in the same change.
 //
-// It is the "hello, world" of GPU computing: every output element is
-// independent of every other, so the natural GPU mapping is one thread per
-// element — the *map* pattern. SAXPY does almost no arithmetic per byte
-// moved (2 FLOPs per 12 bytes), so it is MEMORY-BANDWIDTH BOUND: it measures
-// how fast the GPU can stream memory, not how fast it can multiply. That
-// makes it the perfect toolchain smoke test — if this builds, runs, and the
-// GPU matches the CPU, your VS 2026 + CUDA 13.3 install is healthy.
-//
-// Read this after / before
-// ------------------------
-// Read this file FIRST, then kernels.cuh (the interface), then kernels.cu
-// (the kernel), then reference_cpu.cpp (the oracle). util/ holds the
-// CUDA_CHECK error macro and the timers — skim their headers as you meet
-// each one in the code below.
-//
-// Output contract (load-bearing!)
-// -------------------------------
-// demo/run_demo.ps1 diffs the stable lines of this program's stdout against
-// demo/expected_output.txt. Stable lines are the "[demo]", "PROBLEM:" and
-// "RESULT:" lines — they contain NO timings and NO device names, so they are
-// deterministic on any GPU. Timing/device lines are prefixed "[time]" /
-// "[info]" and are deliberately NOT diffed (they vary run to run). If you
-// change a stable line here you MUST update demo/expected_output.txt in the
-// same change, and vice versa.
+// Read this first, then kernels.cuh -> reference_cpu.cpp -> kernels.cu.
 // ===========================================================================
 
-#include <cstdio>    // printf/fprintf — we print a small, stable, greppable report
-#include <cstdlib>   // EXIT_SUCCESS/EXIT_FAILURE, strtol for argument parsing
-#include <cmath>     // std::fabs for the max-absolute-difference check
-#include <vector>    // host-side buffers; RAII beats manual new[]/delete[]
+#include "kernels.cuh"
+#include "util/cuda_check.cuh"
+#include "util/timer.cuh"
 
-#include "kernels.cuh"           // saxpy_kernel + launch_saxpy (GPU) and saxpy_cpu (oracle)
-#include "util/cuda_check.cuh"   // CUDA_CHECK / CUDA_CHECK_LAST_ERROR + print_device_info
-#include "util/timer.cuh"        // GpuTimer (cudaEvent-based) and CpuTimer (std::chrono)
-
-// ---------------------------------------------------------------------------
-// Problem constants.
-//
-// DEFAULT_N: 2^20 elements (= 1,048,576). Big enough that the GPU launch
-//   overhead (~a few microseconds) is amortized and the timing line means
-//   something; small enough (12 MiB of traffic) to run instantly on any GPU.
-//   NOTE: the default value is baked into demo/expected_output.txt's
-//   "PROBLEM:" line — the demo must run with no arguments to match.
-// SAXPY_A: the scalar 'a'. 2.0 is exactly representable in FP32, which keeps
-//   the arithmetic clean for teaching purposes.
-// TOLERANCE: max allowed |gpu - cpu| per element. CPU and GPU may round the
-//   multiply-add differently (the GPU compiler typically fuses a*x+y into a
-//   single FMA with ONE rounding; the CPU may round twice) — that difference
-//   is at most ~1 ULP here, i.e. ~1e-7 for values of magnitude ~2, so 1e-6
-//   is a comfortable-but-honest bound. See THEORY.md "Numerical
-//   considerations" for the general story.
-// TODO(scaffold): replace with the real project's problem constants.
-// ---------------------------------------------------------------------------
-static const int   DEFAULT_N = 1 << 20;  // element count (unitless placeholder data)
-static const float SAXPY_A   = 2.0f;     // the scalar 'a' in y = a*x + y
-static const float TOLERANCE = 1e-6f;    // max |gpu-cpu| accepted as agreement
+#include <algorithm>
+#include <cctype>
+#include <cerrno>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#ifdef _WIN32
+#include <direct.h>               // _mkdir (std::filesystem avoided in .cu — see 07.09)
+#else
+#include <sys/stat.h>
+#endif
 
 // ---------------------------------------------------------------------------
-// make_input — fill the host input vectors DETERMINISTICALLY.
-//
-// Purpose:   produce the same bytes on every machine, every run, with no
-//            files and no RNG — so the demo is reproducible offline
-//            (CLAUDE.md §8: synthetic-first, deterministic demos).
-// Params:    n  — element count (must be > 0)
-//            x  — [n] OUT: input vector (read-only in the computation)
-//            y  — [n] OUT: input/output vector (overwritten by SAXPY)
-// Why index-derived values instead of a RNG: the values themselves do not
-// matter for a smoke test; deriving them from the index keeps the whole
-// program free of seed-management questions. The modulo keeps magnitudes
-// small (~0..1) so FP32 rounding stays uniform across the vector.
-// Side effects: none beyond writing x and y. Complexity: O(n).
-// TODO(scaffold): replace with real data loading from ../data/sample/ (or a
-// call into this project's synthetic generator).
+// Path helpers — same exe-relative resolution as every other project's demo
+// (the exe sits at build/x64/<Config>/, three levels below the project root).
 // ---------------------------------------------------------------------------
-static void make_input(int n, std::vector<float>& x, std::vector<float>& y)
+static std::string project_root_from(const char* argv0)
 {
-    x.resize(static_cast<size_t>(n));
-    y.resize(static_cast<size_t>(n));
-    for (int i = 0; i < n; ++i) {
-        // Small, exactly-computable patterns; % keeps values bounded so the
-        // element magnitude (and hence the rounding scale) is uniform.
-        x[static_cast<size_t>(i)] = 0.001f * static_cast<float>(i % 1024); // in [0, 1.023]
-        y[static_cast<size_t>(i)] = 1.0f + 0.0005f * static_cast<float>(i % 512); // in [1.0, 1.2555]
+    std::string exe(argv0 ? argv0 : "");
+    size_t cut = exe.find_last_of("/\\");
+    if (cut == std::string::npos) return ".";
+    return exe.substr(0, cut) + "/../../..";
+}
+
+static std::string dir_of(const std::string& path)
+{
+    size_t cut = path.find_last_of("/\\");
+    if (cut == std::string::npos) return ".";
+    return path.substr(0, cut);
+}
+
+static bool ensure_dir(const std::string& path)
+{
+#ifdef _WIN32
+    const int r = _mkdir(path.c_str());
+#else
+    const int r = mkdir(path.c_str(), 0755);
+#endif
+    return r == 0 || errno == EEXIST;
+}
+
+// ---------------------------------------------------------------------------
+// read_pgm — a STRICT P5 (binary grayscale) reader for data/sample/world_map.pgm.
+//
+// The format is the smallest real image format there is (07.09 writes this
+// same format for its artifacts): a three-line ASCII header ("P5",
+// "<width> <height>", "<maxval>"), each possibly preceded by '#' comment
+// lines, then exactly width*height raw bytes. Strict like every loader in
+// this repo (CLAUDE.md §9): wrong magic, dimensions that disagree with the
+// kernels.cuh contract, a maxval other than 255, or a short/truncated body
+// all fail loudly rather than silently producing a wrong map.
+// ---------------------------------------------------------------------------
+static bool read_pgm_token(std::istream& in, std::string& tok)
+{
+    // Skip whitespace and '#'-prefixed comment lines (the PGM "plain
+    // header" convention), then read one whitespace-delimited token.
+    int c;
+    for (;;) {
+        c = in.get();
+        if (c == EOF) return false;
+        if (c == '#') { while (c != '\n' && c != EOF) c = in.get(); continue; }
+        if (std::isspace(c)) continue;
+        break;
+    }
+    tok.clear();
+    tok.push_back(static_cast<char>(c));
+    while (in.peek() != EOF && !std::isspace(in.peek())) tok.push_back(static_cast<char>(in.get()));
+    return true;
+}
+
+static bool read_pgm(const std::string& path, std::vector<unsigned char>& out,
+                     int expect_w, int expect_h)
+{
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) return false;
+
+    char magic[2] = { 0, 0 };
+    magic[0] = static_cast<char>(in.get());
+    magic[1] = static_cast<char>(in.get());
+    if (magic[0] != 'P' || magic[1] != '5') {
+        std::fprintf(stderr, "world map: not a P5 PGM (bad magic)\n");
+        return false;
+    }
+
+    std::string tw, th, tmax;
+    if (!read_pgm_token(in, tw) || !read_pgm_token(in, th) || !read_pgm_token(in, tmax)) {
+        std::fprintf(stderr, "world map: truncated PGM header\n");
+        return false;
+    }
+    const int w = std::atoi(tw.c_str());
+    const int h = std::atoi(th.c_str());
+    const int maxval = std::atoi(tmax.c_str());
+    if (w != expect_w || h != expect_h) {
+        std::fprintf(stderr, "world map: size %dx%d does not match the %dx%d contract in kernels.cuh\n",
+                     w, h, expect_w, expect_h);
+        return false;
+    }
+    if (maxval != 255) {
+        std::fprintf(stderr, "world map: maxval %d != 255 (this reader only accepts 8-bit PGM)\n", maxval);
+        return false;
+    }
+    // Exactly ONE whitespace byte separates the header from the raw binary
+    // body per the PGM spec; read_pgm_token already consumed it via peek/get
+    // discipline up to (not including) the first body byte, so the stream
+    // cursor is already correctly positioned — read the body directly.
+    out.resize(static_cast<size_t>(w) * h);
+    in.read(reinterpret_cast<char*>(out.data()), static_cast<std::streamsize>(out.size()));
+    if (!in) {
+        std::fprintf(stderr, "world map: truncated pixel data (expected %d bytes)\n", w * h);
+        return false;
+    }
+    return true;
+}
+
+static bool write_pgm(const std::string& path, int width, int height,
+                      const std::vector<unsigned char>& gray)
+{
+    std::ofstream out(path, std::ios::binary);
+    if (!out.is_open()) return false;
+    out << "P5\n" << width << " " << height << "\n255\n";
+    out.write(reinterpret_cast<const char*>(gray.data()),
+              static_cast<std::streamsize>(gray.size()));
+    return static_cast<bool>(out);
+}
+
+// ---------------------------------------------------------------------------
+// Scenario loading — "MAP,<file>,<w>,<h>,<res>" / "START,<x>,<y>,<theta>" /
+// "GOAL,<x>,<y>" / "STEPS,<n>". Strict like 08.01/07.09's loaders: an
+// unrecognized row label, a wrong field count, or a MAP row whose w/h/res
+// disagree with the kernels.cuh contract all abort with a clear message.
+// ---------------------------------------------------------------------------
+struct Scenario {
+    std::string map_file;
+    float start_x = 0.0f, start_y = 0.0f, start_theta = 0.0f;
+    float goal_x = 0.0f, goal_y = 0.0f;
+    int steps = 0;
+    bool loaded = false;
+};
+
+static Scenario load_scenario(const std::string& path)
+{
+    Scenario sc;
+    std::ifstream in(path);
+    if (!in.is_open()) return sc;
+
+    bool have_map = false, have_start = false, have_goal = false, have_steps = false;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        std::stringstream ss(line);
+        std::string label, cell;
+        std::getline(ss, label, ',');
+        if (label == "MAP") {
+            std::vector<std::string> f;
+            while (std::getline(ss, cell, ',')) f.push_back(cell);
+            if (f.size() != 4) { std::fprintf(stderr, "scenario: MAP row needs 4 fields\n"); return Scenario{}; }
+            sc.map_file = f[0];
+            const int w = std::atoi(f[1].c_str());
+            const int h = std::atoi(f[2].c_str());
+            const float res = std::strtof(f[3].c_str(), nullptr);
+            if (w != kGridW || h != kGridH || std::fabs(res - kResolutionM) > 1e-6f) {
+                std::fprintf(stderr, "scenario: MAP row %dx%d @ %.4f disagrees with the kernels.cuh "
+                                     "contract (%dx%d @ %.4f)\n", w, h, static_cast<double>(res),
+                             kGridW, kGridH, static_cast<double>(kResolutionM));
+                return Scenario{};
+            }
+            have_map = true;
+        } else if (label == "START") {
+            float v[3];
+            for (int i = 0; i < 3; ++i) {
+                if (!std::getline(ss, cell, ',')) { std::fprintf(stderr, "scenario: short START row\n"); return Scenario{}; }
+                v[i] = std::strtof(cell.c_str(), nullptr);
+            }
+            sc.start_x = v[0]; sc.start_y = v[1]; sc.start_theta = v[2];
+            have_start = true;
+        } else if (label == "GOAL") {
+            float v[2];
+            for (int i = 0; i < 2; ++i) {
+                if (!std::getline(ss, cell, ',')) { std::fprintf(stderr, "scenario: short GOAL row\n"); return Scenario{}; }
+                v[i] = std::strtof(cell.c_str(), nullptr);
+            }
+            sc.goal_x = v[0]; sc.goal_y = v[1];
+            have_goal = true;
+        } else if (label == "STEPS") {
+            if (!std::getline(ss, cell, ',')) { std::fprintf(stderr, "scenario: short STEPS row\n"); return Scenario{}; }
+            sc.steps = std::atoi(cell.c_str());
+            have_steps = true;
+        } else {
+            std::fprintf(stderr, "scenario: unknown row label '%s'\n", label.c_str());
+            return Scenario{};
+        }
+    }
+    if (!have_map || !have_start || !have_goal || !have_steps || sc.steps < 1) {
+        std::fprintf(stderr, "scenario: missing MAP/START/GOAL/STEPS row\n");
+        return Scenario{};
+    }
+    sc.loaded = true;
+    return sc;
+}
+
+static std::string find_scenario(const std::string& cli_path, const char* argv0)
+{
+    std::vector<std::string> candidates;
+    if (!cli_path.empty()) candidates.push_back(cli_path);
+    candidates.push_back(project_root_from(argv0) + "/data/sample/scenario.csv");
+    candidates.push_back("data/sample/scenario.csv");
+    candidates.push_back("../data/sample/scenario.csv");
+    for (const auto& c : candidates)
+        if (std::ifstream(c).is_open()) return c;
+    return "";
+}
+
+// ---------------------------------------------------------------------------
+// simulate_lidar_scan — THE PLANT'S SENSOR. Host-only, deterministic:
+// kNumBeams beams spread evenly over the full circle, each DDA-stepped in
+// small METRIC increments against the TRUE world map (never the costmap —
+// see kernels.cuh's file header for why keeping "ground truth" and "what
+// the costmap pipeline sees" strictly separate matters). The OUTPUT of this
+// function is what actually crosses into the GPU/CPU costmap pipeline: not
+// the true map, not even the continuous ranges, but a PRE-DISCRETIZED
+// integer endpoint cell per beam (kernels.cu explains why this exactness
+// matters for the byte-exact verify gate).
+//
+// Step size: half a cell (kResolutionM/2) — fine enough that a beam cannot
+// tunnel through the map's thinnest wall (2 cells) between samples, coarse
+// enough that 360 beams x ~240 steps is a trivial amount of host work,
+// timed separately from (and excluded from) the GPU kernel timings below.
+// ---------------------------------------------------------------------------
+static void simulate_lidar_scan(const std::vector<unsigned char>& world,
+                                float robot_x_m, float robot_y_m,
+                                int end_ix[kNumBeams], int end_iy[kNumBeams], unsigned char hit[kNumBeams])
+{
+    const float step_m = kResolutionM * 0.5f;
+    const float two_pi = 6.283185307179586f;
+
+    for (int b = 0; b < kNumBeams; ++b) {
+        const float angle = (two_pi * static_cast<float>(b)) / static_cast<float>(kNumBeams);
+        const float ca = std::cos(angle), sa = std::sin(angle);
+
+        int last_ix = static_cast<int>(std::floor(robot_x_m / kResolutionM));
+        int last_iy = static_cast<int>(std::floor(robot_y_m / kResolutionM));
+        bool found_hit = false;
+
+        const int n_steps = static_cast<int>(kMaxRangeM / step_m);
+        for (int s = 1; s <= n_steps; ++s) {
+            const float r = step_m * static_cast<float>(s);
+            const float x = robot_x_m + r * ca;
+            const float y = robot_y_m + r * sa;
+            int ix = static_cast<int>(std::floor(x / kResolutionM));
+            int iy = static_cast<int>(std::floor(y / kResolutionM));
+
+            if (ix < 0 || ix >= kGridW || iy < 0 || iy >= kGridH) {
+                // Left the mapped area without hitting anything (should not
+                // happen inside the committed map's walled perimeter — a
+                // defensive clamp, not the expected path).
+                ix = ix < 0 ? 0 : (ix >= kGridW ? kGridW - 1 : ix);
+                iy = iy < 0 ? 0 : (iy >= kGridH ? kGridH - 1 : iy);
+                last_ix = ix; last_iy = iy;
+                found_hit = true;   // treat the map edge as a wall — safe default
+                break;
+            }
+
+            last_ix = ix; last_iy = iy;
+            if (world[static_cast<size_t>(iy) * kGridW + ix] == kCostLethal) {
+                found_hit = true;
+                break;
+            }
+        }
+
+        end_ix[b] = last_ix;
+        end_iy[b] = last_iy;
+        hit[b] = found_hit ? 1 : 0;
     }
 }
 
 // ---------------------------------------------------------------------------
-// main — orchestrates the whole demo. Returns EXIT_SUCCESS only when the GPU
-// result agrees with the CPU reference within TOLERANCE; a mismatch returns
-// EXIT_FAILURE so demo scripts (and CI) can gate on the exit code.
-//
-// Usage: <exe> [n]
-//   n — optional element count override (default 1,048,576). Overriding n
-//       changes the "PROBLEM:" line, so the checked demo must run with NO
-//       arguments; the override exists for learners to experiment with sizes.
+// dynamic_window — this tick's admissible (v,w) sampling bounds: whatever
+// the robot can reach from (v_prev, w_prev) within one control period given
+// its acceleration limits, clamped to the robot's absolute limits. THE
+// "Dynamic" in Dynamic Window Approach (THEORY.md §the-math derives it).
+// ---------------------------------------------------------------------------
+static void dynamic_window(float v_prev, float w_prev,
+                           float& v_lo, float& v_hi, float& w_lo, float& w_hi)
+{
+    const float dv = kAccelV * kDtControl;
+    const float dw = kAccelW * kDtControl;
+    v_lo = std::max(kVMin, v_prev - dv);
+    v_hi = std::min(kVMax, v_prev + dv);
+    w_lo = std::max(-kWMax, w_prev - dw);
+    w_hi = std::min(kWMax, w_prev + dw);
+}
+
+// ---------------------------------------------------------------------------
+// argmin_admissible — the host-side reduction over this tick's 4096 DWA
+// scores (deliberately kept in plain C++ next to the algorithm, the same
+// "keep the blend visible" choice 08.01 makes for its softmin). Returns the
+// winning sample index, or -1 if every sample was inadmissible (the
+// emergency-brake trigger in the closed loop below).
+// ---------------------------------------------------------------------------
+static int argmin_admissible(const std::vector<float>& scores)
+{
+    int best = -1;
+    float best_score = kInadmissibleScore;
+    for (int k = 0; k < kNumDwaSamples; ++k) {
+        if (scores[static_cast<size_t>(k)] < best_score) {
+            best_score = scores[static_cast<size_t>(k)];
+            best = k;
+        }
+    }
+    return (best_score < kInadmissibleScore) ? best : -1;
+}
+
+static void sample_to_vw(int k, float v_lo, float v_hi, float w_lo, float w_hi, float& v, float& w)
+{
+    const int vi = k / kWSamples;
+    const int wi = k % kWSamples;
+    v = (kVSamples > 1) ? v_lo + (v_hi - v_lo) * (static_cast<float>(vi) / (kVSamples - 1)) : v_lo;
+    w = (kWSamples > 1) ? w_lo + (w_hi - w_lo) * (static_cast<float>(wi) / (kWSamples - 1)) : w_lo;
+}
+
+// ---------------------------------------------------------------------------
+// main — verify stage, then the closed loop described in the file header.
 // ---------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-    // ---- 0) Arguments -----------------------------------------------------
-    // One optional positional argument: n. We use strtol (not atoi) so a
-    // malformed argument is detectable instead of silently becoming 0.
-    // TODO(scaffold): replace with this project's real CLI (sizes, input
-    // paths, iteration counts, seeds — document every flag here).
-    int n = DEFAULT_N;
-    if (argc > 1) {
-        char* end = nullptr;
-        long v = std::strtol(argv[1], &end, 10);
-        if (end == argv[1] || v <= 0) {
-            std::fprintf(stderr, "usage: %s [n>0]   (default n = %d)\n", argv[0], DEFAULT_N);
-            return EXIT_FAILURE;
+    std::string data_path;
+    for (int i = 1; i < argc; ++i) {
+        if (!std::strcmp(argv[i], "--data") && i + 1 < argc) data_path = argv[++i];
+        else {
+            std::fprintf(stderr, "usage: %s [--data scenario.csv]\n", argv[0]);
+            return 2;
         }
-        n = static_cast<int>(v);
     }
 
-    // Stable line #1 — identifies the demo (diffed by run_demo, see header).
-    std::printf("[demo] template placeholder demo for project 23.01 (gpu-costmaps)\n");
-
-    // "[info]" lines are NOT diffed: device names differ across machines.
-    // print_device_info also serves as our "is there a CUDA device at all?"
-    // check — it fails loudly through CUDA_CHECK if no driver/GPU is present.
+    std::printf("[demo] GPU costmaps + DWA local planner: warehouse AMR navigation loop (project 23.01)\n");
     print_device_info();
+    std::printf("PROBLEM: %dx%d grid @ %.2f m/cell (%.1f x %.1f m), %d-beam LiDAR (max range %.1f m), "
+                "DWA %dx%d=%d (v,w) samples, FP32\n",
+                kGridW, kGridH, static_cast<double>(kResolutionM),
+                static_cast<double>(kGridW * kResolutionM), static_cast<double>(kGridH * kResolutionM),
+                kNumBeams, static_cast<double>(kMaxRangeM), kVSamples, kWSamples, kNumDwaSamples);
 
-    // Stable line #2 — states the problem instance. %d and %.1f formatting is
-    // deterministic for these values; keep the text in lockstep with
-    // demo/expected_output.txt.
-    std::printf("PROBLEM: SAXPY y = a*x + y, n = %d elements, a = %.1f\n", n, SAXPY_A);
-
-    // ---- 1) Data ----------------------------------------------------------
-    // Three host buffers:
-    //   h_x     — the input vector x (never modified),
-    //   h_y_cpu — starts as y, then holds the CPU reference result,
-    //   h_y_gpu — a second copy of y; the GPU result is copied back into it.
-    // We keep TWO independent y copies because SAXPY updates y in place — the
-    // CPU and GPU must each start from identical, untouched inputs.
-    std::vector<float> h_x, h_y_cpu;
-    make_input(n, h_x, h_y_cpu);
-    std::vector<float> h_y_gpu = h_y_cpu;   // deep copy: identical starting y
-
-    // ---- 2) CPU reference (the correctness oracle) ------------------------
-    // Runs FIRST so that if the GPU path is broken, we still saw the baseline
-    // work. Timing uses a wall-clock CpuTimer (host code is synchronous — no
-    // events needed; see util/timer.cuh for why the GPU is different).
-    CpuTimer cpu_timer;
-    cpu_timer.begin();
-    saxpy_cpu(n, SAXPY_A, h_x.data(), h_y_cpu.data());   // defined in reference_cpu.cpp
-    const double cpu_ms = cpu_timer.end_ms();
-
-    // ---- 3) GPU path -------------------------------------------------------
-    // The canonical 5 steps of every basic CUDA program — spelled out here on
-    // purpose, because this sequence recurs in all 500+ projects:
-    //   allocate device memory -> copy inputs H2D -> launch kernel(s)
-    //   -> copy results D2H -> free device memory.
-    // d_ prefix = device pointer, h_ prefix = host pointer (CLAUDE.md §12).
-    float* d_x = nullptr;  // device copy of x, [n] floats, read-only in kernel
-    float* d_y = nullptr;  // device copy of y, [n] floats, updated in place
-
-    const size_t bytes = static_cast<size_t>(n) * sizeof(float); // size_t: avoids int overflow for large n
-
-    // cudaMalloc can fail with cudaErrorMemoryAllocation if the GPU is out of
-    // memory — CUDA_CHECK turns that into a readable message + hard exit.
-    CUDA_CHECK(cudaMalloc(&d_x, bytes));
-    CUDA_CHECK(cudaMalloc(&d_y, bytes));
-
-    // Host-to-device copies. These can fail on invalid pointers/sizes (a
-    // programming bug) — again surfaced by CUDA_CHECK, never ignored.
-    CUDA_CHECK(cudaMemcpy(d_x, h_x.data(),     bytes, cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_y, h_y_gpu.data(), bytes, cudaMemcpyHostToDevice));
-
-    // Time ONLY the kernel with cudaEvents (not the copies) — we want the
-    // compute figure, and events measure on the GPU's own timeline (see
-    // util/timer.cuh for why host clocks mis-measure async GPU work).
-    // NOTE for learners: the very first kernel launch of a process can pay a
-    // one-time module-load/JIT cost, so this single-shot number is a teaching
-    // artifact, not a benchmark (CLAUDE.md §12). Real projects should warm up
-    // and average — TODO(scaffold): do that in the real implementation.
-    GpuTimer gpu_timer;
-    gpu_timer.begin();
-    launch_saxpy(n, SAXPY_A, d_x, d_y);      // wrapper in kernels.cu: grid math + launch + launch-error check
-    const float gpu_ms = gpu_timer.end_ms(); // synchronizes on the stop event -> kernel has finished
-
-    // Device-to-host copy of the result. cudaMemcpy is synchronizing here
-    // anyway, but the timer's event-sync above already guaranteed completion.
-    CUDA_CHECK(cudaMemcpy(h_y_gpu.data(), d_y, bytes, cudaMemcpyDeviceToHost));
-
-    // Free device memory as soon as we are done with it. For a program this
-    // small it is not strictly necessary (process exit frees everything), but
-    // the habit matters in long-running robot processes where leaked device
-    // memory kills you after hours, not seconds.
-    CUDA_CHECK(cudaFree(d_x));
-    CUDA_CHECK(cudaFree(d_y));
-
-    // ---- 4) Verify: GPU vs CPU, element by element -------------------------
-    // max_abs_diff is the L-infinity norm of (gpu - cpu) — the strictest of
-    // the simple norms, and the easiest to reason about: "no element is off
-    // by more than TOLERANCE". double accumulator not needed for a max (no
-    // summation, so no accumulation error), float is fine.
-    float max_abs_diff = 0.0f;
-    for (int i = 0; i < n; ++i) {
-        const float d = std::fabs(h_y_gpu[static_cast<size_t>(i)] - h_y_cpu[static_cast<size_t>(i)]);
-        if (d > max_abs_diff) max_abs_diff = d;
+    // ---- scenario + map ------------------------------------------------------
+    const std::string scenario_path = find_scenario(data_path, argv[0]);
+    if (scenario_path.empty()) {
+        std::printf("SCENARIO: NOT FOUND — data/sample/scenario.csv missing (run scripts/make_synthetic.py?)\n");
+        std::printf("RESULT: FAIL (scenario missing)\n");
+        return 1;
     }
-    const bool pass = (max_abs_diff <= TOLERANCE);
-
-    // ---- 5) Report ----------------------------------------------------------
-    // "[time]" lines vary run-to-run and machine-to-machine -> NOT diffed.
-    // The speed-up figure is a TEACHING ARTIFACT, never a benchmark claim
-    // (CLAUDE.md §12): single-shot, kernel-only vs. single-thread CPU.
-    std::printf("[time] CPU reference: %.3f ms\n", cpu_ms);
-    std::printf("[time] GPU kernel:    %.3f ms\n", static_cast<double>(gpu_ms));
-    if (gpu_ms > 0.0f) {
-        std::printf("[time] speed-up (teaching artifact, not a benchmark): %.1fx\n",
-                    cpu_ms / static_cast<double>(gpu_ms));
+    std::printf("[info] scenario file: %s\n", scenario_path.c_str());
+    Scenario sc = load_scenario(scenario_path);
+    if (!sc.loaded) {
+        std::printf("SCENARIO: MALFORMED — see stderr\n");
+        std::printf("RESULT: FAIL (scenario malformed)\n");
+        return 1;
     }
 
-    // Stable line #3 — the verdict. The PASS line contains NO numbers that
-    // could vary across GPUs (FMA rounding differs by architecture), so it is
-    // byte-identical everywhere; the FAIL line DOES include the measured
-    // difference, because when things break you want the number.
-    if (pass) {
-        std::printf("RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)\n");
-        return EXIT_SUCCESS;
-    } else {
-        std::printf("RESULT: FAIL (max |gpu-cpu| = %.6e > tol 1e-6)\n",
-                    static_cast<double>(max_abs_diff));
-        return EXIT_FAILURE;   // nonzero exit -> demo scripts and CI see the failure
+    const std::string map_path = dir_of(scenario_path) + "/" + sc.map_file;
+    std::printf("[info] map file: %s\n", map_path.c_str());
+    std::vector<unsigned char> world;   // the TRUE world — only simulate_lidar_scan ever reads this
+    if (!read_pgm(map_path, world, kGridW, kGridH)) {
+        std::printf("MAP: MALFORMED — see stderr\n");
+        std::printf("RESULT: FAIL (map malformed)\n");
+        return 1;
     }
+    long long lethal_cells = 0;
+    for (unsigned char c : world) if (c == kCostLethal) ++lethal_cells;
+    std::printf("MAP: %dx%d cells, %lld lethal cells (%.1f%% occupied) [synthetic, seed 42]\n",
+                kGridW, kGridH, lethal_cells, 100.0 * static_cast<double>(lethal_cells) / kGridTotal);
+    std::printf("SCENARIO: start (%.2f, %.2f, %.2f) -> goal (%.2f, %.2f), step cap %d [synthetic, seed 42]\n",
+                static_cast<double>(sc.start_x), static_cast<double>(sc.start_y), static_cast<double>(sc.start_theta),
+                static_cast<double>(sc.goal_x), static_cast<double>(sc.goal_y), sc.steps);
+
+    const float mission_dist = std::max(0.1f,
+        std::sqrt((sc.goal_x - sc.start_x) * (sc.goal_x - sc.start_x) +
+                 (sc.goal_y - sc.start_y) * (sc.goal_y - sc.start_y)));
+
+    // ---- persistent device buffers --------------------------------------------
+    // Allocated ONCE, outside the control loop (same reasoning as 08.01): the
+    // per-tick scan upload inside launch_costmap_update is the deliberate,
+    // negligible exception (kernels.cu's launcher comment explains why).
+    unsigned char* d_static    = nullptr;
+    int*           d_obstacle  = nullptr;
+    unsigned char* d_inflation = nullptr;
+    unsigned char* d_master    = nullptr;
+    float*         d_scores    = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_static,    static_cast<size_t>(kGridTotal) * sizeof(unsigned char)));
+    CUDA_CHECK(cudaMalloc(&d_obstacle,  static_cast<size_t>(kGridTotal) * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_inflation, static_cast<size_t>(kGridTotal) * sizeof(unsigned char)));
+    CUDA_CHECK(cudaMalloc(&d_master,    static_cast<size_t>(kGridTotal) * sizeof(unsigned char)));
+    CUDA_CHECK(cudaMalloc(&d_scores,    static_cast<size_t>(kNumDwaSamples) * sizeof(float)));
+    CUDA_CHECK(cudaMemcpy(d_static, world.data(), static_cast<size_t>(kGridTotal) * sizeof(unsigned char),
+                          cudaMemcpyHostToDevice));
+
+    int end_ix[kNumBeams], end_iy[kNumBeams];
+    unsigned char hit[kNumBeams];
+
+    // ======================= VERIFY STAGE ====================================
+    {
+        // (a) One full costmap update cycle, tick 0's exact inputs.
+        const int robot_ix = static_cast<int>(std::floor(sc.start_x / kResolutionM));
+        const int robot_iy = static_cast<int>(std::floor(sc.start_y / kResolutionM));
+        simulate_lidar_scan(world, sc.start_x, sc.start_y, end_ix, end_iy, hit);
+
+        GpuTimer gt;
+        gt.begin();
+        launch_costmap_update(robot_ix, robot_iy, end_ix, end_iy, hit,
+                              d_static, d_obstacle, d_inflation, d_master);
+        const float gpu_costmap_ms = gt.end_ms();
+
+        std::vector<unsigned char> gpu_master(static_cast<size_t>(kGridTotal));
+        CUDA_CHECK(cudaMemcpy(gpu_master.data(), d_master,
+                              static_cast<size_t>(kGridTotal) * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+
+        std::vector<int>           cpu_obstacle(static_cast<size_t>(kGridTotal));
+        std::vector<unsigned char> cpu_inflation(static_cast<size_t>(kGridTotal));
+        std::vector<unsigned char> cpu_master(static_cast<size_t>(kGridTotal));
+        CpuTimer ct;
+        ct.begin();
+        costmap_update_cpu(robot_ix, robot_iy, end_ix, end_iy, hit,
+                           world.data(), cpu_obstacle.data(), cpu_inflation.data(), cpu_master.data());
+        const double cpu_costmap_ms = ct.end_ms();
+
+        long long mismatches = 0;
+        for (int i = 0; i < kGridTotal; ++i)
+            if (gpu_master[static_cast<size_t>(i)] != cpu_master[static_cast<size_t>(i)]) ++mismatches;
+
+        std::printf("[info] verify costmap: %lld/%d cells differ (byte-exact target: 0)\n",
+                    mismatches, kGridTotal);
+        std::printf("[time] costmap update: CPU %.2f ms | GPU (3 kernels) %.3f ms | speed-up %.0fx "
+                    "(teaching artifact)\n", cpu_costmap_ms, static_cast<double>(gpu_costmap_ms),
+                    cpu_costmap_ms / (static_cast<double>(gpu_costmap_ms) > 0.0 ? static_cast<double>(gpu_costmap_ms) : 1.0));
+        const bool costmap_pass = (mismatches == 0);
+        std::printf("VERIFY COSTMAP: %s (GPU master costmap byte-exact vs CPU reference over one full update cycle)\n",
+                    costmap_pass ? "PASS" : "FAIL");
+        if (!costmap_pass) {
+            std::printf("RESULT: FAIL (GPU/CPU costmap disagreement — fix before trusting the planner)\n");
+            return 1;
+        }
+
+        // (b) One DWA scoring pass over the tick-0 dynamic window.
+        float v_lo, v_hi, w_lo, w_hi;
+        dynamic_window(0.0f, 0.0f, v_lo, v_hi, w_lo, w_hi);
+
+        std::vector<float> gpu_scores(static_cast<size_t>(kNumDwaSamples));
+        GpuTimer gt2;
+        gt2.begin();
+        launch_dwa_scores(d_master, sc.start_x, sc.start_y, sc.start_theta, sc.goal_x, sc.goal_y,
+                          v_lo, v_hi, w_lo, w_hi, mission_dist, d_scores);
+        const float gpu_dwa_ms = gt2.end_ms();
+        CUDA_CHECK(cudaMemcpy(gpu_scores.data(), d_scores,
+                              static_cast<size_t>(kNumDwaSamples) * sizeof(float), cudaMemcpyDeviceToHost));
+
+        std::vector<float> cpu_scores(static_cast<size_t>(kNumDwaSamples));
+        CpuTimer ct2;
+        ct2.begin();
+        dwa_scores_cpu(cpu_master.data(), sc.start_x, sc.start_y, sc.start_theta, sc.goal_x, sc.goal_y,
+                       v_lo, v_hi, w_lo, w_hi, mission_dist, cpu_scores.data());
+        const double cpu_dwa_ms = ct2.end_ms();
+
+        float worst = 0.0f;
+        bool dwa_pass = true;
+        for (int k = 0; k < kNumDwaSamples; ++k) {
+            const float cv = cpu_scores[static_cast<size_t>(k)];
+            const float scale = std::fabs(cv) > 1.0f ? std::fabs(cv) : 1.0f;
+            const float d = std::fabs(gpu_scores[static_cast<size_t>(k)] - cv) / scale;
+            if (d > worst) worst = d;
+            if (d > 1e-3f) dwa_pass = false;
+        }
+        std::printf("[info] verify dwa: worst relative score deviation %.3e over %d samples\n",
+                    static_cast<double>(worst), kNumDwaSamples);
+        std::printf("[time] dwa scoring: CPU %.2f ms | GPU kernel %.3f ms | speed-up %.0fx (teaching artifact)\n",
+                    cpu_dwa_ms, static_cast<double>(gpu_dwa_ms),
+                    cpu_dwa_ms / (static_cast<double>(gpu_dwa_ms) > 0.0 ? static_cast<double>(gpu_dwa_ms) : 1.0));
+        std::printf("VERIFY DWA: %s (GPU DWA scores match CPU reference within rel tol 1e-3)\n",
+                    dwa_pass ? "PASS" : "FAIL");
+        if (!dwa_pass) {
+            std::printf("RESULT: FAIL (GPU/CPU DWA scoring disagreement — fix before trusting the planner)\n");
+            return 1;
+        }
+    }
+
+    // ======================= CLOSED LOOP =====================================
+    float pose[3] = { sc.start_x, sc.start_y, sc.start_theta };   // the PLANT state ("reality")
+    float v_prev = 0.0f, w_prev = 0.0f;
+
+    std::vector<float> traj;                 // logged rows: t,x,y,theta,v,w
+    traj.reserve(static_cast<size_t>(sc.steps + 1) * 6);
+    traj.push_back(0.0f); traj.push_back(pose[0]); traj.push_back(pose[1]);
+    traj.push_back(pose[2]); traj.push_back(0.0f); traj.push_back(0.0f);
+
+    std::vector<unsigned char> master_host(static_cast<size_t>(kGridTotal));
+    std::vector<float> scores(static_cast<size_t>(kNumDwaSamples));
+
+    int steps_taken = 0;
+    long long lethal_hits = 0;
+    long long emergency_brakes = 0;
+    bool goal_reached = false;
+    double loop_gpu_costmap_ms = 0.0, loop_gpu_dwa_ms = 0.0;
+
+    for (int step = 0; step < sc.steps; ++step) {
+        // (1) sense: simulate this tick's LiDAR scan from the CURRENT pose.
+        const int robot_ix = static_cast<int>(std::floor(pose[0] / kResolutionM));
+        const int robot_iy = static_cast<int>(std::floor(pose[1] / kResolutionM));
+        simulate_lidar_scan(world, pose[0], pose[1], end_ix, end_iy, hit);
+
+        // (2) GPU: costmap pipeline (raytrace -> inflation -> fusion).
+        GpuTimer gt;
+        gt.begin();
+        launch_costmap_update(robot_ix, robot_iy, end_ix, end_iy, hit,
+                              d_static, d_obstacle, d_inflation, d_master);
+        loop_gpu_costmap_ms += static_cast<double>(gt.end_ms());
+        CUDA_CHECK(cudaMemcpy(master_host.data(), d_master,
+                              static_cast<size_t>(kGridTotal) * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+
+        // (3) the dynamic window for this tick.
+        float v_lo, v_hi, w_lo, w_hi;
+        dynamic_window(v_prev, w_prev, v_lo, v_hi, w_lo, w_hi);
+
+        // (4) GPU: score every (v,w) sample against this tick's master costmap.
+        GpuTimer gt2;
+        gt2.begin();
+        launch_dwa_scores(d_master, pose[0], pose[1], pose[2], sc.goal_x, sc.goal_y,
+                          v_lo, v_hi, w_lo, w_hi, mission_dist, d_scores);
+        loop_gpu_dwa_ms += static_cast<double>(gt2.end_ms());
+        CUDA_CHECK(cudaMemcpy(scores.data(), d_scores,
+                              static_cast<size_t>(kNumDwaSamples) * sizeof(float), cudaMemcpyDeviceToHost));
+
+        // (5) pick the best admissible sample; brake if none exists (the
+        // standard DWA safety fallback — should be rare-to-never on this
+        // scenario's deliberately generous course, measured honestly below).
+        float v_cmd, w_cmd;
+        const int best = argmin_admissible(scores);
+        if (best >= 0) {
+            sample_to_vw(best, v_lo, v_hi, w_lo, w_hi, v_cmd, w_cmd);
+        } else {
+            v_cmd = std::max(kVMin, v_prev - kAccelV * kDtControl);
+            w_cmd = 0.0f;
+            ++emergency_brakes;
+        }
+
+        // (6) act: drive the plant one control tick.
+        diffdrive_step_cpu(pose, v_cmd, w_cmd, kDtControl);
+        v_prev = v_cmd; w_prev = w_cmd;
+        ++steps_taken;
+
+        // (7) safety re-check: did the ACTUAL driven cell end up lethal?
+        // (kDtControl == kDtSub by construction — see kernels.cuh — so this
+        // is re-checking the very first substep of the arc DWA already
+        // verified admissible; done anyway, on the real driven pose, as an
+        // independent assertion rather than trusting the planner's own flag.)
+        {
+            const int ix = static_cast<int>(std::floor(pose[0] / kResolutionM));
+            const int iy = static_cast<int>(std::floor(pose[1] / kResolutionM));
+            if (ix < 0 || ix >= kGridW || iy < 0 || iy >= kGridH ||
+                master_host[static_cast<size_t>(iy) * kGridW + ix] >= kCostLethal) {
+                ++lethal_hits;
+            }
+        }
+
+        // (8) log + goal check.
+        traj.push_back(static_cast<float>(steps_taken) * kDtControl);
+        traj.push_back(pose[0]); traj.push_back(pose[1]); traj.push_back(pose[2]);
+        traj.push_back(v_cmd); traj.push_back(w_cmd);
+
+        const float dgx = sc.goal_x - pose[0], dgy = sc.goal_y - pose[1];
+        if (std::sqrt(dgx * dgx + dgy * dgy) < kGoalTolM) { goal_reached = true; break; }
+    }
+
+    CUDA_CHECK(cudaFree(d_static));
+    CUDA_CHECK(cudaFree(d_obstacle));
+    CUDA_CHECK(cudaFree(d_inflation));
+    CUDA_CHECK(cudaFree(d_master));
+    CUDA_CHECK(cudaFree(d_scores));
+
+    std::printf("[info] final pose: x=%.3f m, y=%.3f m, theta=%.3f rad; steps used: %d/%d; "
+                "emergency brakes: %lld\n",
+                static_cast<double>(pose[0]), static_cast<double>(pose[1]), static_cast<double>(pose[2]),
+                steps_taken, sc.steps, emergency_brakes);
+    std::printf("[time] closed loop: costmap %.3f ms/tick, DWA %.3f ms/tick average GPU kernel time over %d ticks\n",
+                loop_gpu_costmap_ms / steps_taken, loop_gpu_dwa_ms / steps_taken, steps_taken);
+
+    // ---- artifacts: the driven path and the late-run master costmap ----------
+    const std::string out_dir = project_root_from(argv[0]) + "/demo/out";
+    bool artifact_ok = ensure_dir(out_dir);
+    if (artifact_ok) {
+        std::ofstream f(out_dir + "/path.csv");
+        artifact_ok = f.is_open();
+        if (artifact_ok) {
+            f << "t_s,x_m,y_m,theta_rad,v_ms,w_rads\n";   // units in the header row (§12)
+            const int rows = steps_taken + 1;
+            for (int r = 0; r < rows; ++r) {
+                const float* row = &traj[static_cast<size_t>(r) * 6];
+                f << row[0] << ',' << row[1] << ',' << row[2] << ',' << row[3] << ',' << row[4] << ',' << row[5] << '\n';
+            }
+        }
+    }
+    if (artifact_ok)
+        std::printf("ARTIFACT: wrote demo/out/path.csv (%d rows)\n", steps_taken + 1);
+    else
+        std::printf("ARTIFACT: FAILED to write demo/out/path.csv\n");
+
+    bool pgm_ok = artifact_ok && write_pgm(out_dir + "/costmap.pgm", kGridW, kGridH, master_host);
+    if (pgm_ok)
+        std::printf("ARTIFACT: wrote demo/out/costmap.pgm (%dx%d, master costmap at the final tick)\n",
+                    kGridW, kGridH);
+    else
+        std::printf("ARTIFACT: FAILED to write demo/out/costmap.pgm\n");
+
+    // ---- success check (the stable verdict) ----------------------------------
+    const bool success = pgm_ok && goal_reached && (lethal_hits == 0);
+    if (success)
+        std::printf("RESULT: PASS (goal reached in %d/%d steps; 0 lethal-cell entries along the driven path)\n",
+                    steps_taken, sc.steps);
+    else
+        std::printf("RESULT: FAIL (goal_reached=%s, lethal_hits=%lld — see [info] lines above)\n",
+                    goal_reached ? "true" : "false", lethal_hits);
+    return success ? 0 : 1;
 }
