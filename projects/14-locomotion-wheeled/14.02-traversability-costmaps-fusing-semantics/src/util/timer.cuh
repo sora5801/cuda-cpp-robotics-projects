@@ -48,10 +48,10 @@
 //  * end_ms() SYNCHRONIZES on the stop event — after it returns, all work
 //    recorded before the stop event has finished. Callers rely on this
 //    (main.cu copies results back immediately after timing).
-//  * Events are recorded into the default stream (0), matching the simple
-//    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//  * Events are recorded into the default stream (0) — this project's four
+//    kernels (geometric layer, semantic layer, fusion, speed limit) all run
+//    sequentially in the default stream, so no multi-stream adaptation is
+//    needed here.
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 19/505 done** (3.8%)
+**Overall: 20/505 done** (4.0%)
 
 | Status | Count |
 |--------|-------|
-| todo | 486 |
+| todo | 485 |
 | in-progress | 0 |
-| done | 19 |
+| done | 20 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -43,7 +43,7 @@
 | 11 Sensor Simulation & Digital Twins | 1/11 |
 | 12 Machine Learning & AI for Robots | 1/25 |
 | 13 Locomotion — Legged | 1/13 |
-| 14 Locomotion — Wheeled & Tracked | 0/10 |
+| 14 Locomotion — Wheeled & Tracked | 1/10 |
 | 15 Locomotion — Aerial | 1/16 |
 | 16 Locomotion — Marine & Underwater | 0/11 |
 | 17 Locomotion — Space | 1/13 |
@@ -352,12 +352,12 @@
 | 13.12 | Blind locomotion via massive domain randomization | intermediate |  | todo |  |  |
 | 13.13 | Exoskeleton gait-phase estimation + assistance-torque optimization | [R&D] research |  | todo |  |  |
 
-## 14. Locomotion — Wheeled & Tracked (`14-locomotion-wheeled`) — 0/10 done
+## 14. Locomotion — Wheeled & Tracked (`14-locomotion-wheeled`) — 1/10 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 14.01 | MPPI off-road racing with learned GPU dynamics models | ★ beginner |  | todo |  |  |
-| 14.02 | Traversability costmaps fusing semantics + geometry | intermediate | ⭐ | todo |  |  |
+| 14.02 | Traversability costmaps fusing semantics + geometry | intermediate | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); both fusion disagreement gates hold |
 | 14.03 | Slip estimation with parallel wheel-terrain model banks | intermediate |  | todo |  |  |
 | 14.04 | Skid-steer dynamics identification sweeps | intermediate |  | todo |  |  |
 | 14.05 | Tire-friction estimation Monte Carlo for high-speed driving | intermediate |  | todo |  |  |

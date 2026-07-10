@@ -1,12 +1,17 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 14.02 (Traversability costmaps fusing semantics + geometry)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (made for this project, not a placeholder): no public dataset is
+# fetched here. No public dataset ships EXACT per-cell geometric traversability
+# ground truth (a constructed berm's true angle, a ditch's true depth) fused
+# with EXACT per-cell semantic ground truth (a labeled 6-class map with
+# confidence) at once — this project's own analytic gates (main.cu) need both,
+# so the synthetic scenario (data/sample/traversability_scenario.csv,
+# scripts/make_synthetic.py) is the honest, permanent choice, not a stand-in
+# for a dataset this script will grow later. This script stays an honest
+# no-op so every project in the repo can be invoked uniformly.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any future real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

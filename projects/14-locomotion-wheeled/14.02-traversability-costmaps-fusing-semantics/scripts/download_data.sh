@@ -3,12 +3,14 @@
 # download_data.sh — public-dataset fetcher for 14.02 (Traversability costmaps fusing semantics + geometry)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (made for this project, not a placeholder): no public dataset is
+# fetched here — no public dataset ships exact per-cell geometric AND
+# semantic ground truth at once, which this project's own analytic gates
+# need (see download_data.ps1's twin comment for the full reasoning). The
+# synthetic scenario (data/sample/traversability_scenario.csv,
+# scripts/make_synthetic.py) is the permanent, honest choice.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any future real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

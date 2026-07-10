@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `traversability_scenario.csv` — a scenario RECIPE (berm/ditch/rocks/
+vegetation-bump geometry, six-class semantic regions, a teaching-transect polyline), not a recorded map.
+`../../src/main.cu`'s `build_elevation()`/`build_semantics()`/`build_transect()` turn it into the
+demo's actual 256x256 elevation grid, 256x256 semantic-class + confidence grids, and sampled transect at
+start-up, deterministically. Regenerate with `python ../../scripts/make_synthetic.py --seed 42`
+(byte-identical). Full field-by-field format, checksum, and layout rationale: [`../README.md`](../README.md).

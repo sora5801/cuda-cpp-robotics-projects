@@ -1,8 +1,12 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the STABLE lines project 14.02's demo must print.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 14.02 (traversability-costmaps-fusing-semantics)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check — the
+# real output also has "[info]"/"[time]" lines with machine-dependent numbers, deliberately NOT
+# checked here; main.cu's file header documents the full output contract).
+# Captured from an actual run on the reference machine (RTX 2080 SUPER, CUDA 13.3, Release|x64).
+[demo] traversability costmaps fusing semantics + geometry (project 14.02)
+PROBLEM: 256x256 traversability costmap (0.10 m/cell, 25.6x25.6 m), geometric fit window 7x7 cells (0.70 m), step window 5x5 cells (0.50 m), mu=0.70 -> traction limit 34.99 deg, track/2h=0.50 -> rollover limit 26.57 deg -> slope limit 26.57 deg (rollover-governed), wheel r=0.20 m -> step limit 0.0362 m, fusion weights geo=0.50/sem=0.50
+SCENARIO: composed terrain (berm 18.0 deg, ditch 0.50 m deep, 10 rocks, vegetation canopy bump) + 7 semantic regions (6-class palette) + 6-waypoint teaching transect [synthetic, seed 42]
+VERIFY: PASS (all 4 kernels agree with the CPU reference within documented tolerances)
+ARTIFACT: wrote demo/out/traversability.pgm (256x256), demo/out/speed_limit.pgm (256x256), and demo/out/layers.csv (301 rows)
+RESULT: PASS (GPU kernels verified against CPU reference; the two designed-disagreement cases and both pure-geometry gates hold within documented tolerances)

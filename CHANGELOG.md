@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — flagship 14.02 traversability fusion done (20/505) — batch 1d complete; semantics vetoes flat water, rescues rough grass — [push-note](push-notes/2026-07-10-04-flagship-14-02-traversability-batch-1d-complete.md)
 - 2026-07-10 — flagship 13.03 foothold scoring done (19/505); ramp gate 15.007° vs 15.00°; the twin-invisible shared-bug case study — [push-note](push-notes/2026-07-10-03-flagship-13-03-foothold-scoring.md)
 - 2026-07-10 — flagship 12.01 TensorRT deploy done (18/505); first heavy-SDK project — §5 fallback path is the default build, TRT off-by-default — [push-note](push-notes/2026-07-10-02-flagship-12-01-tensorrt-deploy.md)
 - 2026-07-10 — flagship 11.01 GPU LiDAR simulator done (17/505); hand-built BVH with proved depth bound; analytic radiometry gates exact — [push-note](push-notes/2026-07-10-01-flagship-11-01-lidar-simulator.md)
