@@ -75,4 +75,8 @@ target_compile_options(100k-agent-swarm-simulator PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(100k-agent-swarm-simulator PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 22.01 note: the source list above is complete for this project and no
+# extra libraries are linked — the exclusive scan runs on the host in plain
+# C++ (a deliberate teaching choice, README Exercise 3 swaps in Thrust/CUB),
+# and agent spawning uses the repo's portable xorshift32 generator rather
+# than cuRAND, for bit-reproducible spawns across machines.

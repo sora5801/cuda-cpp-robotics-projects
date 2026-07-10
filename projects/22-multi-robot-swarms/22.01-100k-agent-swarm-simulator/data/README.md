@@ -17,23 +17,41 @@ Provenance, licensing, and field documentation for everything under `data/` (CLA
 
 ## This project's data
 
-TODO(scaffold): fill in the table and field documentation for the real sample data.
+A swarm simulator's "dataset" is a **scenario** — how many agents, how long to simulate, and which
+seed to spawn them from — not recordings. This project needs no public dataset: agent state is
+generated in-demo from the seed below, and correctness comes from the lockstep CPU oracle plus the
+end-of-run flock statistics (`THEORY.md` §How we verify correctness), not from stored ground truth.
 
 | Property | Value |
 |----------|-------|
-| Kind | TODO(scaffold): synthetic (default) or public dataset (name it) |
-| Generator / source | TODO(scaffold): `../scripts/make_synthetic.py` invocation, or source URL |
-| License | TODO(scaffold): e.g. "synthetic — repo MIT license applies" or the dataset's license |
-| Size (committed) | TODO(scaffold): keep it tiny (well under 50 MB; prefer KB) |
-| Checksum | TODO(scaffold): SHA-256 of each committed sample file |
-| Regenerate with | TODO(scaffold): exact command, including the fixed seed |
+| Kind | **Synthetic** scenario (constants — no RNG runs in the generator itself; a scenario is just numbers) |
+| File | `sample/swarm_scenario.csv` |
+| Generator / source | `python ../scripts/make_synthetic.py` (defaults: N=100000, STEPS=300, SEED=42) |
+| License | Synthetic — the repository's MIT license applies |
+| Size (committed) | 457 bytes |
+| Checksum (SHA-256) | `41f482d88f904a98797e7a0a274f062e9b0bb092cedf39c3540641a801885bb5` |
+| Regenerate with | `python ../scripts/make_synthetic.py` — byte-identical (no randomness in the generator) |
 
 ### Fields / format
 
-TODO(scaffold): document every column/field of every sample file — name, type, **units, frame**
-(SI, right-handed, `T_parent_child` conventions per CLAUDE.md §12), and valid range.
+Plain-text CSV; `#` lines are comments. Three `label,value` rows (loader: `load_scenario()` in
+[`../src/main.cu`](../src/main.cu); every constant's meaning and units are the single source of truth
+in [`../src/kernels.cuh`](../src/kernels.cuh)):
 
-> **Placeholder status:** as scaffolded, the SAXPY placeholder demo generates its input **in memory**
-> (deterministically, no seed needed — see `make_input()` in `../src/main.cu`) and needs no files.
-> `../scripts/make_synthetic.py` writes a small demonstration CSV into `sample/` so the synthetic-data
-> pattern is visible from day one.
+| Field | Type | Meaning |
+|-------|------|---------|
+| `N,<n>` | int | Agent count. Committed value: 100,000 (the catalog's headline swarm size). |
+| `STEPS,<t>` | int | Simulation steps to run at `dt = kDt = 0.05 s` (20 Hz). Committed value: 300 steps = 15 s of simulated swarm time. |
+| `SEED,<s>` | uint32 | Spawn seed for the demo's deterministic xorshift32 generator (uniform positions inside the wall margin, uniform random headings, `|v| = 1 m/s`). Committed value: 42. |
+
+Everything else the demo consumes is generated at run time, deterministically, from that seed: agent
+positions/velocities (`spawn_agents()` in `main.cu`), and the pheromone field (starts at exactly zero —
+built entirely by the agents as they run). All physical constants (arena size, interaction radii, rule
+gains, pheromone diffusion/decay, integration timestep) are compile-time SI constants in
+`../src/kernels.cuh` — they are the taught, tuned setup, not data, and both the GPU path and the CPU
+oracle read the identical values.
+
+The loader is strict: unknown row labels, short rows, or a missing `N`/`STEPS`/`SEED` abort the demo
+loudly rather than silently falling back to a default (`load_scenario()` in `main.cu`).
+
+> `sample/` also carries its own [README](sample/README.md) stating the folder-wide rules.

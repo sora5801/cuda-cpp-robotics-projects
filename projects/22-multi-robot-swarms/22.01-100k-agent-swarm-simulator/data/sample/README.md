@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `swarm_scenario.csv` (457 bytes, synthetic) — the task definition: agent
+count (100,000), step count (300 at 20 Hz = 15 s), and the spawn seed (42). A swarm simulator's data
+*is* its scenario; agent state and the pheromone field are generated in-demo from that seed and
+verified against the brute-force CPU oracle in lockstep, plus the end-of-run flock statistics. Format
+and checksum: [`../README.md`](../README.md); regenerate byte-identically with
+`python ../../scripts/make_synthetic.py`.

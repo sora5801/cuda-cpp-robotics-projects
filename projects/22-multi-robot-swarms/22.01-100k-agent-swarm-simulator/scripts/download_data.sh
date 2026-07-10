@@ -3,10 +3,12 @@
 # download_data.sh — public-dataset fetcher for 22.01 (100k-agent swarm simulator: flocking, pheromone grids, stigmergy)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 22.01 DECISION: no public dataset applies — a swarm simulator's input is a
+# scenario (agent count, step count, spawn seed), not recordings; agent
+# state and the pheromone field are generated in-demo from that seed and
+# verified against the CPU brute-force oracle in lockstep plus the
+# end-of-run flock statistics. This script stays the honest no-op below;
+# ../scripts/make_synthetic.py writes the scenario (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

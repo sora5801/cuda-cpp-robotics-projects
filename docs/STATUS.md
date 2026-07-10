@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 6/505 done** (1.2%)
+**Overall: 7/505 done** (1.4%)
 
 | Status | Count |
 |--------|-------|
 | todo | 497 |
-| in-progress | 2 |
-| done | 6 |
+| in-progress | 1 |
+| done | 7 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -51,7 +51,7 @@
 | 19 Manipulation & Grasping | 0/16 |
 | 20 Tactile & Force Sensing | 0/7 |
 | 21 Human-Robot Interaction & Teleoperation | 0/12 |
-| 22 Multi-Robot Systems & Swarms | 0/12 |
+| 22 Multi-Robot Systems & Swarms | 1/12 |
 | 23 Navigation Stack (Mobile Robots) | 0/11 |
 | 24 Actuators & Motors | 0/14 |
 | 25 Power & Energy | 0/14 |
@@ -487,11 +487,11 @@
 | 21.11 | Shared autonomy: arbitration over parallel goal hypotheses | [R&D] research |  | todo |  |  |
 | 21.12 | Ergonomic (RULA/REBA) scoring from pose streams for cobot cells | intermediate |  | todo |  |  |
 
-## 22. Multi-Robot Systems & Swarms (`22-multi-robot-swarms`) — 0/12 done
+## 22. Multi-Robot Systems & Swarms (`22-multi-robot-swarms`) — 1/12 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 22.01 | 100k-agent swarm simulator: flocking, pheromone grids, stigmergy | ★ beginner | ⭐ | in-progress | worker | interrupted batch 1a; finisher pending |
+| 22.01 | 100k-agent swarm simulator: flocking, pheromone grids, stigmergy | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); alignment 0.974 @ N=100k |
 | 22.02 | ORCA/RVO batch collision avoidance | intermediate |  | todo |  |  |
 | 22.03 | Task allocation: GPU cost matrices + auction/Hungarian solvers | intermediate |  | todo |  |  |
 | 22.04 | Coverage control: weighted Voronoi (jump flooding) + Lloyd iterations | intermediate |  | todo |  |  |
