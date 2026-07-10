@@ -1,108 +1,106 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 10.03 (Massively parallel robot sim (Isaac-Gym-style: one robot, 10,000 environments)).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample generator for project 10.03
+(Massively parallel robot sim: Isaac-Gym-style, one robot, 10,000 environments).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+This project's "dataset" is a FARM SCENARIO, not recordings: how many
+environments, how long to run them, the domain-randomization envelope, and
+the fixed balance-controller gains. That scenario is this project's
+committed sample -- everything else (per-environment mass/length draws,
+initial angles, and every mid-run reset) is generated INSIDE the demo, on
+the GPU, from the scenario's SEED field, and correctness comes from the
+CPU oracle comparison plus the physics-invariant gates, not from stored
+ground truth.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What it writes: ../data/sample/farm_scenario.csv
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    N,n                  number of environments in the full farm
+    T_FARM,t              ticks to run the full farm for
+    EPISODE_CAP,c          ticks per episode before a successful reset
+    SEED,s                 base RNG seed (per-env streams derive from this)
+    DR_MASS_CART,r          +/- fractional domain-randomization range on mass_cart
+    DR_MASS_POLE,r          +/- fractional domain-randomization range on mass_pole
+    DR_LEN,r                +/- fractional domain-randomization range on pole_half_len
+    THETA0_RANGE,r          +/- rad range for the initial-angle draw at every reset
+    KX,KXD,KTH,KTHD         fixed pole-placement balance-controller gains
+
+No RNG is involved in GENERATING this file (a scenario is constants, the
+same principle 08.01's cartpole_scenario.csv uses); the committed defaults
+match kernels.cuh's kDefault* constants exactly, so this file is trivially
+byte-reproducible and the numbers it documents are the numbers the code
+would use even if this file went missing.
+
+Usage:
+    python make_synthetic.py                    # the committed scenario
+    python make_synthetic.py --n 2000            # experiments; do not commit
 """
 
 import argparse
-import csv
-import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--n", type=int, default=10000, help="environments in the full farm (default 10000)")
+    ap.add_argument("--t-farm", type=int, default=1000, help="ticks to run the full farm (default 1000)")
+    ap.add_argument("--episode-cap", type=int, default=200, help="ticks per episode before a cap-reset (default 200)")
+    ap.add_argument("--seed", type=int, default=42, help="base RNG seed (default 42)")
+    ap.add_argument("--dr-mass-cart", type=float, default=0.20, help="+/- fractional randomization on mass_cart (default 0.20)")
+    ap.add_argument("--dr-mass-pole", type=float, default=0.30, help="+/- fractional randomization on mass_pole (default 0.30)")
+    ap.add_argument("--dr-len", type=float, default=0.15, help="+/- fractional randomization on pole_half_len (default 0.15)")
+    ap.add_argument("--theta0-range", type=float, default=0.15, help="+/- rad initial-angle draw range (default 0.15)")
+    ap.add_argument("--kx", type=float, default=12.0, help="balance gain on x (default 12.0)")
+    ap.add_argument("--kxd", type=float, default=14.0, help="balance gain on xdot (default 14.0)")
+    ap.add_argument("--kth", type=float, default=73.0, help="balance gain on theta (default 73.0)")
+    ap.add_argument("--kthd", type=float, default=19.0, help="balance gain on thdot (default 19.0)")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample" / "farm_scenario.csv")
+    args = ap.parse_args()
 
+    lines = [
+        "# farm_scenario.csv - SYNTHETIC scenario for project 10.03",
+        "# generated by scripts/make_synthetic.py (no RNG - a scenario is constants)",
+        "# N            : environments in the full farm",
+        "# T_FARM       : ticks to run the full farm for (dt = 0.02 s, see src/kernels.cuh)",
+        "# EPISODE_CAP  : ticks per episode before a SUCCESSFUL (cap) reset",
+        "# SEED         : base RNG seed; every env's stream derives from this + its index",
+        "# DR_MASS_CART, DR_MASS_POLE, DR_LEN : +/- fractional domain-randomization ranges",
+        "#                (drawn ONCE per environment at farm init; see THEORY.md)",
+        "# THETA0_RANGE : +/- rad range the initial pole angle is drawn from at EVERY reset",
+        "# KX,KXD,KTH,KTHD : fixed linear state-feedback balance-controller gains",
+        "#                   (N/m, N.s/m, N/rad, N.s/rad - pole-placement derivation in THEORY.md)",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+        f"N,{args.n}",
+        f"T_FARM,{args.t_farm}",
+        f"EPISODE_CAP,{args.episode_cap}",
+        f"SEED,{args.seed}",
+        f"DR_MASS_CART,{args.dr_mass_cart:.6g}",
+        f"DR_MASS_POLE,{args.dr_mass_pole:.6g}",
+        f"DR_LEN,{args.dr_len:.6g}",
+        f"THETA0_RANGE,{args.theta0_range:.6g}",
+        f"KX,{args.kx:.6g}",
+        f"KXD,{args.kxd:.6g}",
+        f"KTH,{args.kth:.6g}",
+        f"KTHD,{args.kthd:.6g}",
+    ]
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:   # LF pinned
+        f.write("\n".join(lines) + "\n")
 
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
-    """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 10.03\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
-
-
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
-
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 10.03 (Massively parallel robot sim (Isaac-Gym-style: one robot, 10,000 environments)).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
-
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    print(f"wrote {args.out} ({args.out.stat().st_size} bytes: N={args.n}, T_FARM={args.t_farm}, "
+          f"episode_cap={args.episode_cap}) - labeled SYNTHETIC")
+    is_default = (args.n == 10000 and args.t_farm == 1000 and args.episode_cap == 200 and args.seed == 42
+                 and args.dr_mass_cart == 0.20 and args.dr_mass_pole == 0.30 and args.dr_len == 0.15
+                 and args.theta0_range == 0.15 and args.kx == 12.0 and args.kxd == 14.0
+                 and args.kth == 73.0 and args.kthd == 19.0)
+    if not is_default:
+        print("note: non-default scenario - fine for experiments, do NOT commit this file")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — flagship 10.03 massively-parallel robot sim done (16/505) — batch 1c complete; 8.5B env-steps/s, energy-drift gate — [push-note](push-notes/2026-07-10-00-flagship-10-03-parallel-sim-batch-1c-complete.md)
 - 2026-07-09 — flagship 03.01 FMCW radar cube + CFAR done (15/505); first cuFFT project; CA-vs-OS masking demonstrated — [push-note](push-notes/2026-07-09-10-flagship-03-01-fmcw-cfar.md)
 - 2026-07-09 — flagship 02.06 GPU ICP done (14/505); point-to-plane 6 vs 48 iterations, sub-mm ground-truth errors — [push-note](push-notes/2026-07-09-09-flagship-02-06-gpu-icp.md)
 - 2026-07-09 — flagship 01.02 stereo BM→SGM done (13/505); exact GPU/CPU equality over ~14M values; SGM beats BM by 34 points — [push-note](push-notes/2026-07-09-08-flagship-01-02-stereo-sgm.md)

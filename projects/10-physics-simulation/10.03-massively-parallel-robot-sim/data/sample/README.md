@@ -16,7 +16,11 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `farm_scenario.csv` (~1.0 KiB, synthetic) — the task definition: how many
+environments (`N`), how long to run them (`T_FARM`), the episode-cap length, the domain-randomization
+envelope, the initial-angle draw range, and the fixed balance-controller gains. Every per-environment
+mass/length draw, every initial angle, and every mid-run reset is generated **inside the demo, on the
+GPU**, from this file's `SEED` field; correctness comes from the CPU-oracle comparison plus the
+physics-invariant gates, not from stored ground truth. Format and checksum:
+[`../README.md`](../README.md); regenerate byte-identically with
+`python ../../scripts/make_synthetic.py`.

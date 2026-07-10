@@ -1,10 +1,15 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 10.03 (Massively parallel robot sim (Isaac-Gym-style: one robot, 10,000 environments))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 10.03 DECISION: no public dataset applies — this project's "data" is a
+# FARM SCENARIO (environment count, run length, domain-randomization
+# ranges, controller gains), not recordings. Every per-environment mass/
+# length draw, every initial angle, and every mid-run reset is generated
+# INSIDE the demo, on the GPU, from the scenario's SEED field and verified
+# against the CPU oracle (the §5 gate) plus two physics-invariant checks
+# (farm-level finiteness/reset-count bounds, undriven energy conservation)
+# — see ../data/README.md. This script stays the honest no-op below;
+# ../scripts/make_synthetic.py writes the scenario file.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
@@ -34,7 +39,7 @@
 # Default body: this project uses SYNTHETIC data (the repository default —
 # CLAUDE.md paragraph 8), so there is nothing to download. Exit 0 so callers
 # and CI can invoke every project's script uniformly without special cases.
-Write-Host "[download_data] Project 10.03 uses synthetic sample data (repo default; CLAUDE.md paragraph 8)."
-Write-Host "[download_data] Nothing to download. Generate/regenerate the sample with:"
+Write-Host "[download_data] Project 10.03 uses a synthetic farm scenario, not recordings (repo default; CLAUDE.md paragraph 8)."
+Write-Host "[download_data] Nothing to download. Generate/regenerate the scenario with:"
 Write-Host "[download_data]     python $PSScriptRoot\make_synthetic.py"
 exit 0

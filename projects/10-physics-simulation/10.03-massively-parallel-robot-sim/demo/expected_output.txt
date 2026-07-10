@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 10.03.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 10.03 (massively-parallel-robot-sim)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (device name, measured deviations/throughput/energy values)
+# and "[time]" lines vary by machine and are deliberately unchecked; the numeric GATES behind
+# VERIFY/FARM/ENERGY/RESULT carry documented margin (see ../src/main.cu and THEORY.md) so the
+# verdict is stable even where sinf/cosf ULP-level differences vary across GPUs. Change the
+# program's stable lines and this file together.
+[demo] Massively parallel robot sim: N-environment cart-pole farm (project 10.03)
+PROBLEM: N=10000 environments x T=1000 steps @ dt=0.02 s, cart-pole farm (Isaac-Gym-style), FP32
+SCENARIO: domain-randomized mc +/-20%, mp +/-30%, l +/-15%; episode cap 200 steps; fixed pole-placement balance gains [synthetic]
+VERIFY: PASS (GPU state matches CPU reference within tol 1.0e-03; reset_count exact; steps_balanced within 3)
+FARM: PASS (all 10000 environments finite; reset_count in [5,12] for all environments)
+ENERGY: PASS (undriven cart-pole energy drift <= documented bound 1.0e-03; drift IS the RK4 truncation error made visible)
+ARTIFACT: wrote demo/out/env_metrics.csv (1000 rows)
+ARTIFACT: wrote demo/out/energy_drift.csv (1001 rows)
+RESULT: PASS (VERIFY + FARM + ENERGY all passed)

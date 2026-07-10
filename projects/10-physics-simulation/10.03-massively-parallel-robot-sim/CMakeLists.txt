@@ -75,4 +75,9 @@ target_compile_options(massively-parallel-robot-sim PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(massively-parallel-robot-sim PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 10.03 note: the source list above is complete for this project and no
+# extra libraries are linked — the farm's RNG is a hand-rolled xorshift32
+# (kernels.cuh) shared verbatim between host and device so the GPU-vs-CPU
+# verify stage compares bit-identical random streams (cuRAND would not
+# give that for free), and the dynamics/controller are hand-rolled by
+# design (CLAUDE.md paragraph 1: no black boxes).

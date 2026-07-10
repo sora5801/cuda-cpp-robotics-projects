@@ -1,131 +1,197 @@
 // ===========================================================================
-// kernels.cu — GPU kernels for project 10.03 (Massively parallel robot sim (Isaac-Gym-style: one robot, 10,000 environments))
+// kernels.cu — GPU implementation for project 10.03
+//              Massively parallel robot sim (Isaac-Gym-style: one robot,
+//              10,000 environments)
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real kernels.
-// TODO(scaffold): delete the SAXPY kernel and implement the real ones (one
-// teaching-focused kernel per concept, each commented to the standard shown
-// here and in CLAUDE.md §6.2 / docs/COMMENTING_STANDARD.md).
+// The big idea
+// ------------
+// One thread = one ENVIRONMENT (not one rollout of a single plant, as in
+// 08.01 — a whole independent copy of the robot, with its own randomized
+// mass/length and its own episode clock). All N threads step in LOCKSTEP:
+// every thread performs step t before any thread performs step t+1, which
+// is what makes this an Isaac-Gym-style farm rather than N unrelated
+// simulations that happen to share a GPU.
 //
-// Role in the project
-// -------------------
-// All __global__ (GPU) code lives here, together with the small host-side
-// launch wrappers that own the grid/block math. Keeping the launch math next
-// to the kernel means the launch-configuration reasoning (the comments the
-// repo standard requires) sits beside the code it configures.
+// What is NEW here beyond 08.01/09.01/33.01:
+//   * STATE THAT PERSISTS ACROSS THE WHOLE RUN in GLOBAL memory (SoA
+//     arrays), not a fresh x0 handed to a stateless kernel every call —
+//     see kernels.cuh's layout comment for why that forces the SoA choice.
+//   * THE ENTIRE T-STEP RUN IS ONE KERNEL LAUNCH. 08.01's MPPI loop needed
+//     a host round-trip every 20 ms (the softmin blend and the "apply to
+//     the real plant" step are host-side decisions the next tick depends
+//     on). Nothing here depends on a host decision between ticks — the
+//     controller, the fail/cap/reset logic, and next tick's input are all
+//     fully determined by the PREVIOUS tick's on-device state — so the
+//     per-thread loop over `steps` lives INSIDE the kernel. This is the
+//     concrete, measurable payoff of a resident farm: main.cu times ONE
+//     launch covering N*steps environment-ticks and reports an AGGREGATE
+//     env-steps/second throughput, not a per-tick latency (contrast
+//     08.01's per-20ms-tick GPU-ms figure).
+//   * Per-environment RESET happens INLINE, not via a second kernel. A
+//     literal "reset kernel" would need to know, from the HOST side,
+//     which environments just failed — but with the whole run fused into
+//     one launch, no host code runs between ticks to make that decision.
+//     The correct (and, not coincidentally, higher-throughput) design is
+//     what real GPU physics farms actually do: each thread checks its OWN
+//     termination condition after its OWN step and resets itself in place
+//     — no synchronization with any other thread is needed, because
+//     environments never interact (the 08.01 lesson: independence is what
+//     makes "one thread per unit of work" the right mapping at all).
 //
-// Big idea of the placeholder kernel
-// ----------------------------------
-// SAXPY is a pure MAP: out[i] depends only on in[i]. The GPU mapping is
-// therefore the simplest one that exists — one thread per element — written
-// here in its robust production form, the GRID-STRIDE LOOP. Learn this
-// pattern well: a large fraction of the kernels in this repository are maps
-// or start from one.
+// All model constants, the SoA layout, the controller, and the reset rule
+// come from kernels.cuh — the single source shared with the CPU oracle;
+// farm_init_one_env/farm_step_one_env are LITERALLY the same functions the
+// CPU path calls (reference_cpu.cpp), not hand-copied twins (kernels.cuh's
+// file header explains why this project departs from 08.01's duplication
+// rule here).
 //
-// Read this after: main.cu, kernels.cuh.  Read this before: reference_cpu.cpp.
+// Read this after: kernels.cuh.  Companion oracle: reference_cpu.cpp.
 // ===========================================================================
 
-#include "kernels.cuh"           // our own interface — keeps decl/def in sync at compile time
-#include "util/cuda_check.cuh"   // CUDA_CHECK_LAST_ERROR for post-launch error surfacing
+#include "kernels.cuh"
+#include "util/cuda_check.cuh"      // CUDA_CHECK / CUDA_CHECK_LAST_ERROR (CLAUDE.md §6.1 rule 7)
 
-// ---------------------------------------------------------------------------
-// saxpy_kernel — one grid-stride pass computing y[i] = a * x[i] + y[i].
+#include <cstdio>
+#include <cstdlib>
+
+// ===========================================================================
+// init_farm_kernel — one thread per environment, run ONCE per FarmBuffers
+// instance before any step kernel: seeds the env's RNG stream, draws its
+// domain-randomized mc/mp/l, zeros its metrics, and takes the first
+// episode reset (draws the first initial angle).
 //
-// Thread-to-data mapping:
-//   Thread (blockIdx.x, threadIdx.x) starts at global element
-//       i0 = blockIdx.x * blockDim.x + threadIdx.x
-//   and then strides by the TOTAL number of threads in the grid
-//       stride = gridDim.x * blockDim.x
-//   visiting i0, i0+stride, i0+2*stride, ... < n.
+// Thread-to-data mapping: thread i = blockIdx.x*blockDim.x + threadIdx.x
+// owns environment i. Grid: ceil(N/256) x 256 (repo default; ragged tail
+// guarded) — see launch_farm_init below for the reasoning.
 //
-// Why a grid-stride loop instead of the naive "one thread = one element,
-// return if i >= n"?
-//   1) Correct for ANY n, even n larger than the maximum grid size —
-//      the loop just runs more iterations per thread.
-//   2) Lets the CALLER choose the grid size for occupancy reasons instead of
-//      being forced to launch exactly ceil(n/block) blocks.
-//   3) It is the idiom used throughout CUDA's own samples and libraries, so
-//      learning it here pays off everywhere.
-//   The cost: two extra registers and a loop branch — negligible for a
-//   memory-bound kernel.
-//
-// Memory behavior (the whole performance story for SAXPY):
-//   Adjacent threads (threadIdx.x, threadIdx.x+1) read adjacent addresses
-//   x[i], x[i+1] — so each 32-thread warp touches one contiguous 128-byte
-//   span, which the hardware COALESCES into the minimum number of memory
-//   transactions. Coalescing is THE first-order GPU optimization; a strided
-//   or random access pattern here could cost 10-30x. No shared memory is
-//   used because no data is reused between threads — shared memory only pays
-//   when threads share or revisit data (see THEORY.md "The GPU mapping").
-//
-// Parameters:
-//   n   — element count (> 0); unitless placeholder data
-//   a   — the SAXPY scalar (FP32, exactly representable 2.0 in the demo)
-//   x   — [n] device pointer, read-only input. __restrict__ promises the
-//         compiler x and y do not alias, unlocking wider loads/scheduling.
-//   y   — [n] device pointer, read AND written in place (input y, output
-//         a*x+y). In-place is safe because element i never reads element j.
-//
-// Numerical note: the compiler typically fuses a*x[i]+y[i] into one FMA
-// (fused multiply-add, a single rounding step). The CPU reference may round
-// twice (mul, then add). Max divergence ~1 ULP — which is exactly why
-// main.cu compares with a small tolerance instead of demanding bit equality.
-//
-// Launch configuration: owned by launch_saxpy() below — see its comment.
-// ---------------------------------------------------------------------------
-__global__ void saxpy_kernel(int n,
-                             float a,
-                             const float* __restrict__ x,
-                             float*       __restrict__ y)
+// Memory behavior: every array in `buf` is written EXACTLY ONCE per
+// thread here, at a coalesced address buf.<field>[i] (consecutive threads
+// -> consecutive addresses, the SoA payoff described in kernels.cuh).
+// No shared memory, no atomics: environments never share data.
+// ===========================================================================
+__global__ void init_farm_kernel(FarmBuffers buf, int N, uint32_t base_seed,
+                                 float dr_mc, float dr_mp, float dr_l, float theta0_range)
 {
-    // This thread's first element, and the whole-grid stride (see mapping
-    // note above). Both fit in int here because n is int; a real project
-    // handling >2^31 elements would use long long / size_t indexing.
-    int i      = blockIdx.x * blockDim.x + threadIdx.x;  // my starting element
-    int stride = gridDim.x * blockDim.x;                 // total threads in the grid
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;   // this thread's environment index
+    if (i >= N) return;                                    // ragged-tail guard
 
-    // Each iteration: 2 loads (x[i], y[i]), 1 FMA, 1 store — ~12 bytes moved
-    // per 2 FLOPs. Memory-bound, as promised. The loop condition also guards
-    // the ragged tail: threads whose i starts beyond n simply do nothing.
-    for (; i < n; i += stride) {
-        y[i] = a * x[i] + y[i];
-    }
+    // Local registers for this env's fields; farm_init_one_env (kernels.cuh)
+    // fills them, then we do ONE coalesced write of each field back to
+    // global memory — cheaper than reading/writing global memory field by
+    // field inside the shared function (which does not know it is on a GPU).
+    float x, xdot, theta, thdot, mc, mp, l;
+    int ep_step, steps_balanced, reset_count;
+    uint32_t rng;
+
+    farm_init_one_env(x, xdot, theta, thdot, mc, mp, l,
+                      ep_step, rng, steps_balanced, reset_count,
+                      env_seed(base_seed, i), dr_mc, dr_mp, dr_l, theta0_range);
+
+    buf.x[i] = x;  buf.xdot[i] = xdot;  buf.theta[i] = theta;  buf.thdot[i] = thdot;
+    buf.mass_cart[i] = mc;  buf.mass_pole[i] = mp;  buf.pole_half_len[i] = l;
+    buf.rng_state[i] = rng;
+    buf.ep_step[i] = ep_step;
+    buf.steps_balanced[i] = steps_balanced;
+    buf.reset_count[i] = reset_count;
 }
 
-// ---------------------------------------------------------------------------
-// launch_saxpy — host wrapper that owns the launch configuration.
+// ===========================================================================
+// step_farm_kernel — one thread per environment, `steps` ticks run
+// INTERNALLY in a register-resident loop (see the file header for why the
+// whole run is one launch). This is the project's hot loop and its only
+// kernel that does real floating-point work.
 //
-// Purpose: keep the <<<grid, block>>> math, its reasoning, and the mandatory
-// post-launch error check in ONE place, so callers (main.cu) stay clean and
-// no launch in the codebase goes unchecked (CLAUDE.md §6.1 rule 7).
-//
-// Parameters: as saxpy_kernel, but x/y are DEVICE pointers the CALLER owns —
-// this function allocates nothing, frees nothing, and synchronizes nothing
-// (the caller times/syncs via events; see main.cu step 3).
-//
-// Launch configuration reasoning:
-//   block = 256 threads — a solid default on sm_75..sm_89: a multiple of the
-//     32-thread warp (mandatory for full warps), large enough for good
-//     occupancy, small enough to keep per-block resources (registers) free.
-//     Powers of two between 128 and 512 are all reasonable; measure before
-//     believing any single number.
-//   grid = ceil(n / block), capped at 4096 blocks — enough blocks to fill
-//     every SM on any current GPU many times over (an RTX 2080 has 46 SMs);
-//     beyond that, more blocks add scheduling overhead without adding
-//     parallelism, and the grid-stride loop absorbs the remainder anyway.
-//     The integer ceil idiom (n + block - 1) / block is used all over this
-//     repo — it rounds UP so the last partial block is not lost.
-// ---------------------------------------------------------------------------
-void launch_saxpy(int n, float a, const float* d_x, float* d_y)
+// Memory behavior per thread:
+//   READ ONCE at entry: buf.x[i], buf.xdot[i], buf.theta[i], buf.thdot[i],
+//     buf.mass_cart[i], buf.mass_pole[i], buf.pole_half_len[i],
+//     buf.rng_state[i], buf.ep_step[i], buf.steps_balanced[i],
+//     buf.reset_count[i] — eleven coalesced 128-byte-per-warp transactions
+//     (four state fields change every tick; mass/length are read-only for
+//     the whole run — READ ONCE and keep in registers rather than
+//     re-reading global memory 1000 times per environment).
+//   REGISTERS for the whole `steps`-tick loop: no global memory traffic
+//     AT ALL between the entry read and the exit write — this is the
+//     entire performance story of fusing the loop into the kernel.
+//   WRITE ONCE at exit: the same eleven fields, coalesced.
+// No shared memory (environments share nothing), no atomics, no
+// divergence beyond the tail guard: control flow inside the per-tick
+// helper (the fail/cap/reset branch) DOES differ across threads once
+// environments start failing/resetting at different times, but each
+// branch is O(1) work (a handful of scalar ops), so the warp-divergence
+// cost is small and bounded — very different from, say, an iterative
+// solver where diverged threads could spin for wildly different lengths.
+// ===========================================================================
+__global__ void step_farm_kernel(FarmBuffers buf, int N, int steps,
+                                 float Kx, float Kxd, float Kth, float Kthd,
+                                 float theta0_range, int episode_cap)
 {
-    const int block = 256;                              // threads per block (warp multiple; see above)
-    int grid = (n + block - 1) / block;                 // ceil(n/block): cover every element
-    if (grid > 4096) grid = 4096;                       // cap: grid-stride loop covers the rest
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
 
-    saxpy_kernel<<<grid, block>>>(n, a, d_x, d_y);
+    // Entry: pull this environment's entire state into registers. mc/mp/l
+    // are per-env CONSTANTS for this call (domain randomization happened
+    // once, in init_farm_kernel) — reading them here, once, instead of
+    // inside the loop is the difference between 1 global read and 1000.
+    float x = buf.x[i], xdot = buf.xdot[i], theta = buf.theta[i], thdot = buf.thdot[i];
+    const float mc = buf.mass_cart[i], mp = buf.mass_pole[i], l = buf.pole_half_len[i];
+    uint32_t rng = buf.rng_state[i];
+    int ep_step = buf.ep_step[i];
+    int steps_balanced = buf.steps_balanced[i];
+    int reset_count = buf.reset_count[i];
 
-    // Kernel launches return errors ASYNCHRONOUSLY: an invalid configuration
-    // or a crashed kernel surfaces on a LATER call unless we ask. This macro
-    // (util/cuda_check.cuh) calls cudaGetLastError() right away so a broken
-    // launch is reported HERE, at the launch site, not three calls later.
-    CUDA_CHECK_LAST_ERROR("saxpy_kernel launch");
+    // The whole run for THIS environment, entirely in registers: control,
+    // integrate, classify, maybe reset — `steps` times, zero global
+    // memory traffic in between. This loop is where essentially all of
+    // this kernel's arithmetic happens (THEORY.md §GPU mapping counts it).
+    for (int t = 0; t < steps; ++t) {
+        farm_step_one_env(x, xdot, theta, thdot, mc, mp, l,
+                          ep_step, rng, steps_balanced, reset_count,
+                          Kx, Kxd, Kth, Kthd, theta0_range, episode_cap);
+    }
+
+    // Exit: one coalesced write per field, same layout as the entry read.
+    buf.x[i] = x;  buf.xdot[i] = xdot;  buf.theta[i] = theta;  buf.thdot[i] = thdot;
+    buf.rng_state[i] = rng;
+    buf.ep_step[i] = ep_step;
+    buf.steps_balanced[i] = steps_balanced;
+    buf.reset_count[i] = reset_count;
+}
+
+// ===========================================================================
+// Host launchers (declared in kernels.cuh).
+// ===========================================================================
+
+// launch_farm_init — see kernels.cuh for the contract.
+void launch_farm_init(const FarmBuffers& buf, int N, uint32_t base_seed,
+                      float dr_mc, float dr_mp, float dr_l, float theta0_range)
+{
+    if (N < 1) {
+        std::fprintf(stderr, "launch_farm_init: invalid N=%d\n", N);
+        std::exit(EXIT_FAILURE);
+    }
+    const int threads = 256;                        // repo default: warp multiple, good occupancy
+    const int blocks = (N + threads - 1) / threads;  // ceil(N/threads): cover every environment
+
+    init_farm_kernel<<<blocks, threads>>>(buf, N, base_seed, dr_mc, dr_mp, dr_l, theta0_range);
+    CUDA_CHECK_LAST_ERROR("init_farm_kernel launch");
+}
+
+// launch_farm_step — see kernels.cuh for the contract. Grid math is
+// IDENTICAL to launch_farm_init (same N, same environment-per-thread
+// mapping); `steps` only changes how much work each thread does internally,
+// not the launch shape.
+void launch_farm_step(const FarmBuffers& buf, int N, int steps,
+                      float Kx, float Kxd, float Kth, float Kthd,
+                      float theta0_range, int episode_cap)
+{
+    if (N < 1 || steps < 1) {
+        std::fprintf(stderr, "launch_farm_step: invalid N=%d steps=%d\n", N, steps);
+        std::exit(EXIT_FAILURE);
+    }
+    const int threads = 256;
+    const int blocks = (N + threads - 1) / threads;
+
+    step_farm_kernel<<<blocks, threads>>>(buf, N, steps, Kx, Kxd, Kth, Kthd,
+                                          theta0_range, episode_cap);
+    CUDA_CHECK_LAST_ERROR("step_farm_kernel launch");
 }

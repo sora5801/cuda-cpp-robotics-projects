@@ -49,9 +49,13 @@
 //    recorded before the stop event has finished. Callers rely on this
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
-//    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    single-stream structure of the demos. This project is single-stream:
+//    each stage (VERIFY subset, full FARM run) is one init kernel plus one
+//    step kernel, both launched into the default stream and bracketed by
+//    a single GpuTimer; there is no per-tick host round-trip to overlap
+//    with other work, so multiple streams would add complexity without a
+//    payoff here (README Exercises suggest CUDA Graphs / streams as a
+//    forward-looking extension instead).
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.
