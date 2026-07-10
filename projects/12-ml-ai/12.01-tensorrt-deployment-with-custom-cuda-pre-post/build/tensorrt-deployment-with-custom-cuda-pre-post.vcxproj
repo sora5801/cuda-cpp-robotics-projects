@@ -9,9 +9,28 @@
   path edits, everything flows from $(CUDA_PATH) via the CUDA MSBuild
   integration (CLAUDE.md paragraph 5).
 
-  Library policy: this template links ONLY the CUDA runtime. If the real
-  project adds cuBLAS/cuFFT/cuRAND/..., add each .lib to AdditionalDependencies
-  below WITH an XML comment explaining why it is linked (CLAUDE.md paragraph 5).
+  Library policy: this DEFAULT configuration links ONLY the CUDA runtime —
+  no TensorRT headers or libraries are required to build it (CLAUDE.md
+  paragraph 5: TensorRT is allowed here only because this project is
+  explicitly about it, AND only behind an opt-in the default build never
+  takes). src/tensorrt_path.cpp IS compiled by both configurations below,
+  but its body is entirely `#ifdef USE_TENSORRT` — with that macro
+  undefined (the default) it reduces to one small stub function, needing
+  nothing beyond the C++ standard library.
+
+  OPTIONAL TensorRT opt-in (README "Build" documents this in full): to
+  build the TensorRT-enabled path once you have TensorRT installed,
+  duplicate one of the <ItemDefinitionGroup> blocks below into a THIRD
+  configuration (e.g. "Release-TensorRT|x64") and add, inside its
+  <ClCompile>: `<PreprocessorDefinitions>USE_TENSORRT;NDEBUG;_CONSOLE;
+  %(PreprocessorDefinitions)</PreprocessorDefinitions>`, an
+  <AdditionalIncludeDirectories> pointing at your TensorRT `include/`
+  folder, and inside its <Link>: an <AdditionalLibraryDirectories> pointing
+  at TensorRT's `lib/` folder plus `<AdditionalDependencies>nvinfer.lib;
+  %(AdditionalDependencies)</AdditionalDependencies>`. The DEFAULT
+  Debug|x64 / Release|x64 configurations below are deliberately left
+  untouched by this — they must always build with nothing but CUDA
+  installed (CLAUDE.md paragraph 5, and this project's ratified scope).
 ======================================================================== -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
@@ -172,6 +191,10 @@
     <CudaCompile Include="..\src\main.cu" />
     <CudaCompile Include="..\src\kernels.cu" />
     <ClCompile Include="..\src\reference_cpu.cpp" />
+    <!-- Always compiled (see the header comment above): with USE_TENSORRT
+         undefined this reduces to a one-line stub — zero TensorRT headers
+         needed. -->
+    <ClCompile Include="..\src\tensorrt_path.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\kernels.cuh" />

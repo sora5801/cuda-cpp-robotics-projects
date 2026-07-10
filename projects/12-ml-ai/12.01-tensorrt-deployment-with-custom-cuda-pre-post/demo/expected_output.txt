@@ -1,8 +1,18 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 12.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 12.01 (tensorrt-deployment-with-custom-cuda-pre-post)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (file paths, GPU name, measured counts/errors/IoUs) and
+# "[time]" lines vary by machine and are deliberately unchecked; the ground-truth-gate thresholds
+# behind GROUNDTRUTH carry wide margins (see ../src/main.cu) so ordinary FP32 rounding differences
+# across GPU architectures cannot flip the verdict. Change the program's stable lines and this
+# file together. This project has NO run-time randomness (the scene's dither was baked into the
+# committed data/sample/test_scene.ppm bytes by scripts/make_synthetic.py) — every stable line
+# below, including VERIFY/GROUNDTRUTH/RESULT, is bit-reproducible on any machine.
+[demo] TensorRT deployment demo: custom CUDA pre/post kernels around a fixed synthetic detector (project 12.01)
+PROBLEM: fixed synthetic 2-class detector, input 80x80x3 -> net 64x64 -> conv(3->2)->conv(2->2)->head(2->6) -> grid 16x16, FP32
+WEIGHTS: loaded (460 bytes, format v1, synthetic fixed weights, seed 42) [synthetic]
+SCENE: 80x80 RGB test image with 3 ground-truth object(s) [synthetic]
+VERIFY: PASS (GPU matches CPU reference at every pipeline stage within documented tolerance)
+GROUNDTRUTH: PASS (3/3 objects detected within tolerance, false positives within bound, NMS reduction within bound)
+ARTIFACT: wrote demo/out/detections.pgm and demo/out/detections.csv
+RESULT: PASS (fallback CUDA pipeline verified end-to-end against the CPU reference and the known scene)

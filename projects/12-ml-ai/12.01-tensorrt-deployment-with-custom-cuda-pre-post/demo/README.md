@@ -3,7 +3,7 @@
 One command builds (if needed), runs on the committed sample, and verifies the output:
 
 ```powershell
-.\run_demo.ps1          # Windows (the required path: VS 2026 + CUDA 13.3)
+.\run_demo.ps1          # Windows (the required path: VS 2026 + CUDA 13.3, NO TensorRT needed)
 ```
 
 ```bash
@@ -12,34 +12,64 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The **fallback (default, no-TensorRT) pipeline**, end to end, on a single synthetic 80×80 test
+image: a bilinear-resize + normalize + transpose preprocessing kernel, a tiny fixed 3-layer
+"detector" (2 conv+ReLU layers and a 1×1 detection head — all hand-designed, deterministic weights,
+not trained), then the catalog bullet's three named post-processing kernels — **argmax class
+decode**, **score-threshold + anchor-arithmetic box decode**, **NMS** (a real GPU IoU-matrix kernel
+plus a documented sequential greedy-suppression scan), and **keypoint extraction** (a local-window
+heatmap argmax). Every stage runs on the GPU AND on a plain-C++ CPU oracle
+([`../src/reference_cpu.cpp`](../src/reference_cpu.cpp)); the demo diffs every intermediate tensor
+between the two before trusting the final answer.
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+The scene contains **3 known objects** (2 red rectangles, 1 blue) at fixed positions
+(`../data/sample/ground_truth.csv`). The demo's `GROUNDTRUTH:` gate requires all 3 to be detected
+within a documented center-distance/IoU tolerance, checks the false-positive count against a
+documented bound, and checks that NMS actually reduced the candidate count by a meaningful factor —
+**measured: 21 pre-NMS candidates → 3 post-NMS detections (7.0x), 0 false positives, worst center
+error 2.40 px, worst IoU 0.601** (see `[info]` lines; the exact numbers are not part of the checked
+contract — only the PASS/FAIL verdicts are, per this repo's convention).
+
+**This demo writes two artifacts** (git-ignored, regenerated each run):
+
+- `out/detections.pgm` — a grayscale render of the test image with detection box outlines (white)
+  and keypoint markers (small black crosses) burned in. Open it with any image viewer that reads
+  PGM (GIMP, IrfanView, `feh`, or convert with ImageMagick: `magick out/detections.pgm out.png`).
+- `out/detections.csv` — one row per surviving detection: class, score, box corners, keypoint —
+  all in SOURCE-image pixel coordinates for direct comparison against `ground_truth.csv`.
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, resolved file paths, and every MEASURED number (candidate counts, center errors, IoUs, TensorRT availability) — varies by machine/GPU/TensorRT-build. | No. |
+| `PROBLEM:`  | The fixed architecture/shape summary (compile-time constants only). | Yes — stable. |
+| `WEIGHTS:` / `SCENE:` | Confirmation that the sample data loaded, with no machine-specific paths. | Yes — stable. |
+| `[time]`    | CPU reference ms and GPU kernel ms — a **teaching artifact, never a benchmark claim** (single-shot; the pipeline's kernels are tiny at this teaching image size — see THEORY.md "GPU mapping" for why that is honest and expected). | No. |
+| `VERIFY:`   | PASS/FAIL of the GPU-vs-CPU pipeline agreement (every stage, tolerances documented in `../src/main.cu` and `THEORY.md`). | Yes — stable. |
+| `GROUNDTRUTH:` | PASS/FAIL of the detection-quality gate against the known scene. | Yes — stable. |
+| `ARTIFACT:` | Confirms both output files were written. | Yes — stable. |
+| `RESULT:`   | Final PASS/FAIL. The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines
-(timings, device info) are allowed. `#`-prefixed lines in that file are comments.
+(timings, device info, measured numbers) are allowed. `#`-prefixed lines in that file are comments.
 
 ## If it fails
 
 - **Build fails:** see [`../../../docs/BUILD_GUIDE.md`](../../../docs/BUILD_GUIDE.md) (toolchain
-  install, CUDA/VS integration, GPU architecture list).
-- **`RESULT: FAIL`:** the GPU result disagreed with the CPU oracle — a real bug. Start in
-  `../src/kernels.cu` and compare against `../src/reference_cpu.cpp`.
-- **Expected-line mismatch only:** the program passed its own check but printed different stable
+  install, CUDA/VS integration, GPU architecture list). Building this project needs **no TensorRT** —
+  if your build system is trying to find TensorRT headers, you (or a downstream tool) enabled the
+  optional path; see README "Build" to disable it again.
+- **`VERIFY: FAIL`:** the GPU result disagreed with the CPU oracle at some pipeline stage — a real
+  bug. The `[info] verify:` line names which stage (`preprocess`/`conv1`/`conv2`/`head`) first
+  diverged, or whether the pre-/post-NMS candidate COUNTS themselves disagreed. Start in
+  `../src/kernels.cu` and compare against `../src/reference_cpu.cpp` stage by stage.
+  `../src/main.cu` performs this comparison.
+- **`GROUNDTRUTH: FAIL`:** the pipeline is internally consistent (VERIFY passed) but the fallback
+  path's own detections drifted off the known scene — check `out/detections.pgm` visually and the
+  `[info] groundtruth:` line for which bound (match count, false positives, NMS reduction) failed.
+- **Expected-line mismatch only:** the program passed its own checks but printed different stable
   lines — someone changed the output without updating `expected_output.txt` (or vice versa). The two
   are a contract; fix them together.

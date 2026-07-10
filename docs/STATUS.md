@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 17/505 done** (3.4%)
+**Overall: 18/505 done** (3.6%)
 
 | Status | Count |
 |--------|-------|
-| todo | 488 |
+| todo | 487 |
 | in-progress | 0 |
-| done | 17 |
+| done | 18 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -41,7 +41,7 @@
 | 09 Robot Dynamics & Kinematics | 1/14 |
 | 10 Physics Simulation | 1/20 |
 | 11 Sensor Simulation & Digital Twins | 1/11 |
-| 12 Machine Learning & AI for Robots | 0/25 |
+| 12 Machine Learning & AI for Robots | 1/25 |
 | 13 Locomotion — Legged | 0/13 |
 | 14 Locomotion — Wheeled & Tracked | 0/10 |
 | 15 Locomotion — Aerial | 1/16 |
@@ -304,11 +304,11 @@
 | 11.10 | Synthetic dataset factory: procedural scenes + auto-labels (boxes, masks, depth, flow) | intermediate |  | todo |  |  |
 | 11.11 | Full hardware-in-the-loop digital twin of a robot work cell | intermediate |  | todo |  |  |
 
-## 12. Machine Learning & AI for Robots (`12-ml-ai`) — 0/25 done
+## 12. Machine Learning & AI for Robots (`12-ml-ai`) — 1/25 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 12.01 | TensorRT deployment with custom CUDA pre/post kernels: NMS, argmax decode, keypoint extraction | ★ beginner | ⭐ | todo |  |  |
+| 12.01 | TensorRT deployment with custom CUDA pre/post kernels: NMS, argmax decode, keypoint extraction | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); §5 fallback path default; TRT code off-by-default |
 | 12.02 | Custom TensorRT plugins (deformable attention, rotary embeddings) | intermediate |  | todo |  |  |
 | 12.03 | INT8/FP8 calibration tooling for edge inference | intermediate |  | todo |  |  |
 | 12.04 | GPU dataloader + augmentation pipeline for robot logs | intermediate |  | todo |  |  |

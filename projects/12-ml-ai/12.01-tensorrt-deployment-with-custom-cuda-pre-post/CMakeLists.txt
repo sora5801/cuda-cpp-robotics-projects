@@ -48,14 +48,18 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # The single demo executable (CLAUDE.md paragraph 5: one runnable artifact).
-# Same three sources as the VS project:
+# Same four sources as the VS project:
 #   main.cu           — orchestration: args, data, transfers, verify, report
 #   kernels.cu        — the GPU kernels + launch wrappers
 #   reference_cpu.cpp — the plain-C++ correctness oracle (compiled as C++)
+#   tensorrt_path.cpp — OPTIONAL TensorRT path; with USE_TENSORRT undefined
+#                        (the default — see below) it is a one-line stub and
+#                        needs no TensorRT headers at all.
 add_executable(tensorrt-deployment-with-custom-cuda-pre-post
   src/main.cu
   src/kernels.cu
   src/reference_cpu.cpp
+  src/tensorrt_path.cpp
 )
 
 # -lineinfo in optimized builds: source-line mapping for Nsight profiling at
@@ -67,12 +71,19 @@ target_compile_options(tensorrt-deployment-with-custom-cuda-pre-post PRIVATE
   $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-lineinfo>
 )
 
-# No target_link_libraries needed: with CUDA as an enabled language, CMake
-# links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
-# Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(tensorrt-deployment-with-custom-cuda-pre-post PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# No target_link_libraries needed by DEFAULT: with CUDA as an enabled
+# language, CMake links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY
+# defaults to Static — matching the .vcxproj's cudart_static.lib choice).
+#
+# OPTIONAL TensorRT opt-in (mirrors the .vcxproj comment; README "Build" has
+# the full walkthrough). Uncomment and point TENSORRT_ROOT at your install:
+#   option(USE_TENSORRT "Build the optional TensorRT engine path" OFF)
+#   if(USE_TENSORRT)
+#     target_compile_definitions(tensorrt-deployment-with-custom-cuda-pre-post PRIVATE USE_TENSORRT)
+#     target_include_directories(tensorrt-deployment-with-custom-cuda-pre-post PRIVATE "${TENSORRT_ROOT}/include")
+#     target_link_directories(tensorrt-deployment-with-custom-cuda-pre-post PRIVATE "${TENSORRT_ROOT}/lib")
+#     target_link_libraries(tensorrt-deployment-with-custom-cuda-pre-post PRIVATE nvinfer)  # engine build + inference
+#   endif()
+# Left OFF here so `cmake -S . -B build-cmake` keeps working with nothing
+# but the CUDA toolkit installed — the same default-build guarantee the
+# .vcxproj documents.
