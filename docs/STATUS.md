@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 24/505 done** (4.8%)
+**Overall: 25/505 done** (5.0%)
 
 | Status | Count |
 |--------|-------|
-| todo | 481 |
+| todo | 480 |
 | in-progress | 0 |
-| done | 24 |
+| done | 25 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -50,7 +50,7 @@
 | 18 Locomotion — Everything Else | 1/10 |
 | 19 Manipulation & Grasping | 1/16 |
 | 20 Tactile & Force Sensing | 1/7 |
-| 21 Human-Robot Interaction & Teleoperation | 0/12 |
+| 21 Human-Robot Interaction & Teleoperation | 1/12 |
 | 22 Multi-Robot Systems & Swarms | 1/12 |
 | 23 Navigation Stack (Mobile Robots) | 1/11 |
 | 24 Actuators & Motors | 0/14 |
@@ -470,14 +470,14 @@
 | 20.06 | Vibrotactile texture classification via GPU spectrograms | intermediate |  | todo |  |  |
 | 20.07 | Tactile simulation: FEM gel deformation + rendering for sim-to-real | [R&D] research |  | todo |  |  |
 
-## 21. Human-Robot Interaction & Teleoperation (`21-hri-teleoperation`) — 0/12 done
+## 21. Human-Robot Interaction & Teleoperation (`21-hri-teleoperation`) — 1/12 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 21.01 | Multi-person, multi-camera pose tracking with GPU triangulation | intermediate |  | todo |  |  |
 | 21.02 | Hand tracking + gesture classification for commanding robots | intermediate |  | todo |  |  |
 | 21.03 | Human motion prediction batches for collaborative safety | intermediate |  | todo |  |  |
-| 21.04 | Speed-and-separation monitoring: depth streams → minimum-distance fields at frame rate (ISO/TS 15066 helper) | ★ beginner | ⭐ | todo |  |  |
+| 21.04 | Speed-and-separation monitoring: depth streams → minimum-distance fields at frame rate (ISO/TS 15066 helper) | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); 0-frame transition offset; didactic-not-certified NOTICE in output |
 | 21.05 | Mic-array beamforming + keyword spotting on GPU | intermediate |  | todo |  |  |
 | 21.06 | Gaze estimation for intent inference | intermediate |  | todo |  |  |
 | 21.07 | Social navigation: batched pedestrian forecasting + ORCA crowd simulation | intermediate |  | todo |  |  |

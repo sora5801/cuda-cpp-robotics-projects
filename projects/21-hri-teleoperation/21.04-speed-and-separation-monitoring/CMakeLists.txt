@@ -75,4 +75,7 @@ target_compile_options(speed-and-separation-monitoring PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(speed-and-separation-monitoring PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+#
+# This project needs none of the above: three kernels, each a hand-rolled map
+# or map+reduce over a small, fixed capsule list (kernels.cuh/.cu) — the three
+# sources above are the whole build, matching the .vcxproj exactly.

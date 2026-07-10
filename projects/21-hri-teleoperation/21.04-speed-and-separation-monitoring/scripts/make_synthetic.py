@@ -1,107 +1,124 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 21.04 (Speed-and-separation monitoring: depth streams → minimum-distance fields at frame rate (ISO/TS 15066 helper)).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py -- synthetic sample-data generator for project 21.04
+(Speed-and-separation monitoring: depth streams -> minimum-distance fields
+at frame rate, an ISO/TS 15066-style helper -- DIDACTIC, NOT a certified
+safety function; see ../src/kernels.cuh for the full caveat).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
----------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+-----------------------------------------------------------------
+Every quantity this project consumes -- the human's walk, the robot's
+reach cycle, the depth camera's view -- is synthesized in closed form with
+full ground truth (there is no real depth sensor anywhere in this repo's
+scope). What this script writes is not a depth recording; it is the tiny
+SCENARIO description -- how many frames the sequence runs, at what rate,
+and where the human's walk starts and turns around -- that main.cu loads
+and then expands, frame by frame, into the robot's forward-kinematics pose
+and the human's capsule geometry (see ../src/main.cu's build_scene()).
+Everything else this project needs (the robot's link lengths, joint
+sweep, the camera/cell geometry, the ISO/TS-15066-style formula
+parameters) is the compile-time "model" documented once in
+../src/kernels.cuh -- the same split project 08.01 uses for its plant
+parameters vs. its loaded initial-condition scenario.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+The DEFAULT values below are not arbitrary: they were chosen (and are
+reproduced in ../src/kernels.cuh's SSM formula constants and the CSV row
+values here) so that, with the compiled-in robot/camera model, the human's
+walk drives the SSM state machine through a complete, clean
+NORMAL -> REDUCED -> PROTECTIVE_STOP -> REDUCED -> NORMAL cycle with a
+comfortable safety margin at both ends and a single unambiguous closest-
+approach event -- verified numerically before this project's kernels were
+even written (see the project's push-note / design notes) and then
+verified AGAIN by the program itself every run (the analytic gates in
+main.cu). Changing --frames/--rate/--human-start/--human-closest is
+supported and safe; it will very likely also change WHEN (or whether) the
+state machine transitions -- main.cu's gates will tell you honestly if a
+new scenario no longer produces a clean cycle.
 
 Usage
 -----
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    python make_synthetic.py                  # writes the committed default
+    python make_synthetic.py --frames 300 --rate 30 \\
+        --human-start -1.6 0.9 --human-closest 0.7 0.9
 """
 
 import argparse
-import csv
-import random
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
-
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+DEFAULT_FRAMES = 240          # 8.0 s at the default rate
+DEFAULT_RATE_HZ = 30.0        # depth-camera frame rate (SYSTEM_DESIGN.md §1.1: cameras run 30-60 Hz)
+DEFAULT_HUMAN_START = (-1.6, 0.9)     # m, cell frame -- far corner of the walking lane
+DEFAULT_HUMAN_CLOSEST = (0.7, 0.9)    # m, cell frame -- nearest point of the approach
 
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+def make_scenario_csv(frames: int, rate_hz: float,
+                      human_start: tuple, human_closest: tuple,
+                      out_path: Path) -> None:
+    """Write the SSM scenario CSV main.cu loads.
 
     Parameters
     ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
+    frames        : total frames in the sequence (> 1).
+    rate_hz       : depth-camera frame rate, Hz (> 0).
+    human_start   : (x, y) in meters, cell frame -- the walk's start/end point.
+    human_closest : (x, y) in meters, cell frame -- the walk's turnaround point.
+    out_path      : destination CSV. Parent directories are created if missing.
 
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+    The human's path is a raised-cosine ("there and back") interpolation
+    between these two points, driven by the SAME shared profile that also
+    drives the robot's synchronized reach cycle -- see ../src/main.cu's
+    reach_fraction()/build_scene(). This is scenario DATA (labeled
+    synthetic, reproducible from this fixed command, no RNG anywhere in
+    this project -- the whole pipeline is deterministic), not a recording.
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
     with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 21.04\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+        f.write("# SYNTHETIC scenario for project 21.04 (generated by scripts/make_synthetic.py)\n")
+        f.write("# DIDACTIC -- feeds a non-certified SSM teaching pipeline; see ../src/kernels.cuh\n")
+        f.write(f"# regenerate: python make_synthetic.py --frames {frames} --rate {rate_hz} "
+                f"--human-start {human_start[0]} {human_start[1]} "
+                f"--human-closest {human_closest[0]} {human_closest[1]}\n")
+        f.write("# FRAMES,<n>                      total frames in the sequence\n")
+        f.write("# RATE_HZ,<hz>                    depth-camera frame rate\n")
+        f.write("# HUMAN_START,<x_m>,<y_m>         walk start/end point (cell frame)\n")
+        f.write("# HUMAN_CLOSEST,<x_m>,<y_m>       walk turnaround point (cell frame)\n")
+        f.write(f"FRAMES,{frames}\n")
+        f.write(f"RATE_HZ,{rate_hz:.4f}\n")
+        f.write(f"HUMAN_START,{human_start[0]:.4f},{human_start[1]:.4f}\n")
+        f.write(f"HUMAN_CLOSEST,{human_closest[0]:.4f},{human_closest[1]:.4f}\n")
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    duration_s = frames / rate_hz
+    print(f"[make_synthetic] wrote scenario to {out_path} "
+          f"({frames} frames @ {rate_hz:.1f} Hz = {duration_s:.2f} s, "
+          f"human {human_start} -> {human_closest} -> {human_start}, labeled SYNTHETIC)")
 
 
 def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
     script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+    default_out = script_dir.parent / "data" / "sample" / "ssm_scenario.csv"
 
     parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 21.04 (Speed-and-separation monitoring: depth streams → minimum-distance fields at frame rate (ISO/TS 15066 helper)).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
+        description="Generate the tiny synthetic SSM scenario for project 21.04 "
+                    "(didactic speed-and-separation monitoring -- NOT a certified safety function).")
+    parser.add_argument("--frames", type=int, default=DEFAULT_FRAMES,
+                        help=f"total frames in the sequence (default {DEFAULT_FRAMES})")
+    parser.add_argument("--rate", type=float, default=DEFAULT_RATE_HZ,
+                        help=f"depth-camera frame rate, Hz (default {DEFAULT_RATE_HZ})")
+    parser.add_argument("--human-start", type=float, nargs=2, default=list(DEFAULT_HUMAN_START),
+                        metavar=("X_M", "Y_M"), help="walk start/end point, meters, cell frame")
+    parser.add_argument("--human-closest", type=float, nargs=2, default=list(DEFAULT_HUMAN_CLOSEST),
+                        metavar=("X_M", "Y_M"), help="walk turnaround point, meters, cell frame")
     parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
+                        help="output CSV path (default: ../data/sample/ssm_scenario.csv)")
     args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
+    if args.frames <= 1:
+        parser.error("--frames must be > 1")
+    if args.rate <= 0:
+        parser.error("--rate must be > 0")
 
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    make_scenario_csv(args.frames, args.rate,
+                      tuple(args.human_start), tuple(args.human_closest),
+                      args.out)
 
 
 if __name__ == "__main__":

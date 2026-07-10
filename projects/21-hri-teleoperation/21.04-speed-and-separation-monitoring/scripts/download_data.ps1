@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 21.04 (Speed-and-separation monitoring: depth streams → minimum-distance fields at frame rate (ISO/TS 15066 helper))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 21.04 DECISION: no public dataset applies — every depth frame, robot pose,
+# and human capsule position in this project is synthesized in closed form
+# from a tiny scenario (frame count/rate + the human's walk endpoints), not
+# recorded from a real sensor (see ../src/kernels.cuh's caveat: this is a
+# didactic, non-certified SSM metric, not a dataset-driven perception task).
+# This script stays the honest no-op below; ../scripts/make_synthetic.py
+# writes the scenario (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

@@ -50,8 +50,10 @@
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
 //    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    record into their own streams. This project (21.04) uses only the
+//    default stream throughout -- render/classify, the min-distance
+//    reduction, and the dense field all run sequentially per frame, so no
+//    adaptation is needed here.
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

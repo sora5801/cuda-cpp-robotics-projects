@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Stable lines for project 21.04 (speed-and-separation-monitoring), captured from an ACTUAL run
+# on the reference machine (RTX 2080 SUPER, CUDA 13.3, Release|x64), 2026-07-10.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 21.04 (speed-and-separation-monitoring)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines
+# belong here -- never timings ("[time]") or measured numbers ("[info]"), which are honest
+# per-run measurements, not fixed constants (see main.cu's output-contract comment).
+[demo] speed-and-separation monitoring: depth streams -> minimum-distance fields (project 21.04)
+NOTICE: didactic implementation -- NOT a certified safety function (ISO/TS 15066-style metrics, illustrative only)
+PROBLEM: SSM pipeline on synthetic top-down depth streams, 200x200 px over 4.0x4.0 m cell @ 30 Hz, 8 robot capsules + 2 human capsules, 240 frames
+SCENARIO: human walks (-1.60,0.90) -> (0.70,0.90) -> (-1.60,0.90) while a SCARA-style arm performs a synchronized reach cycle [synthetic]
+VERIFY: PASS (GPU matches CPU reference: exact pixel labels; depth/d_min/dense-field agree within tol 1e-4 m)
+ARTIFACT: wrote demo/out/distance_field.pgm (200x200) and demo/out/ssm_timeline.csv (240 rows)
+GATE NO-FALSE-STOP: PASS (no PROTECTIVE_STOP while the closed-form distance exceeds Sp_full by more than the documented margin)
+GATE NO-MISSED-STOP: PASS (PROTECTIVE_STOP holds wherever the closed-form distance is below Sp_reduced by more than the documented margin)
+GATE TRANSITIONS: PASS (all state transitions land within +/-1 frame of the closed-form S_p crossing)
+GATE D_MIN BOUND: PASS (pipeline d_min stays within the documented pixel-quantization + silhouette-visibility bound of the closed-form distance on every frame)
+RESULT: PASS (VERIFY + all 4 gates passed)
