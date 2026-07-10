@@ -1,8 +1,21 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 24.01 (2d-magnetostatic-fea-solver-on-gpu-motor-torque)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 24.01 (2D magnetostatic FEA solver on GPU -> motor cogging-torque
+# parameter sweep). Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them
+# when diffing. Every non-comment line below must appear VERBATIM in the demo's stdout (subset
+# check: extra "[info]"/"[time]" lines carrying measured numbers and device names are expected
+# and NOT checked — see src/main.cu's "Output contract" comment and THEORY.md "Numerical
+# considerations" for why no raw floating-point measurement lives on a checked line).
+# Captured from an actual Release|x64 run on the reference machine (RTX 2080 SUPER, sm_75):
+# worst GPU-vs-CPU |dA| = 2.948e-07 Wb/m; Ampere-gate rel errors ~0.19%; flux-continuity rel
+# jump ~0.35% (Release) / ~2.57% (Debug, unoptimized SASS — both comfortably inside the 5% gate);
+# best arc fraction 0.70 (peak cogging 2.0444 N*m/m) vs. 0.60 (5.4841), 0.80 (3.5724),
+# 0.90 (6.6671), 1.00 (7.2236) N*m/m — the non-monotonic minimum the sweep exists to find.
+[demo] 2D magnetostatic FEA solver: motor cogging-torque parameter sweep (project 24.01)
+PROBLEM: 2D magnetostatic FEA (batched red-black SOR, omega=1.97, 1500 sweep-pairs/solve), 256x256 grid over 52.0x52.0 mm domain, FP32
+SCENARIO: 4-pole/6-slot motor cross-section, mu_r_iron=2000, Br=1.20 T, slot-open frac=0.35; cogging sweep: 5 arc fractions x 24 rotor angles [synthetic]
+VERIFY: PASS (GPU batched solver matches CPU twin within |dA| tol 2.0e-05 Wb/m)
+ANALYTIC_AMPERE: PASS (uniform-current annulus in air matches Ampere's law: zero field in the bore, closed-form B(r) elsewhere, rel tol 5%)
+ANALYTIC_INTERFACE: PASS (normal B continuous across a straight air/iron interface, rel tol 5%)
+SWEEP: completed 5 arc fractions x 24 rotor angles (120 total FEA solves, batched 24-wide per arc fraction)
+PHYSICS: PASS (cogging waveforms integrate to ~zero net torque over the sampled period and repeat after one magnet pole pitch)
+ARTIFACT: wrote demo/out/field_magnitude.pgm and demo/out/cogging_waveforms.csv (256x256 grid, 5 arc fractions)
+RESULT: PASS (solver verified against the CPU twin and two analytic gates; cogging sweep completed and passed physics sanity)

@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 25/505 done** (5.0%)
+**Overall: 26/505 done** (5.1%)
 
 | Status | Count |
 |--------|-------|
-| todo | 480 |
+| todo | 479 |
 | in-progress | 0 |
-| done | 25 |
+| done | 26 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -53,7 +53,7 @@
 | 21 Human-Robot Interaction & Teleoperation | 1/12 |
 | 22 Multi-Robot Systems & Swarms | 1/12 |
 | 23 Navigation Stack (Mobile Robots) | 1/11 |
-| 24 Actuators & Motors | 0/14 |
+| 24 Actuators & Motors | 1/14 |
 | 25 Power & Energy | 0/14 |
 | 26 Mechanical Design & Structures | 0/16 |
 | 27 Materials Science & Manufacturing | 0/13 |
@@ -520,11 +520,11 @@
 | 23.10 | Dynamic obstacle tracking + velocity obstacles | intermediate |  | todo |  |  |
 | 23.11 | Vegetation-vs-obstacle classification for off-road (LiDAR intensity + ML) | intermediate |  | todo |  |  |
 
-## 24. Actuators & Motors (`24-actuators-motors`) — 0/14 done
+## 24. Actuators & Motors (`24-actuators-motors`) — 1/14 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 24.01 | 2D magnetostatic FEA solver on GPU → motor torque-ripple/cogging parameter sweeps | ★ beginner | ⭐ | todo |  |  |
+| 24.01 | 2D magnetostatic FEA solver on GPU → motor torque-ripple/cogging parameter sweeps | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); Ampere gate 0.19%; cogging min at arc 0.70 |
 | 24.02 | Motor design optimization: evolutionary search over geometry, parallel evaluation | intermediate |  | todo |  |  |
 | 24.03 | FOC simulation: current-loop tuning grids; sensorless observer (EKF/SMO) banks | intermediate |  | todo |  |  |
 | 24.04 | PMSM thermal Monte Carlo + current-derating optimization | intermediate |  | todo |  |  |

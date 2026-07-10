@@ -1,10 +1,12 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 24.01 (2D magnetostatic FEA solver on GPU → motor torque-ripple/cogging parameter sweeps)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED (not a placeholder): this project's "data" is a from-scratch
+# motor cross-section DESIGN (geometry + materials + sweep plan), not a
+# recording or a measurement — no public dataset applies, so this script is
+# an intentional, permanent no-op (CLAUDE.md paragraph 8's synthetic-first
+# default). See ../data/README.md for what IS committed and how it is
+# generated (../scripts/make_synthetic.py).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

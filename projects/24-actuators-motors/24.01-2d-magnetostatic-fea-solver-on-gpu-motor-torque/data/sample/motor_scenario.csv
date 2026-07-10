@@ -1,0 +1,13 @@
+# SYNTHETIC scenario for project 24.01 — a motor cross-section DESIGN, not a recording.
+# regenerate: python make_synthetic.py
+# All lengths are METERS. Row grammar is documented in ../src/main.cu (load_scenario).
+GRID,256,256
+DOMAIN,0.026
+ROTOR,0.01,0.003,0.001
+STATOR,0.019,0.022
+POLES_SLOTS,4,6
+MATERIALS,2000.0,1.05,1.2
+SLOT_OPEN,0.35
+SOLVER,1.97,1500
+SWEEP_ARCS,0.6,0.7,0.8,0.9,1.0
+SWEEP_ANGLES,24

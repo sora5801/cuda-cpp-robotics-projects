@@ -1,107 +1,133 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 24.01 (2D magnetostatic FEA solver on GPU → motor torque-ripple/cogging parameter sweeps).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample-data generator for 24.01
+(2D magnetostatic FEA solver on GPU -> motor torque-ripple/cogging parameter sweeps).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
----------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+-----------------------------------------------------------------
+There is no "recording" to synthesize here in the usual sensor-data sense —
+this project's "data" IS a motor design: a cross-section geometry, material
+properties, and the parameter-sweep plan. All of it is CONSTANTS, chosen by
+the project (not measured, not downloaded), so writing them to a committed
+CSV is the synthetic-data story for a design-tool project: the file is the
+single, versioned, checksummed source of truth main.cu loads at every run,
+exactly like every other flagship's data/sample/*.csv scenario file.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What this script writes
+------------------------
+data/sample/motor_scenario.csv — one row per logical group of parameters
+(grid resolution, domain size, rotor geometry, stator geometry, pole/slot
+counts, material properties, the slot-opening fraction, the solver's SOR
+factor and sweep-pair budget, and the cogging sweep's arc-fraction list and
+rotor-angle sample count). main.cu's load_scenario() is the authoritative
+parser (see its header comment for the exact row grammar); THIS script must
+stay byte-for-byte in sync with that grammar, or the demo will refuse to
+parse the file it just generated (an intentional early-failure to keep the
+two from silently drifting apart — CLAUDE.md's "never quietly solve the
+wrong problem" principle).
+
+The chosen values are NOT arbitrary: every one of them was validated in a
+standalone Python/NumPy prototype (SOR convergence measured, the annulus
+analytic gate matched Ampere's law to ~0.2%, the flux-continuity gate
+matched to ~1e-5, and the arc-fraction sweep showed a genuine, measured,
+non-monotonic minimum in peak cogging torque) before being written here —
+see THEORY.md "How we verify correctness" and "Numerical considerations".
 
 Usage
 -----
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    python make_synthetic.py                         # writes the committed defaults
+    python make_synthetic.py --out custom_path.csv    # write elsewhere (for experiments)
 """
 
 import argparse
-import csv
-import random
+import hashlib
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
+# ---------------------------------------------------------------------------
+# The scenario's numeric content — kept as named constants (not buried in
+# f-strings) so a reader can see every design decision in one place, and so
+# README.md / data/README.md can quote the SAME numbers without retyping
+# them from a rendered CSV.
+# ---------------------------------------------------------------------------
+GRID_NX, GRID_NY = 256, 256          # matches kGridN in src/kernels.cuh exactly (checked at load time)
+DOMAIN_HALF_W_M = 0.026              # domain spans [-26mm, +26mm]^2; just outside the stator OD
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+ROTOR_CORE_R_M = 0.010               # solid rotor iron core outer radius
+MAGNET_THK_M = 0.003                 # magnet radial thickness -> magnet outer radius = 0.013 m
+AIR_GAP_M = 0.001                    # mechanical air gap -> stator bore radius = 0.014 m
+
+STATOR_BACK_IRON_IN_R_M = 0.019      # tooth-ring / back-iron boundary radius
+STATOR_OUTER_R_M = 0.022             # stator outer radius (back iron closes the flux path here)
+
+POLES = 4                            # rotor magnet pole count (even, alternating polarity)
+SLOTS = 6                            # stator slot count
+
+MU_R_IRON = 2000.0                   # linear relative permeability, rotor/stator iron (no saturation model)
+MU_R_MAGNET = 1.05                   # linear relative permeability, NdFeB-class permanent magnets
+BR_TESLA = 1.2                       # magnet remanence (typical N42-grade NdFeB, illustrative)
+
+SLOT_OPEN_FRAC = 0.35                # fraction of one slot pitch left open (air) at the bore
+
+SOR_OMEGA = 1.97                     # SOR relaxation factor (measured convergence — THEORY.md)
+N_SWEEPS = 1500                      # fixed red+black sweep-PAIR budget per solve (measured: residual
+                                      # ratio ~1e-6..1e-11 by this point on every fixture tested)
+
+SWEEP_ARC_FRACS = [0.60, 0.70, 0.80, 0.90, 1.00]   # the design sweep's 5 magnet pole-arc fractions
+SWEEP_N_ANGLES = 24                                 # rotor-angle samples per pole pitch (MUST be even)
 
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+def write_scenario(out_path: Path) -> str:
+    """Write the motor_scenario.csv described above; return its SHA-256 hex digest.
 
     Parameters
     ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
+    out_path : destination CSV path. Parent directories are created if missing.
 
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+    The row grammar (label, then comma-separated numeric fields) is fixed
+    and documented in ../src/main.cu's load_scenario(): GRID, DOMAIN, ROTOR,
+    STATOR, POLES_SLOTS, MATERIALS, SLOT_OPEN, SOLVER, SWEEP_ARCS,
+    SWEEP_ANGLES — every one required, order-free, unknown rows rejected.
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 24.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+    lines = [
+        "# SYNTHETIC scenario for project 24.01 — a motor cross-section DESIGN, not a recording.",
+        "# regenerate: python make_synthetic.py",
+        "# All lengths are METERS. Row grammar is documented in ../src/main.cu (load_scenario).",
+        f"GRID,{GRID_NX},{GRID_NY}",
+        f"DOMAIN,{DOMAIN_HALF_W_M}",
+        f"ROTOR,{ROTOR_CORE_R_M},{MAGNET_THK_M},{AIR_GAP_M}",
+        f"STATOR,{STATOR_BACK_IRON_IN_R_M},{STATOR_OUTER_R_M}",
+        f"POLES_SLOTS,{POLES},{SLOTS}",
+        f"MATERIALS,{MU_R_IRON},{MU_R_MAGNET},{BR_TESLA}",
+        f"SLOT_OPEN,{SLOT_OPEN_FRAC}",
+        f"SOLVER,{SOR_OMEGA},{N_SWEEPS}",
+        "SWEEP_ARCS," + ",".join(str(a) for a in SWEEP_ARC_FRACS),
+        f"SWEEP_ANGLES,{SWEEP_N_ANGLES}",
+        "",   # trailing newline
+    ]
+    text = "\n".join(lines)
+    # newline="" + explicit "\n" join (not csv.writer) keeps the file
+    # byte-identical across platforms — no csv-module dialect surprises,
+    # and easy for a learner to read/regenerate by hand if needed.
+    out_path.write_text(text, encoding="utf-8", newline="\n")
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    digest = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    print(f"[make_synthetic] wrote {out_path} ({out_path.stat().st_size} bytes, labeled SYNTHETIC)")
+    print(f"[make_synthetic] sha256: {digest}")
+    return digest
 
 
 def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
     script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+    default_out = script_dir.parent / "data" / "sample" / "motor_scenario.csv"
 
     parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 24.01 (2D magnetostatic FEA solver on GPU → motor torque-ripple/cogging parameter sweeps).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
+        description="Generate the committed motor-design scenario for project 24.01.")
     parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
+                        help="output CSV path (default: ../data/sample/motor_scenario.csv)")
     args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    write_scenario(args.out)
 
 
 if __name__ == "__main__":

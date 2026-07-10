@@ -49,9 +49,11 @@
 //    recorded before the stop event has finished. Callers rely on this
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
-//    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    single-stream structure of the demos. This project uses ONLY the
+//    default stream (every red/black SOR pass launch, across every batch
+//    variant, is enqueued there — kernels.cu relies on stream order alone
+//    for pass-to-pass dependencies, exactly like 31.01's ping-pong solver),
+//    so no multi-stream adaptation applies here.
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

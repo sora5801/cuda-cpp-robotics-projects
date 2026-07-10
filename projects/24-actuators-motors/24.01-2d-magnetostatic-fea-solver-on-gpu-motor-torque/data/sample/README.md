@@ -16,7 +16,11 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This folder holds one file:** `motor_scenario.csv` (405 bytes) — the committed motor-design
+scenario `src/main.cu` loads at every run: grid resolution, cross-section geometry (rotor core,
+magnet ring, air gap, stator teeth and back iron), materials, and the cogging-torque sweep plan
+(magnet pole-arc fractions x rotor-angle samples). Every field is documented, with units, in
+[`../README.md`](../README.md). It is synthetic in the sense CLAUDE.md §8 means: not measured, not
+downloaded — a set of design constants written once by
+[`../../scripts/make_synthetic.py`](../../scripts/make_synthetic.py) and versioned like code.
+Regenerate with `python ../../scripts/make_synthetic.py` (no seed needed — nothing here is random).

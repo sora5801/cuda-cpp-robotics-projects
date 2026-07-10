@@ -12,23 +12,47 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+One executable, five stages, in order:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+1. **VERIFY** — solves one representative motor variant (a non-trivial rotor angle) on the GPU
+   batched red-black SOR solver AND on the CPU twin, and requires the two vector-potential fields
+   to agree within a documented tolerance (measured worst case: `2.948e-07` Wb/m).
+2. **ANALYTIC_AMPERE** — solves a uniform-current annulus in air (no motor geometry) and checks the
+   computed azimuthal B field against Ampere's law's closed form in three regions: zero in the bore,
+   growing inside the annulus, decaying as 1/r outside.
+3. **ANALYTIC_INTERFACE** — solves a straight air/iron interface driven by a current strip and
+   checks that the field's NORMAL component is continuous across the interface — the direct
+   correctness check on the solver's harmonic-mean face-averaging.
+4. **THE SWEEP** — for each of 5 magnet pole-arc fractions, batches all 24 rotor-angle solves for
+   that arc fraction into ONE kernel-launch sequence (the project's central GPU lesson), computes
+   cogging torque via the Maxwell stress tensor at every angle, and reports which arc fraction
+   minimizes PEAK cogging torque — the actual motor-design question the catalog bullet asks.
+5. **PHYSICS** — every cogging waveform must integrate to ~zero net torque over the sampled period
+   (no net work from cogging) and repeat after one magnet pole pitch (checked with an independent
+   solve, not just inferred from symmetry).
+
+**Artifacts written to `out/` (git-ignored, regenerated every run):**
+
+- `field_magnitude.pgm` — |B| over the full 256x256 cross-section for the recommended (minimum-
+  cogging) design at a non-trivial rotor angle — "the classic motor-field picture": bright rings at
+  the magnets and stator teeth, darker in the air gap and slot openings. View with any PGM-capable
+  viewer (GIMP, IrfanView) or convert with ImageMagick (`magick field_magnitude.pgm field.png`).
+- `cogging_waveforms.csv` — rotor angle (degrees) vs. torque (N·m/m), one column per swept arc
+  fraction — the design plot. Plot it: the arc fraction with the smallest peak-to-peak swing is the
+  one `[info] design result:` names.
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, scenario path, and every MEASURED number (verify tolerance achieved, Ampere/interface errors, per-arc-fraction peak/mean torque, the recommended design). Varies by machine/build (THEORY.md "Numerical considerations" explains why — FP32 rounding-order differences across compilers/optimization levels). | No. |
+| `PROBLEM:` / `SCENARIO:` | The exact problem instance (grid, geometry, materials, sweep plan) — entirely determined by the committed scenario CSV, so stable across machines. | Yes — stable. |
+| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot; first launches pay one-time init costs). | No. |
+| `VERIFY:` / `ANALYTIC_AMPERE:` / `ANALYTIC_INTERFACE:` / `PHYSICS:` | `PASS`/`FAIL` verdicts — the words only, never the underlying measured number (which can shift by a few ulps across builds; THEORY.md quantifies the measured spread). | Yes — stable. |
+| `SWEEP:`    | Confirms the sweep ran to completion (arc-fraction count x rotor-angle count). | Yes — stable. |
+| `ARTIFACT:` | Confirms both output files were written. | Yes — stable. |
+| `RESULT:`   | Final `PASS`/`FAIL` verdict — `PASS` only if every stage above passed. The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines

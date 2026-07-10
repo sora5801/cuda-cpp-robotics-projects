@@ -5,12 +5,13 @@
 # runs it on the sample data, prints the output, and checks the STABLE lines
 # of that output against expected_output.txt. Exit code 0 = demo passed.
 #
-# WORKS AS SCAFFOLDED: the template's SAXPY placeholder builds, runs, and
-# matches its committed expected_output.txt out of the box — so running this
-# script on a freshly scaffolded project is a full toolchain smoke test.
-# TODO(scaffold): once the real implementation lands, this script usually
-# needs NO changes — just keep expected_output.txt in sync with the stable
-# lines main.cu prints (see the "output contract" comment in ../src/main.cu).
+# This script needed NO changes once the real 2D magnetostatic FEA solver
+# replaced the scaffolded SAXPY placeholder — it was written generically
+# from the start. The only thing that must stay in sync going forward is
+# demo/expected_output.txt against the STABLE lines src/main.cu prints (see
+# the "output contract" comment at the top of that file): ten lines —
+# "[demo]", "PROBLEM:", "SCENARIO:", "VERIFY:", "ANALYTIC_AMPERE:",
+# "ANALYTIC_INTERFACE:", "SWEEP:", "PHYSICS:", "ARTIFACT:", "RESULT:".
 #
 # Diffing rules (shared contract with expected_output.txt and main.cu):
 #   * Lines in expected_output.txt starting with '#' are COMMENTS — ignored.
@@ -18,7 +19,10 @@
 #   * Every remaining expected line must appear VERBATIM (after trailing-
 #     whitespace trim) somewhere in the program's stdout. This "subset"
 #     check lets the program also print non-deterministic lines (timings
-#     "[time]", device info "[info]") that are deliberately not checked.
+#     "[time]", device info "[info]" — every MEASURED number in this
+#     project lives on one of these, per THEORY.md's Debug/Release
+#     floating-point-reproducibility discussion) that are deliberately not
+#     checked.
 #
 # Usage:  .\run_demo.ps1          (from anywhere; paths resolve relative to
 #                                  this script, not the current directory)
@@ -101,7 +105,8 @@ if (-not (Test-Path $Expected)) {
 }
 
 # Keep only checkable expected lines: drop blanks and '#' comment lines
-# (the TODO(scaffold) marker line in the template is such a comment).
+# (expected_output.txt's provenance/measurement notes at the top are such
+# comments — see that file for the actual measured numbers they record).
 $expectedLines = @(Get-Content $Expected |
     Where-Object { $_.Trim() -ne '' -and -not $_.TrimStart().StartsWith('#') } |
     ForEach-Object { $_.TrimEnd() })
