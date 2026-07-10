@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 22/505 done** (4.4%)
+**Overall: 23/505 done** (4.6%)
 
 | Status | Count |
 |--------|-------|
-| todo | 483 |
+| todo | 482 |
 | in-progress | 0 |
-| done | 22 |
+| done | 23 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -48,7 +48,7 @@
 | 16 Locomotion — Marine & Underwater | 1/11 |
 | 17 Locomotion — Space | 1/13 |
 | 18 Locomotion — Everything Else | 1/10 |
-| 19 Manipulation & Grasping | 0/16 |
+| 19 Manipulation & Grasping | 1/16 |
 | 20 Tactile & Force Sensing | 0/7 |
 | 21 Human-Robot Interaction & Teleoperation | 0/12 |
 | 22 Multi-Robot Systems & Swarms | 1/12 |
@@ -437,11 +437,11 @@
 | 18.09 | In-pipe robot localization from vision/LiDAR | intermediate |  | todo |  |  |
 | 18.10 | Tethered cliff/rappelling robots: cable dynamics + anchor planning | [R&D] research |  | todo |  |  |
 
-## 19. Manipulation & Grasping (`19-manipulation-grasping`) — 0/16 done
+## 19. Manipulation & Grasping (`19-manipulation-grasping`) — 1/16 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 19.01 | Parallel grasp-candidate scoring: antipodal sampling over point clouds | ★ beginner | ⭐ | todo |  |  |
+| 19.01 | Parallel grasp-candidate scoring: antipodal sampling over point clouds | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); analytic-object gates; 12/12 adversarial rejected |
 | 19.02 | Force-closure / grasp-wrench-space computation batched | intermediate |  | todo |  |  |
 | 19.03 | Grasp network inference + CUDA NMS/pose refinement | intermediate |  | todo |  |  |
 | 19.04 | 6-DoF object pose: PPF voting on GPU + ICP refinement; render-and-compare | [R&D] research |  | todo |  |  |

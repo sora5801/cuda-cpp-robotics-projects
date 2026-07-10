@@ -12,13 +12,53 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The demo runs the full grasp-candidate pipeline (PCA normals → candidate generation → scoring →
+ranking) on three synthetic, analytically-known objects — a box, a cylinder, and a sphere — and
+checks the result three different ways:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+1. **GPU-vs-CPU agreement** (the §5 gate) on the box object: normals within an angle tolerance,
+   candidate generation **exactly**, scoring within a relative tolerance.
+2. **Analytic gates**, per object: does the top-10 ranked grasp list actually contain the
+   geometrically-correct antipodal pairs (opposite box faces at the right width and axis; cylinder
+   diameters perpendicular to its axis; sphere diameters)?
+3. **A negative control**: 12 hand-picked box candidates on *adjacent* (non-opposite) faces — never
+   antipodal, never force-closure — must ALL be rejected by the friction-cone gate; separately, the
+   box's geometrically-antipodal but too-wide 100 mm axis must be rejected by the gripper-width gate,
+   not silently accepted.
+
+Two artifacts land in `demo/out/`:
+
+- **`grasps.csv`** — the top-10 ranked grasps for each object: both contact points, the grasp axis,
+  width, antipodal-quality score, friction-cone angles, and every gate's pass/fail flag.
+- **`grasp_cloud.csv`** — a subsampled copy of each object's point cloud (`kind=cloud`) plus the two
+  contact points of each object's top-5 grasps (`kind=grasp`, grouped by an `id` column) — enough to
+  plot the cloud and draw a line segment through each grasp axis. Any plotting tool that reads CSV
+  works; a minimal recipe: load the file, `scatter3d` the `kind=cloud` rows colored by `object`, then
+  for each `object,id` pair with `kind=grasp` draw a line through its two rows.
+
+## How to read the output
+
+| Line prefix | Meaning | Checked against `expected_output.txt`? |
+|-------------|---------|----------------------------------------|
+| `[demo]`    | Which project/demo this is. | Yes — stable. |
+| `[info]`    | GPU name, measured timings, and measured gate statistics (candidate counts, worst GPU-vs-CPU deviations) — varies by machine and run. | No. |
+| `PROBLEM:`  | The problem instance (candidate count, PCA parameters, object count). | Yes — stable. |
+| `SCENARIO:` | Each object's name, point count, and ground-truth dimensions `[synthetic]`. | Yes — stable. |
+| `VERIFY:`   | The three GPU-vs-CPU agreement checks (normals, candidate generation, scoring) on the box object. | Yes — stable. |
+| `CHECK:`    | The analytic gates (per-object top-10 validity, box width gate, box adversarial negative control). | Yes — stable. |
+| `ARTIFACT:` | Confirms `grasps.csv` / `grasp_cloud.csv` were written. | Yes — stable. |
+| `RESULT:`   | `PASS`/`FAIL` verdict. The program exits nonzero on `FAIL`. | Yes — stable. |
+
+`CHECK:` lines are deliberately **textual**, never embedding a specific measured number (width,
+angle, count) — those numbers live only on the `[info]` line immediately above each check. FP32
+arithmetic is not strictly associative, so which candidate wins a near-tie search can differ by a
+GPU architecture (sm_75 vs. sm_86 vs. sm_89) even though every gate still passes with wide margin
+(`THEORY.md` "Numerical considerations"); keeping measured numbers off the diffed lines is what
+makes this demo portable across GPUs without a flaky expected-output file.
+
+The runner scripts do a **subset diff**: every non-comment line of
+[`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines
+(timings, device info) are allowed. `#`-prefixed lines in that file are comments.
 
 ## How to read the output
 

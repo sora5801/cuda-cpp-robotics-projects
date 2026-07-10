@@ -49,9 +49,14 @@
 //    recorded before the stop event has finished. Callers rely on this
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
-//    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    single-stream structure of the demos. This project (19.01) launches
+//    every kernel (normal estimation, candidate generation, scoring) on
+//    that same default stream, in the fixed sequential order each object's
+//    pipeline requires (candidate generation reads the normals scoring
+//    then reads the candidates), so there is no multi-stream work to
+//    record here — a future overlapped-streams version (running two
+//    objects' pipelines concurrently, since they are fully independent)
+//    would need its own GpuTimer per stream.
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

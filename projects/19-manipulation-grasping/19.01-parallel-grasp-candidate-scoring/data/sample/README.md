@@ -16,7 +16,14 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds this project's real, final sample data: `box_cloud.bin`, `cylinder_cloud.bin`,
+`sphere_cloud.bin` (this project's `"GC01"` binary point-cloud format — see `../README.md` for the
+byte layout) and `objects_meta.csv` (shape parameters, gripper stroke, friction coefficient — see
+`../README.md` for the column layout). Total committed size: **260 KiB**, well under the repo's 50 MB
+ceiling. `src/main.cu` reads exactly these four files at startup; there is no in-memory fallback.
+
+Regenerate (byte-identical, seed 42) with:
+
+```
+python ../../scripts/make_synthetic.py
+```

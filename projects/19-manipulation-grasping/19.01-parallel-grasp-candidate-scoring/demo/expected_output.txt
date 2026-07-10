@@ -1,8 +1,23 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected output — project 19.01 (Parallel grasp-candidate scoring: antipodal sampling over point clouds).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 19.01 (parallel-grasp-candidate-scoring)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check — the
+# program also prints "[info]"/"[time]" lines with machine- and run-dependent numbers that are
+# deliberately NOT checked here; see src/main.cu's "Output contract" header comment — measured
+# values (widths, angles, timings) live only on "[info]" lines precisely so this file never has
+# to encode a number that could shift by a ULP on a different GPU architecture).
+[demo] Parallel grasp-candidate scoring: antipodal sampling over point clouds - project 19.01
+PROBLEM: K=4096 candidates/object, PCA k=16 (8 Jacobi sweeps), 3 synthetic objects (box, cylinder, sphere)
+SCENARIO: box: N=6000 points, box 60x40x100 mm [synthetic]
+SCENARIO: cylinder: N=9000 points, cylinder r=25 mm h=120 mm (lateral surface) [synthetic]
+SCENARIO: sphere: N=7000 points, sphere r=30 mm [synthetic]
+VERIFY: PASS (normals GPU matches CPU reference within angle tolerance)
+VERIFY: PASS (candidate generation GPU matches CPU reference exactly)
+VERIFY: PASS (scoring GPU matches CPU reference within relative tolerance)
+CHECK: PASS (box: z-axis (100 mm) antipodal pairs correctly rejected by the gripper width gate)
+CHECK: PASS (box: all adjacent-face (non-antipodal) candidates rejected by the friction-cone gate)
+CHECK: PASS (box: top-10 grasps are analytically valid antipodal pairs within tolerance)
+CHECK: PASS (cylinder: top-10 grasps are analytically valid antipodal pairs within tolerance)
+CHECK: PASS (sphere: top-10 grasps are analytically valid antipodal pairs within tolerance)
+ARTIFACT: wrote demo/out/grasps.csv (top-10 grasps per object)
+ARTIFACT: wrote demo/out/grasp_cloud.csv (subsampled clouds + top-5 grasp axes per object)
+RESULT: PASS (verify passed; every object's top-10 grasps are analytically valid; box width gate and adversarial negative control both correct)
