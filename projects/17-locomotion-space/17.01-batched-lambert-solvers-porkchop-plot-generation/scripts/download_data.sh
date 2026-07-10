@@ -3,10 +3,21 @@
 # download_data.sh — public-dataset fetcher for 17.01 (Batched Lambert solvers + porkchop plot generation)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 17.01 DECISION: no public dataset is fetched here. This project's two
+# bodies are SYNTHETIC coplanar circular orbits (an Earth-like body at
+# 1 AU, a Mars-like body at 1.524 AU) — the whole scenario is six numbers,
+# not recordings (see ../data/README.md and ../scripts/make_synthetic.py).
+#
+# Real planetary ephemerides ARE public and free — NASA JPL publishes SPICE
+# kernels (https://naif.jpl.nasa.gov/naif/data.html) and the Horizons system
+# (https://ssd.jpl.nasa.gov/horizons/) serves position/velocity vectors for
+# every major body, no registration wall, permissive reuse terms. Swapping
+# them in is a real, honest next step for this project (README §11 "Prior
+# art", THEORY.md §where-this-sits-in-the-real-world) — it changes only
+# body_state()'s inputs (real r(t), v(t) instead of the closed-form circular
+# orbit) in kernels.cu/reference_cpu.cpp; the Lambert solver itself does not
+# care where its position/velocity vectors came from. It is explicitly OUT
+# OF SCOPE for this v1.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
@@ -37,4 +48,5 @@ set -euo pipefail
 echo "[download_data] Project 17.01 uses synthetic sample data (repo default; CLAUDE.md paragraph 8)."
 echo "[download_data] Nothing to download. Generate/regenerate the sample with:"
 echo "[download_data]     python $(dirname "$0")/make_synthetic.py"
+echo "[download_data] Real ephemerides ARE public (NASA JPL SPICE/Horizons) but are out of scope for v1 - see the DECISION note above."
 exit 0

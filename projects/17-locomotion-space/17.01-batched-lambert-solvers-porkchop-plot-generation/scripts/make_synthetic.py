@@ -1,108 +1,98 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 17.01 (Batched Lambert solvers + porkchop plot generation).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample generator for project 17.01
+(Batched Lambert solvers + porkchop plot generation).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+This project studies two SYNTHETIC coplanar circular heliocentric orbits —
+an Earth-like body at 1.000 AU and a Mars-like body at 1.524 AU (Mars' real
+semi-major axis, used here only as a size, not as a real ephemeris) — in
+canonical units where the Sun's mu = 1. No JPL ephemeris or SPICE kernel is
+needed: the whole "dataset" is six numbers (two orbit radii, the shared
+epoch window, the accepted time-of-flight band, and the grid resolution).
+scripts/download_data.ps1 / .sh explain, honestly, why no public dataset is
+fetched here and where the real-ephemeris upgrade would plug in.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What it writes: ../data/sample/lambert_scenario.csv
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    R1_AU,1.0        Earth-like orbit radius (AU = 1 canonical length unit)
+    R2_AU,1.524      Mars-like orbit radius (AU)
+    WINDOW_TU,28.0   BOTH the departure and arrival epoch axes span
+                     [0, WINDOW_TU) canonical time units (~2 synodic
+                     periods of this r1/r2 pair — see THEORY.md)
+    MIN_TOF_TU,0.5   time-of-flight floor: transfers faster than this are
+                     masked (near-zero-duration Lambert instances are both
+                     unphysical and numerically degenerate)
+    MAX_TOF_TU,14.0  time-of-flight ceiling: transfers slower than this are
+                     masked (~3.1x the Hohmann time for this r1/r2 pair —
+                     a "sane mission candidate" cutoff, not a solver limit)
+    GRID_N,512       grid resolution per axis (512x512 = 262,144 cells)
+
+No RNG is involved (a scenario is constants, exactly like 08.01's
+cartpole_scenario.csv); the file is byte-reproducible.
+
+Usage:
+    python make_synthetic.py                 # the committed scenario
+    python make_synthetic.py --grid-n 1024    # experiments; do not commit
 """
 
 import argparse
-import csv
-import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--r1-au", type=float, default=1.000,
+                    help="body 1 ('Earth-like') circular orbit radius, AU (default 1.000)")
+    ap.add_argument("--r2-au", type=float, default=1.524,
+                    help="body 2 ('Mars-like') circular orbit radius, AU (default 1.524)")
+    ap.add_argument("--window-tu", type=float, default=28.0,
+                    help="departure/arrival epoch axis span, canonical time units (default 28.0)")
+    ap.add_argument("--min-tof-tu", type=float, default=0.5,
+                    help="minimum accepted time-of-flight, TU (default 0.5)")
+    ap.add_argument("--max-tof-tu", type=float, default=14.0,
+                    help="maximum accepted time-of-flight, TU (default 14.0)")
+    ap.add_argument("--grid-n", type=int, default=512,
+                    help="grid resolution per axis (default 512)")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample" / "lambert_scenario.csv")
+    args = ap.parse_args()
 
+    lines = [
+        "# lambert_scenario.csv - SYNTHETIC scenario for project 17.01",
+        "# generated by scripts/make_synthetic.py (no RNG - a scenario is constants)",
+        "# canonical units: mu = 1 (Sun), 1 LU = 1 AU, 1 TU = 58.132441 mean solar days",
+        "# (mu itself is NOT a row here - it is the canonical-units axiom, not scenario data)",
+        "# R1_AU,R2_AU        : circular heliocentric orbit radii of the two bodies, AU",
+        "# WINDOW_TU          : both epoch axes span [0, WINDOW_TU), canonical time units",
+        "# MIN_TOF_TU,MAX_TOF_TU : accepted time-of-flight band, TU (outside it: masked)",
+        "# GRID_N             : grid resolution per axis (GRID_N x GRID_N total cells)",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+        f"R1_AU,{args.r1_au:.9g}",
+        f"R2_AU,{args.r2_au:.9g}",
+        f"WINDOW_TU,{args.window_tu:.9g}",
+        f"MIN_TOF_TU,{args.min_tof_tu:.9g}",
+        f"MAX_TOF_TU,{args.max_tof_tu:.9g}",
+        f"GRID_N,{args.grid_n}",
+    ]
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:   # LF pinned
+        f.write("\n".join(lines) + "\n")
 
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
-    """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 17.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
-
-
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
-
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 17.01 (Batched Lambert solvers + porkchop plot generation).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
-
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    print(f"wrote {args.out} ({args.out.stat().st_size} bytes: r1={args.r1_au:.6g} AU, "
+          f"r2={args.r2_au:.6g} AU, window={args.window_tu:.6g} TU, "
+          f"TOF band=({args.min_tof_tu:.6g},{args.max_tof_tu:.6g}) TU, "
+          f"grid={args.grid_n}x{args.grid_n}) - labeled SYNTHETIC")
+    is_default = (abs(args.r1_au - 1.000) < 1e-12 and abs(args.r2_au - 1.524) < 1e-12
+                 and abs(args.window_tu - 28.0) < 1e-12 and abs(args.min_tof_tu - 0.5) < 1e-12
+                 and abs(args.max_tof_tu - 14.0) < 1e-12 and args.grid_n == 512)
+    if not is_default:
+        print("note: non-default scenario - fine for experiments, do NOT commit this file")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

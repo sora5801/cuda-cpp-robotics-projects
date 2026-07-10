@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-09 — flagship 17.01 Lambert + porkchop done (11/505); grid minimum lands 0.14% above the closed-form Hohmann optimum — [push-note](push-notes/2026-07-09-06-flagship-17-01-lambert-porkchop.md)
 - 2026-07-09 — flagship 15.01 minimum-snap batches done (10/505); constraint-definition audit over all 10k sets — [push-note](push-notes/2026-07-09-05-flagship-15-01-minimum-snap.md)
 - 2026-07-09 — flagship 06.05 STOMP done (9/505); smooth-noise trajectory optimization, MPPI's planning cousin — [push-note](push-notes/2026-07-09-04-flagship-06-05-stomp.md)
 - 2026-07-09 — flagship 31.01 HJ reachability done (8/505) — batch 1a complete; verified against the closed-form bang-bang solution — [push-note](push-notes/2026-07-09-03-flagship-31-01-hj-reachability-batch-1a-complete.md)

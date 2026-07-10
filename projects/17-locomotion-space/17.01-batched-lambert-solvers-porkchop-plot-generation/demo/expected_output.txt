@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 17.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 17.01 (batched-lambert-solvers-porkchop-plot-generation)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (device name, scenario path, cell census, measured gaps) and
+# "[time]" lines vary by machine and are deliberately unchecked; the success thresholds behind
+# VERIFY / NAN POLICY / ANALYTIC carry documented margins so the verdict is stable even where FP32
+# ulp differences shift a handful of boundary cells across machines (see the determinism note at
+# the top of ../src/main.cu and THEORY.md §numerical-considerations). Change the program's stable
+# lines and this file together.
+[demo] Batched Lambert solvers + porkchop plot generation (project 17.01)
+PROBLEM: batched universal-variable Lambert solve, 512x512 departure x arrival epoch grid, canonical units (mu=1, 1 LU=1 AU, 1 TU=58.132441 days), FP32
+SCENARIO: Earth-like r1=1.000 LU, Mars-like r2=1.524 LU, window=[0,28.0) TU, TOF band (0.5, 14.0) TU [synthetic, coplanar circular orbits]
+VERIFY: PASS (GPU cell status/delta-v match CPU reference within documented tolerance)
+NAN POLICY: PASS (degenerate/non-converged share of attempted cells stays within the documented bound)
+ANALYTIC: PASS (grid minimum delta-v/TOF land within the documented window of the closed-form Hohmann optimum)
+ARTIFACT: wrote demo/out/porkchop.pgm and demo/out/minimum.csv (512x512)
+RESULT: PASS (GPU/CPU agree; NaN policy within bound; grid minimum tracks the closed-form Hohmann optimum; artifacts written)

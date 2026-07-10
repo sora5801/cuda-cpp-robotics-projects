@@ -12,34 +12,63 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+**A GPU solving 262,144 independent trajectory problems in one kernel launch.** For every
+(departure epoch, arrival epoch) cell on a 512×512 grid, the demo solves Lambert's problem between
+two synthetic coplanar circular heliocentric orbits (Earth-like at 1 AU, Mars-like at 1.524 AU) and
+reports the total impulsive delta-v of that transfer — the classic **porkchop plot** mission
+designers use to pick a launch window. Three independent checks gate the verdict:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+1. **VERIFY** — the §5 GPU-vs-CPU gate: every cell's classification and delta-v computed on the
+   kernel and on [`../src/reference_cpu.cpp`](../src/reference_cpu.cpp) must agree (tolerance and
+   justification in `../src/main.cu` and `THEORY.md`).
+2. **NAN POLICY** — the fraction of *attempted* cells (short-way, valid time-of-flight) that hit the
+   Lambert equations' genuine mathematical singularity (a transfer angle of exactly 180°) or failed
+   to converge must stay small — measured and printed on an `[info]` line.
+3. **ANALYTIC** — verification against **pure mathematics**: for two coplanar circular orbits, the
+   delta-v-optimal transfer is provably the Hohmann transfer (closed-form, `THEORY.md` derives it
+   from vis-viva). The grid's own minimum must land within a documented small window of that
+   closed-form value — a third, independent computation that shares no code with the Lambert solver.
+
+**This demo writes two artifacts** into `out/` (git-ignored, regenerated each run):
+
+- `porkchop.pgm` — the classic picture: a grayscale image where brighter pixels are cheaper
+  transfers (lower delta-v) and black pixels are excluded cells (masked time-of-flight, the
+  long-way/Type-II transfers this project's v1 does not solve, or the near-singular ring around the
+  Hohmann geometry). Open it in any image viewer.
+- `minimum.csv` — the winning cell's departure/arrival epochs, time-of-flight, and delta-v, alongside
+  the closed-form Hohmann values and the measured gap between them.
 
 ## How to read the output
 
-| Line prefix | Meaning | Checked against `expected_output.txt`? |
-|-------------|---------|----------------------------------------|
-| `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| Line prefix   | Meaning | Checked against `expected_output.txt`? |
+|----------------|---------|----------------------------------------|
+| `[demo]`       | Which project/demo this is. | Yes — stable. |
+| `[info]`       | GPU name, scenario path, cell census, and the measured gaps — varies by machine/build. | No. |
+| `PROBLEM:`     | The exact problem instance (grid size, canonical units). | Yes — stable (demo runs with no args). |
+| `SCENARIO:`    | The two orbit radii, epoch window, and time-of-flight band loaded from `data/sample/`. | Yes — stable. |
+| `[time]`       | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim**. | No. |
+| `VERIFY:`      | The §5 GPU-vs-CPU gate verdict. | Yes — stable. |
+| `NAN POLICY:`  | The degenerate/non-converged cell-fraction gate verdict. | Yes — stable. |
+| `ANALYTIC:`    | The closed-form Hohmann verification verdict. | Yes — stable. |
+| `ARTIFACT:`    | Confirms `porkchop.pgm` and `minimum.csv` were written. | Yes — stable. |
+| `RESULT:`      | The combined `PASS`/`FAIL` verdict. The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines
-(timings, device info) are allowed. `#`-prefixed lines in that file are comments.
+(timings, device info, the cell census) are allowed. `#`-prefixed lines in that file are comments.
 
 ## If it fails
 
 - **Build fails:** see [`../../../docs/BUILD_GUIDE.md`](../../../docs/BUILD_GUIDE.md) (toolchain
   install, CUDA/VS integration, GPU architecture list).
-- **`RESULT: FAIL`:** the GPU result disagreed with the CPU oracle — a real bug. Start in
-  `../src/kernels.cu` and compare against `../src/reference_cpu.cpp`.
-- **Expected-line mismatch only:** the program passed its own check but printed different stable
+- **`VERIFY: FAIL`:** the GPU result disagreed with the CPU oracle — a real bug. Start in
+  `../src/kernels.cu` and compare against `../src/reference_cpu.cpp` line by line.
+- **`NAN POLICY: FAIL`:** the near-singular/non-converged fraction exceeded the documented bound —
+  check the `[info]` cell-census line; a wider `kEpsSingularRad` or a bracket that no longer covers
+  this scenario's `z` range (`kernels.cuh`) are the usual suspects.
+- **`ANALYTIC: FAIL`:** the grid minimum drifted too far from the closed-form Hohmann value — check
+  `minimum.csv`'s reported gap; a legitimate cause is a scenario edit (`GRID_N`, the epoch window)
+  that changes how closely the grid can approach the continuous optimum (`THEORY.md` §how-we-verify).
+- **Expected-line mismatch only:** the program passed its own checks but printed different stable
   lines — someone changed the output without updating `expected_output.txt` (or vice versa). The two
   are a contract; fix them together.

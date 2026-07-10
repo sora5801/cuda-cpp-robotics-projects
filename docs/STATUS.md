@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 10/505 done** (2.0%)
+**Overall: 11/505 done** (2.2%)
 
 | Status | Count |
 |--------|-------|
-| todo | 495 |
+| todo | 494 |
 | in-progress | 0 |
-| done | 10 |
+| done | 11 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -46,7 +46,7 @@
 | 14 Locomotion — Wheeled & Tracked | 0/10 |
 | 15 Locomotion — Aerial | 1/16 |
 | 16 Locomotion — Marine & Underwater | 0/11 |
-| 17 Locomotion — Space | 0/13 |
+| 17 Locomotion — Space | 1/13 |
 | 18 Locomotion — Everything Else | 0/10 |
 | 19 Manipulation & Grasping | 0/16 |
 | 20 Tactile & Force Sensing | 0/7 |
@@ -404,11 +404,11 @@
 | 16.10 | Underwater glider path optimization across eddy fields | intermediate |  | todo |  |  |
 | 16.11 | Swimming-robot simulation: undulatory propulsion with fluid coupling | [R&D] research |  | todo |  |  |
 
-## 17. Locomotion — Space (`17-locomotion-space`) — 0/13 done
+## 17. Locomotion — Space (`17-locomotion-space`) — 1/13 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 17.01 | Batched Lambert solvers + porkchop plot generation | ★ beginner | ⭐ | todo |  |  |
+| 17.01 | Batched Lambert solvers + porkchop plot generation | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); Hohmann analytic gate +0.14% |
 | 17.02 | Low-thrust trajectory optimization via parallel shooting | [R&D] research |  | todo |  |  |
 | 17.03 | Attitude control Monte Carlo: reaction wheels/CMGs, momentum management | intermediate |  | todo |  |  |
 | 17.04 | Spacecraft pose estimation for rendezvous/servicing (keypoints + batched PnP) | intermediate |  | todo |  |  |

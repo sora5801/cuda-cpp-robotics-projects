@@ -75,4 +75,8 @@ target_compile_options(batched-lambert-solvers-porkchop-plot-generation PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(batched-lambert-solvers-porkchop-plot-generation PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 17.01 note: the source list above is complete for this project and no
+# extra libraries are linked — the universal-variable Lambert solver (Stumpff
+# functions + fixed-iteration bisection) is hand-rolled in the kernel by
+# design (CLAUDE.md §1's "no black boxes" — this is exactly the kind of
+# small transcendental solve worth writing by hand once).
