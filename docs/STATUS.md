@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 20/505 done** (4.0%)
+**Overall: 21/505 done** (4.2%)
 
 | Status | Count |
 |--------|-------|
-| todo | 485 |
+| todo | 484 |
 | in-progress | 0 |
-| done | 20 |
+| done | 21 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -45,7 +45,7 @@
 | 13 Locomotion — Legged | 1/13 |
 | 14 Locomotion — Wheeled & Tracked | 1/10 |
 | 15 Locomotion — Aerial | 1/16 |
-| 16 Locomotion — Marine & Underwater | 0/11 |
+| 16 Locomotion — Marine & Underwater | 1/11 |
 | 17 Locomotion — Space | 1/13 |
 | 18 Locomotion — Everything Else | 0/10 |
 | 19 Manipulation & Grasping | 0/16 |
@@ -388,11 +388,11 @@
 | 15.15 | Tethered-drone cable dynamics | intermediate |  | todo |  |  |
 | 15.16 | Perching trajectory optimization | [R&D] research |  | todo |  |  |
 
-## 16. Locomotion — Marine & Underwater (`16-locomotion-marine`) — 0/11 done
+## 16. Locomotion — Marine & Underwater (`16-locomotion-marine`) — 1/11 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 16.01 | Thruster allocation for overactuated ROVs (batched QP) | intermediate | ⭐ | todo |  |  |
+| 16.01 | Thruster allocation for overactuated ROVs (batched QP) | intermediate | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); KKT + pseudoinverse gates; failure Monte Carlo |
 | 16.02 | Hydrodynamic coefficient identification via parallel strip-theory/CFD-lite | intermediate |  | todo |  |  |
 | 16.03 | Current-aware AUV planning: GPU search over 4D forecast grids | intermediate |  | todo |  |  |
 | 16.04 | Bathymetric mapping: sonar TSDF-style fusion | intermediate |  | todo |  |  |

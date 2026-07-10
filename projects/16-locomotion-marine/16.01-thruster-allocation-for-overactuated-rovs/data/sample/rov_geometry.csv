@@ -1,0 +1,13 @@
+# SYNTHETIC geometry documentation for project 16.01 — mirrors src/kernels.cuh
+# NOT read at runtime (the program's source of truth is kernels.cuh); see make_synthetic.py docstring
+# body frame: x-forward, y-starboard, z-down (Fossen/SNAME marine convention)
+# regenerate: python make_synthetic.py
+thruster,x_m,y_m,z_m,dx,dy,dz,u_max_N
+H1,0.2000,0.1500,0.0000,0.707107,-0.707107,0.000000,40.00
+H2,0.2000,-0.1500,0.0000,0.707107,0.707107,0.000000,40.00
+H3,-0.2000,0.1500,0.0000,0.707107,0.707107,0.000000,40.00
+H4,-0.2000,-0.1500,0.0000,0.707107,-0.707107,0.000000,40.00
+V1,0.1500,0.2000,0.0000,0.000000,0.000000,-1.000000,40.00
+V2,0.1500,-0.2000,0.0000,0.000000,0.000000,-1.000000,40.00
+V3,-0.1500,0.2000,0.0000,0.000000,0.000000,-1.000000,40.00
+V4,-0.1500,-0.2000,0.0000,0.000000,0.000000,-1.000000,40.00

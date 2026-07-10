@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected stable output — project 16.01 (Thruster allocation for overactuated ROVs, batched QP).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 16.01 (thruster-allocation-for-overactuated-rovs)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check — extra
+# "[info]"/"[time]" lines, which vary by GPU/machine/run, are allowed and not checked here).
+# Measured on the reference machine (RTX 2080 SUPER, sm_75, CUDA 13.3): GPU-vs-CPU worst deviation
+# 2.7e-05 N, pseudoinverse-gate worst deviation 6.1e-05 N, KKT-gate worst residual 5.7e-06 N — all
+# far inside the tolerances below (see src/main.cu for the tolerance derivations).
+[demo] thruster allocation for overactuated ROVs: batched box-constrained QP (project 16.01)
+PROBLEM: batched box-constrained QP allocation, 8 thrusters -> 6 DOF wrench, eps=0.10, PGD iters=500, step=1/L=0.121951 (L=8.2000, host power iteration x100), FP32
+SCENARIO: synthetic docking-under-current wrench trajectory, 500 samples [synthetic]
+VERIFY: PASS (GPU allocation matches CPU reference within tol 5e-03 N)
+GATE-PSEUDOINV: PASS (unsaturated QP solutions match the closed-form damped weighted pseudoinverse within tol 0.05 N)
+GATE-KKT: PASS (saturated QP solutions satisfy the box-KKT fixed point within tol 0.05 N)
+GATE-MONOTONE: PASS (QP objective J(u_k) is non-increasing over all 500 iterations, 0 violation(s))
+ARTIFACT: wrote demo/out/allocation.csv (500 rows)
+ARTIFACT: wrote demo/out/failure_analysis.csv (9 configurations)
+RESULT: PASS (GPU/CPU agree; pseudoinverse, KKT, and monotone-descent gates all hold; both artifacts written)

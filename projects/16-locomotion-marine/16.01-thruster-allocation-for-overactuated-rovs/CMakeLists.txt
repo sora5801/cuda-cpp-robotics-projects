@@ -70,9 +70,8 @@ target_compile_options(thruster-allocation-for-overactuated-rovs PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(thruster-allocation-for-overactuated-rovs PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). This project links NOTHING beyond the CUDA
+# runtime + C++17 standard library — the 6x8/8x8 matrices here are small
+# enough that hand-rolled register code beats any cuBLAS/cuSOLVER call's
+# launch overhead (README "Build"; the same call 33.01 and CLAUDE.md §5 make
+# for similarly small, fixed-size problems).

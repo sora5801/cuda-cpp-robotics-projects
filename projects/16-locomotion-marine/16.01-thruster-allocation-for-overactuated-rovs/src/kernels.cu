@@ -1,131 +1,214 @@
 // ===========================================================================
-// kernels.cu — GPU kernels for project 16.01 (Thruster allocation for overactuated ROVs (batched QP))
+// kernels.cu — GPU implementation for project 16.01
+//              Thruster allocation for overactuated ROVs (batched QP)
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real kernels.
-// TODO(scaffold): delete the SAXPY kernel and implement the real ones (one
-// teaching-focused kernel per concept, each commented to the standard shown
-// here and in CLAUDE.md §6.2 / docs/COMMENTING_STANDARD.md).
+// The big idea
+// ------------
+// A single 8-unknown, 6-equation box-constrained QP is FAR too small to
+// parallelize internally (500 projected-gradient iterations x ~80 flops is
+// nothing for one SM) — exactly the 33.01 lesson. A real ROV control loop
+// does not need to solve ONE allocation problem, though: a whole planned
+// trajectory's wrench sequence needs allocating in one shot, and a
+// fault-tolerance sweep needs the SAME batch re-solved once per candidate
+// thruster failure (main.cu's two demo stages). Both are thousands of
+// INDEPENDENT small QPs — so, exactly like 33.01's batched Cholesky solve
+// and 08.01's MPPI rollouts, the GPU mapping flips:
 //
-// Role in the project
-// -------------------
-// All __global__ (GPU) code lives here, together with the small host-side
-// launch wrappers that own the grid/block math. Keeping the launch math next
-// to the kernel means the launch-configuration reasoning (the comments the
-// repo standard requires) sits beside the code it configures.
+//     one thread  =  one whole QP, solved in registers.
 //
-// Big idea of the placeholder kernel
-// ----------------------------------
-// SAXPY is a pure MAP: out[i] depends only on in[i]. The GPU mapping is
-// therefore the simplest one that exists — one thread per element — written
-// here in its robust production form, the GRID-STRIDE LOOP. Learn this
-// pattern well: a large fraction of the kernels in this repository are maps
-// or start from one.
+// What is NEW here beyond 33.01/08.01:
+//   * the per-thread "problem" is not a fixed linear system but an ITERATIVE
+//     first-order optimizer (projected gradient descent) — the loop body is
+//     a dense 8x8 matrix-vector product plus a box PROJECTION (a branchless
+//     clamp), repeated kPgdIters times;
+//   * the 8x8 Hessian H and 8x6 matrix BtW2 are IDENTICAL for every thread
+//     in the batch (they depend only on the vehicle's fixed geometry, never
+//     on the commanded wrench) — the textbook case for CUDA __constant__
+//     memory: every thread reads the SAME address every iteration, which
+//     the constant cache serves at close to register speed after the first
+//     touch (broadcast to the whole warp in one transaction). This sits at
+//     the "always-uniform" end of the same read-pattern spectrum 08.01
+//     discusses for u_nom (uniform, L2-served) and 09.01 for its rotation
+//     table (__constant__, this project's exact pattern);
+//   * per-problem, PER-THRUSTER box limits (d_umax) — not a single global
+//     bound — because the fault-tolerance sweep needs to lock individual
+//     thrusters to 0 without touching this kernel at all (main.cu Stage 4).
 //
-// Read this after: main.cu, kernels.cuh.  Read this before: reference_cpu.cpp.
+// Why not cuSOLVER / a QP library? cusolverDn has no box-constrained QP
+// primitive; production stacks reach for OSQP, qpOASES, or a custom active-
+// set/interior-point solver (README "Prior art"). We hand-roll projected
+// gradient descent because it IS the simplest solver whose behavior a
+// learner can predict by hand (THEORY.md "the algorithm"), and because the
+// PROJECTION step — a per-component clamp — is the one piece of QP theory
+// this project exists to teach (CLAUDE.md §1: no black boxes).
+//
+// Read this after: kernels.cuh.  Companion oracle: reference_cpu.cpp.
 // ===========================================================================
 
-#include "kernels.cuh"           // our own interface — keeps decl/def in sync at compile time
-#include "util/cuda_check.cuh"   // CUDA_CHECK_LAST_ERROR for post-launch error surfacing
+#include "kernels.cuh"
+#include "util/cuda_check.cuh"      // CUDA_CHECK / CUDA_CHECK_LAST_ERROR (§6.1 rule 7)
+
+#include <cstdio>
+#include <cstdlib>
 
 // ---------------------------------------------------------------------------
-// saxpy_kernel — one grid-stride pass computing y[i] = a * x[i] + y[i].
+// __constant__ memory: the vehicle-geometry-derived matrices EVERY thread in
+// EVERY launch reads identically. 64 + 48 = 112 floats = 448 bytes — a tiny
+// fraction of the 64 KiB constant-memory budget, cached on-chip once warmed.
 //
-// Thread-to-data mapping:
-//   Thread (blockIdx.x, threadIdx.x) starts at global element
-//       i0 = blockIdx.x * blockDim.x + threadIdx.x
-//   and then strides by the TOTAL number of threads in the grid
-//       stride = gridDim.x * blockDim.x
-//   visiting i0, i0+stride, i0+2*stride, ... < n.
+//   c_H    : [kNThr*kNThr] = 2*(B^T W^2 B + eps*I), row-major — the QP's
+//            quadratic term; grad J(u) = c_H*u - g (see the kernel below).
+//   c_BtW2 : [kNThr*kNDof] = B^T W^2, row-major — turns a commanded wrench
+//            into the QP's linear term: g = 2 * c_BtW2 * tau.
 //
-// Why a grid-stride loop instead of the naive "one thread = one element,
-// return if i >= n"?
-//   1) Correct for ANY n, even n larger than the maximum grid size —
-//      the loop just runs more iterations per thread.
-//   2) Lets the CALLER choose the grid size for occupancy reasons instead of
-//      being forced to launch exactly ceil(n/block) blocks.
-//   3) It is the idiom used throughout CUDA's own samples and libraries, so
-//      learning it here pays off everywhere.
-//   The cost: two extra registers and a loop branch — negligible for a
-//   memory-bound kernel.
-//
-// Memory behavior (the whole performance story for SAXPY):
-//   Adjacent threads (threadIdx.x, threadIdx.x+1) read adjacent addresses
-//   x[i], x[i+1] — so each 32-thread warp touches one contiguous 128-byte
-//   span, which the hardware COALESCES into the minimum number of memory
-//   transactions. Coalescing is THE first-order GPU optimization; a strided
-//   or random access pattern here could cost 10-30x. No shared memory is
-//   used because no data is reused between threads — shared memory only pays
-//   when threads share or revisit data (see THEORY.md "The GPU mapping").
-//
-// Parameters:
-//   n   — element count (> 0); unitless placeholder data
-//   a   — the SAXPY scalar (FP32, exactly representable 2.0 in the demo)
-//   x   — [n] device pointer, read-only input. __restrict__ promises the
-//         compiler x and y do not alias, unlocking wider loads/scheduling.
-//   y   — [n] device pointer, read AND written in place (input y, output
-//         a*x+y). In-place is safe because element i never reads element j.
-//
-// Numerical note: the compiler typically fuses a*x[i]+y[i] into one FMA
-// (fused multiply-add, a single rounding step). The CPU reference may round
-// twice (mul, then add). Max divergence ~1 ULP — which is exactly why
-// main.cu compares with a small tolerance instead of demanding bit equality.
-//
-// Launch configuration: owned by launch_saxpy() below — see its comment.
+// Filled ONCE per program run by upload_allocation_constants (below), called
+// from main.cu's one-time setup stage — never inside the per-tick/per-batch
+// hot path, exactly like 08.01's persistent device buffers.
 // ---------------------------------------------------------------------------
-__global__ void saxpy_kernel(int n,
-                             float a,
-                             const float* __restrict__ x,
-                             float*       __restrict__ y)
+__constant__ float c_H[kNThr * kNThr];
+__constant__ float c_BtW2[kNThr * kNDof];
+
+void upload_allocation_constants(const float* H, const float* BtW2)
 {
-    // This thread's first element, and the whole-grid stride (see mapping
-    // note above). Both fit in int here because n is int; a real project
-    // handling >2^31 elements would use long long / size_t indexing.
-    int i      = blockIdx.x * blockDim.x + threadIdx.x;  // my starting element
-    int stride = gridDim.x * blockDim.x;                 // total threads in the grid
-
-    // Each iteration: 2 loads (x[i], y[i]), 1 FMA, 1 store — ~12 bytes moved
-    // per 2 FLOPs. Memory-bound, as promised. The loop condition also guards
-    // the ragged tail: threads whose i starts beyond n simply do nothing.
-    for (; i < n; i += stride) {
-        y[i] = a * x[i] + y[i];
-    }
+    // cudaMemcpyToSymbol resolves the __constant__ SYMBOL (not a device
+    // pointer — there is no cudaMalloc for __constant__ memory; the linker
+    // reserves it statically) and copies host bytes into it. This is the
+    // idiomatic way to fill constant memory once at startup.
+    CUDA_CHECK(cudaMemcpyToSymbol(c_H, H, sizeof(float) * kNThr * kNThr));
+    CUDA_CHECK(cudaMemcpyToSymbol(c_BtW2, BtW2, sizeof(float) * kNThr * kNDof));
 }
 
 // ---------------------------------------------------------------------------
-// launch_saxpy — host wrapper that owns the launch configuration.
-//
-// Purpose: keep the <<<grid, block>>> math, its reasoning, and the mandatory
-// post-launch error check in ONE place, so callers (main.cu) stay clean and
-// no launch in the codebase goes unchecked (CLAUDE.md §6.1 rule 7).
-//
-// Parameters: as saxpy_kernel, but x/y are DEVICE pointers the CALLER owns —
-// this function allocates nothing, frees nothing, and synchronizes nothing
-// (the caller times/syncs via events; see main.cu step 3).
-//
-// Launch configuration reasoning:
-//   block = 256 threads — a solid default on sm_75..sm_89: a multiple of the
-//     32-thread warp (mandatory for full warps), large enough for good
-//     occupancy, small enough to keep per-block resources (registers) free.
-//     Powers of two between 128 and 512 are all reasonable; measure before
-//     believing any single number.
-//   grid = ceil(n / block), capped at 4096 blocks — enough blocks to fill
-//     every SM on any current GPU many times over (an RTX 2080 has 46 SMs);
-//     beyond that, more blocks add scheduling overhead without adding
-//     parallelism, and the grid-stride loop absorbs the remainder anyway.
-//     The integer ceil idiom (n + block - 1) / block is used all over this
-//     repo — it rounds UP so the last partial block is not lost.
+// Shared launch geometry: one thread per QP (the 33.01/08.01 default).
 // ---------------------------------------------------------------------------
-void launch_saxpy(int n, float a, const float* d_x, float* d_y)
+static constexpr int kThreadsPerBlock = 256;
+
+static inline int blocks_for(int count)
 {
-    const int block = 256;                              // threads per block (warp multiple; see above)
-    int grid = (n + block - 1) / block;                 // ceil(n/block): cover every element
-    if (grid > 4096) grid = 4096;                       // cap: grid-stride loop covers the rest
+    return (count + kThreadsPerBlock - 1) / kThreadsPerBlock;
+}
 
-    saxpy_kernel<<<grid, block>>>(n, a, d_x, d_y);
+// ===========================================================================
+// pgd_allocate_kernel — solve one box-constrained QP per thread via a FIXED
+// number of projected-gradient-descent steps.
+//
+// The math (THEORY.md "the algorithm" derives every line):
+//   J(u)     = ||W(Bu - tau)||^2 + eps||u||^2
+//            = 0.5 u^T c_H u - g^T u + const,   g = 2*c_BtW2*tau
+//   grad J   = c_H*u - g
+//   update   = clip( u - step*grad J(u),  -u_max,  +u_max )   (step = 1/L,
+//              L = lambda_max(c_H), set once on the host — THEORY.md "the
+//              math" derives why 1/L guarantees monotone descent: the
+//              classical projected-gradient / ISTA convergence result for
+//              an L-smooth convex objective, Beck & Teboulle 2009).
+//
+// Thread-to-data mapping: thread k = blockIdx.x*blockDim.x + threadIdx.x
+// owns problem k. Grid: blocks_for(count) x kThreadsPerBlock (ragged tail
+// guarded, as everywhere in this repo).
+//
+// Memory spaces per thread:
+//   registers : tau[6], umax[8], g[8], u[8], grad[8] (~30 registers) — the
+//               WHOLE optimization state lives here for all kPgdIters steps;
+//   constant  : c_H (64 floats), c_BtW2 (48 floats) — UNIFORM reads (every
+//               thread, every iteration, same address) — broadcast/cached,
+//               the cheapest possible global-scope read pattern;
+//   global    : tau[k], umax[k] read ONCE at the top (coalesced: consecutive
+//               threads read consecutive problems' consecutive floats);
+//               u_out[k] written ONCE at the bottom.
+// No shared memory (problems share nothing beyond the read-only constants),
+// no atomics, no divergence beyond the tail guard: kPgdIters is FIXED and
+// identical for every thread, so — unlike an early-exit convergence check —
+// every lane in a warp executes the SAME instruction stream for the SAME
+// number of iterations (THEORY.md "GPU mapping" discusses the trade against
+// early exit explicitly).
+// ===========================================================================
+__global__ void pgd_allocate_kernel(
+    const float* __restrict__ tau,    // [count*kNDof] commanded wrenches (N, N, N, N*m, N*m, N*m)
+    const float* __restrict__ umax,   // [count*kNThr] per-problem, per-thruster saturation limits (N)
+    float*       __restrict__ u_out,  // [count*kNThr] OUT: solved thruster forces (N)
+    int count,                        // number of independent QPs in this batch
+    float step)                       // projected-gradient step size, 1/L (computed on host)
+{
+    const int k = blockIdx.x * blockDim.x + threadIdx.x;  // this thread's problem index
+    if (k >= count) return;                               // ragged-tail guard
 
-    // Kernel launches return errors ASYNCHRONOUSLY: an invalid configuration
-    // or a crashed kernel surfaces on a LATER call unless we ask. This macro
-    // (util/cuda_check.cuh) calls cudaGetLastError() right away so a broken
-    // launch is reported HERE, at the launch site, not three calls later.
-    CUDA_CHECK_LAST_ERROR("saxpy_kernel launch");
+    // ---- Load this problem's inputs into registers (coalesced reads: warp
+    // lane t reads tau[(k)*6 + i] for fixed i across t -> consecutive
+    // addresses across the warp, one 128-byte-class transaction per i). ----
+    float t[kNDof];
+#pragma unroll
+    for (int i = 0; i < kNDof; ++i) t[i] = tau[k * kNDof + i];
+
+    float um[kNThr];
+#pragma unroll
+    for (int i = 0; i < kNThr; ++i) um[i] = umax[k * kNThr + i];
+
+    // ---- Linear term g = 2 * BtW2 * t (an 8x6 matvec against the UNIFORM
+    // constant-memory matrix c_BtW2; every thread computes its OWN g from
+    // its OWN t, but every thread reads the SAME c_BtW2 entries to do it). --
+    float g[kNThr];
+#pragma unroll
+    for (int i = 0; i < kNThr; ++i) {
+        float acc = 0.0f;
+#pragma unroll
+        for (int j = 0; j < kNDof; ++j)
+            acc = fmaf(c_BtW2[i * kNDof + j], t[j], acc);
+        g[i] = 2.0f * acc;
+    }
+
+    // ---- Projected gradient descent, cold-started at zero thrust. Zero is
+    // a defensible, DOCUMENTED start (README "Limitations"): it is not the
+    // previous tick's solution (a real controller would warm-start from
+    // there — README Exercise — for faster practical convergence), but it
+    // keeps this kernel STATELESS and each call reproducible in isolation,
+    // which matters for the GPU-vs-CPU verification gate (both paths must
+    // start from the identical, documented point). ---------------------
+    float u[kNThr];
+#pragma unroll
+    for (int i = 0; i < kNThr; ++i) u[i] = 0.0f;
+
+    for (int it = 0; it < kPgdIters; ++it) {
+        // grad = c_H * u - g   (8x8 matvec; c_H is UNIFORM constant memory,
+        // u is this thread's PRIVATE register state — the classic "shared
+        // read-only matrix x private vector" pattern).
+        float grad[kNThr];
+#pragma unroll
+        for (int i = 0; i < kNThr; ++i) {
+            float acc = 0.0f;
+#pragma unroll
+            for (int j = 0; j < kNThr; ++j)
+                acc = fmaf(c_H[i * kNThr + j], u[j], acc);
+            grad[i] = acc - g[i];
+        }
+        // Gradient step + PROJECTION onto the box [-um_i, +um_i] — the
+        // entire "QP theory" this project teaches collapses to this one
+        // clamp, because a BOX is the one constraint set whose Euclidean
+        // projection is trivial (component-wise clip, no linear system to
+        // solve — THEORY.md "the algorithm" contrasts this with a general
+        // polytope, where projection itself would be another QP).
+#pragma unroll
+        for (int i = 0; i < kNThr; ++i) {
+            const float cand = u[i] - step * grad[i];
+            u[i] = fminf(fmaxf(cand, -um[i]), um[i]);
+        }
+    }
+
+    // One coalesced write per output element; the host's optimality gates
+    // and the demo's CSV artifacts consume u_out next (main.cu).
+#pragma unroll
+    for (int i = 0; i < kNThr; ++i) u_out[k * kNThr + i] = u[i];
+}
+
+// ===========================================================================
+// Host launcher (declared in kernels.cuh).
+// ===========================================================================
+void launch_thruster_allocation(int count,
+                                const float* d_tau, const float* d_umax,
+                                float* d_u_out, float step)
+{
+    if (count <= 0) return;   // an empty batch is a valid no-op, not an error
+
+    const int blocks = blocks_for(count);
+    pgd_allocate_kernel<<<blocks, kThreadsPerBlock>>>(d_tau, d_umax, d_u_out, count, step);
+    CUDA_CHECK_LAST_ERROR("pgd_allocate_kernel launch");
 }

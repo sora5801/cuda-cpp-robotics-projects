@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 16.01 (Thruster allocation for overactuated ROVs (batched QP))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): no public dataset applies to this project.
+# The vehicle is a synthetic teaching ROV (not a specific commercial vehicle's
+# CAD/telemetry) and the commanded-wrench trajectory is a synthetic
+# docking-under-current scenario — synthesizing both, per CLAUDE.md §8's
+# synthetic-first default, teaches strictly more (full ground truth, zero
+# licensing questions) than any public dataset could for this problem. This
+# script is therefore an intentional, honest no-op, not an unfinished stub.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
