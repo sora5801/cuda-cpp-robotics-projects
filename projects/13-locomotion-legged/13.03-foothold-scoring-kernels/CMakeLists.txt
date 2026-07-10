@@ -75,4 +75,8 @@ target_compile_options(foothold-scoring-kernels PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(foothold-scoring-kernels PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+#
+# 13.03 uses none of the above: the four kernels (slope/roughness fit, edge
+# distance, fusion, selection) are all hand-rolled per-cell/per-query maps
+# and windowed gathers — CUDA runtime + C++17 standard library only, same as
+# the .vcxproj (README §Build documents this explicitly).

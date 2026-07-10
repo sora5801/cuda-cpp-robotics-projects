@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 18/505 done** (3.6%)
+**Overall: 19/505 done** (3.8%)
 
 | Status | Count |
 |--------|-------|
-| todo | 487 |
+| todo | 486 |
 | in-progress | 0 |
-| done | 18 |
+| done | 19 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -42,7 +42,7 @@
 | 10 Physics Simulation | 1/20 |
 | 11 Sensor Simulation & Digital Twins | 1/11 |
 | 12 Machine Learning & AI for Robots | 1/25 |
-| 13 Locomotion — Legged | 0/13 |
+| 13 Locomotion — Legged | 1/13 |
 | 14 Locomotion — Wheeled & Tracked | 0/10 |
 | 15 Locomotion — Aerial | 1/16 |
 | 16 Locomotion — Marine & Underwater | 0/11 |
@@ -334,13 +334,13 @@
 | 12.24 | Active perception: information-gain over candidate views in parallel | intermediate |  | todo |  |  |
 | 12.25 | Adversarial disturbance search for sim-to-real robustness | [R&D] research |  | todo |  |  |
 
-## 13. Locomotion — Legged (`13-locomotion-legged`) — 0/13 done
+## 13. Locomotion — Legged (`13-locomotion-legged`) — 1/13 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 13.01 | Parallel-sim RL quadruped gait training (the flagship GPU robotics project) | ★ beginner |  | todo |  |  |
 | 13.02 | Centroidal MPC via batched QP + gait-timing search in parallel | intermediate |  | todo |  |  |
-| 13.03 | Foothold scoring kernels: slope, roughness, edge distance from elevation maps | intermediate | ⭐ | todo |  |  |
+| 13.03 | Foothold scoring kernels: slope, roughness, edge distance from elevation maps | intermediate | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); ramp gate 15.007 vs 15.00 deg; shared-bug case study |
 | 13.04 | Terrain traversability + steppability analysis on GPU | intermediate |  | todo |  |  |
 | 13.05 | Contact-schedule optimization via sampling | [R&D] research |  | todo |  |  |
 | 13.06 | SLIP/hopper model parameter sweeps (Raibert tuning at scale) | intermediate |  | todo |  |  |

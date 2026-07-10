@@ -1,8 +1,14 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 13.03.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 13.03 (foothold-scoring-kernels)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (per-stage measured diffs, gate readouts) and "[time]"
+# lines are deliberately unchecked because they carry measured numbers/paths that vary by
+# machine and GPU; the tolerances behind VERIFY and the terrain gates behind RESULT carry wide
+# margins so the verdict is stable even where those measured numbers move slightly (see the
+# stage-isolated verification note at the top of ../src/main.cu).
+[demo] foothold scoring kernels: slope, roughness, edge distance, fusion + selection (project 13.03)
+PROBLEM: 256x256 elevation map (0.02 m/cell, 5.12x5.12 m), plane-fit window 5x5 cells (0.10 m), mu=0.60 -> slope limit 30.96 deg, edge search 10 cells (0.20 m), foothold search disc 0.10 m
+SCENARIO: composed terrain (ramp 15.0 deg, step 0.12 m, 16 rocks, 1 hole) + 1000 foothold queries over 5 path segments [synthetic, seed 42]
+VERIFY: PASS (all 4 kernels agree with the CPU reference within documented tolerances)
+ARTIFACT: wrote demo/out/foothold_score.pgm (256x256) and demo/out/selected_footholds.csv (1000 rows)
+RESULT: PASS (GPU kernels verified against CPU reference; terrain gates and foothold selection within documented tolerances)

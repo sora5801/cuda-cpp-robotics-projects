@@ -50,8 +50,9 @@
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
 //    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    record into their own streams; 13.03 launches every kernel into the
+//    default stream (four sequential pipeline stages, never overlapped), so
+//    the default-stream timer is exactly right here — no adaptation needed.
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

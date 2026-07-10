@@ -1,10 +1,12 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 13.03 (Foothold scoring kernels: slope, roughness, edge distance from elevation maps)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 13.03 DECISION: no public dataset applies — this project's input is a
+# composed-TERRAIN RECIPE (ramp/step/rocks/hole geometry + a query path), not
+# recordings. No public dataset ships exact per-cell slope/roughness/edge-
+# distance ground truth the way a hand-designed synthetic terrain can — this
+# script stays the honest no-op below; ../scripts/make_synthetic.py writes
+# the recipe (see ../data/README.md for the full field-by-field format).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds exactly one file: `terrain_scenario.csv` — the composed-terrain recipe (ramp,
+step, 16 rocks, one NaN hole, background ripple, and the 5-segment, 1000-point foothold-query path)
+that `../../src/main.cu`'s `build_terrain()`/`build_queries()` turn into the actual 256x256 elevation
+map and query list at start-up. See [`../README.md`](../README.md) for the full field-by-field
+format and the checksum. Regenerate with `python ../../scripts/make_synthetic.py` (byte-identical
+for the same `--seed`, default 42).
