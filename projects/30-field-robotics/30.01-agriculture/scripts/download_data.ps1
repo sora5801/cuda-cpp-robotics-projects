@@ -1,10 +1,15 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 30.01 (Agriculture: fruit detection + 3D localization + ripeness; weed-vs-crop segmentation at frame rate; per-plant spray targeting; crop-row following; canopy volume from LiDAR; under-canopy navigation; yield mapping)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 30.01 DECISION: no public dataset applies. Real orchard RGB-D imagery has
+# no per-pixel 3-D ground truth (nobody hand-measures every fruit's true
+# center/radius/ripeness in a photograph) — exactly the gap synthetic
+# rendering exists to fill (see ../scripts/make_synthetic.py and
+# ../data/README.md). Public fruit-detection datasets (e.g., MinneApple,
+# Fuji-SfM) exist for the 2-D-box-only, no-3-D-ground-truth deep-learning
+# literature this project's classical geometry pipeline is NOT competing
+# with (README "Prior art"); they would not even provide the 3-D truth this
+# demo's verification stage needs. This script stays the honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

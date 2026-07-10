@@ -12,23 +12,41 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+**A complete classical fruit-perception pipeline, GPU vs. CPU, checked against exact 3-D ground
+truth.** The demo loads the committed synthetic orchard scene (`rgb.ppm` + `depth.pgm`), runs the
+seven-stage pipeline (HSV -> mask -> morphological opening -> connected-component labeling ->
+per-component statistics -> robust 3-D localization -> ripeness) on BOTH the GPU and a plain-C++ CPU
+oracle, and checks four independent things:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+1. **VERIFY** — GPU matches CPU at every stage: HSV/mask by tight tolerance, connected-component
+   LABELS by **exact** integer equality (see `../THEORY.md` for why that is a fair, achievable bar
+   here), final per-fruit statistics by a small relative tolerance.
+2. **DETECT** — the fraction of ground-truth fruit actually found, and how many detections do not
+   correspond to any real fruit (honestly including the scene's two designed cross-depth merge cases
+   as counted misses/extras — see `../data/README.md`).
+3. **LOCALIZE** — how close the predicted 3-D centers and radii are to the true ones (after the
+   pipeline's derived surface-to-center depth correction — `../THEORY.md` "The math").
+4. **RIPENESS** — rank correlation between predicted and true ripeness (rank, not absolute value —
+   `../THEORY.md` explains why that is the honest metric for a hue-only color model).
+
+**This demo writes two artifacts** (git-ignored, regenerated each run):
+
+- `out/detections.pgm` — the scene rendered to grayscale with a ring burned in around every GPU
+  detection, for a direct eyeball check against `../data/sample/rgb.ppm`.
+- `out/fruit_map.csv` — id, 3-D center, radius, ripeness, pixel count per detection: the seed of the
+  documented Milestone 7 "yield mapping" component (README "Overview").
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, and the actually-MEASURED numbers behind each gate (detection rate, localization error, ripeness correlation) — varies slightly by machine (see `../src/main.cu`'s "NOTE on determinism"). | No. |
+| `PROBLEM:` / `DATA:` | The exact problem instance and data loaded. | Yes — stable. |
+| `[time]`    | Per-stage GPU kernel ms, CPU reference ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot; first launches pay one-time init costs). | No. |
+| `VERIFY:` / `DETECT:` / `LOCALIZE:` / `RIPENESS:` | PASS/FAIL verdict against a fixed, documented threshold (never the measured number itself — see `[info]` above). | Yes — stable. |
+| `ARTIFACT:` | Confirms the two output files were written. | Yes — stable. |
+| `RESULT:`   | Overall verdict: every gate above must pass. The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines

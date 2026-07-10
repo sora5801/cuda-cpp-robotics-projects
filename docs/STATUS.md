@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 31/505 done** (6.1%)
+**Overall: 32/505 done** (6.3%)
 
 | Status | Count |
 |--------|-------|
-| todo | 474 |
+| todo | 473 |
 | in-progress | 0 |
-| done | 31 |
+| done | 32 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -59,7 +59,7 @@
 | 27 Materials Science & Manufacturing | 1/13 |
 | 28 Soft Robotics | 1/10 |
 | 29 Medical & Bio-Robotics | 1/13 |
-| 30 Field & Industry-Specific Robotics | 0/12 |
+| 30 Field & Industry-Specific Robotics | 1/12 |
 | 31 Safety, Verification & Testing | 1/12 |
 | 32 Embedded, Jetson & Systems Infrastructure | 0/17 |
 | 33 Foundational GPU Libraries (Build-Your-Own) | 1/15 |
@@ -630,11 +630,11 @@
 | 29.12 | Micro-surgery tremor filtering at high rates | intermediate |  | todo |  |  |
 | 29.13 | Lab automation: cell detection/tracking, pipetting verification vision | intermediate |  | todo |  |  |
 
-## 30. Field & Industry-Specific Robotics (`30-field-robotics`) — 0/12 done
+## 30. Field & Industry-Specific Robotics (`30-field-robotics`) — 1/12 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 30.01 | Agriculture: fruit detection + 3D localization + ripeness; weed-vs-crop segmentation at frame rate; per-plant spray targeting; crop-row following; canopy volume from LiDAR; under-canopy navigation; yield mapping | ★ beginner | ⭐ | todo |  |  |
+| 30.01 | Agriculture: fruit detection + 3D localization + ripeness; weed-vs-crop segmentation at frame rate; per-plant spray targeting; crop-row following; canopy volume from LiDAR; under-canopy navigation; yield mapping | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); milestone 1 of 7 (bundle); 1.8 mm localization |
 | 30.02 | Livestock monitoring pipelines | intermediate |  | todo |  |  |
 | 30.03 | Construction: excavation soil DEM + bucket-fill optimization ; rebar/stud detection; scan-to-BIM registration; crane anti-sway tuning sweeps | [R&D] research |  | todo |  |  |
 | 30.04 | Mining: muck-pile volumetrics; drill-pattern optimization; dust-robust underground SLAM | intermediate |  | todo |  |  |

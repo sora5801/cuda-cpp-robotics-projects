@@ -3,10 +3,11 @@
 # download_data.sh — public-dataset fetcher for 30.01 (Agriculture: fruit detection + 3D localization + ripeness; weed-vs-crop segmentation at frame rate; per-plant spray targeting; crop-row following; canopy volume from LiDAR; under-canopy navigation; yield mapping)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 30.01 DECISION: no public dataset applies — see download_data.ps1's longer
+# note (kept in sync here): real orchard RGB-D has no per-pixel 3-D ground
+# truth, which is exactly what this project's verification stage needs and
+# only synthetic rendering can provide honestly. This script stays the
+# honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

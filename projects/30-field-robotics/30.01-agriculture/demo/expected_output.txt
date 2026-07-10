@@ -1,8 +1,24 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 30.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 30.01 (agriculture)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (device name, per-stage measured numbers) and "[time]"
+# lines vary by machine/run and are deliberately unchecked.
+#
+# Why the DETECT:/LOCALIZE:/RIPENESS: lines below carry NO measured numbers, only thresholds and
+# verdicts: two of the pipeline's per-component statistics (mean hue -> ripeness, mean depth ->
+# localization) are built from GPU atomicAdd on FLOATS, and float addition is not associative — in
+# principle the exact bit pattern of a sum can depend on thread-scheduling order. The measured
+# values have been bit-stable across every run and both Debug/Release configurations on the
+# reference GPU, but this project follows 08.01's precedent: promise the VERDICT against a fixed,
+# documented threshold, print the actually-measured number on the unchecked "[info]" line right
+# above it. See src/main.cu's "NOTE on determinism" comment.
+[demo] Agriculture Milestone 1: fruit detection + 3-D localization + ripeness (project 30.01)
+PROBLEM: HSV mask -> morphological opening -> connected-component labeling -> per-component 3-D localization + ripeness, 640x480 RGB-D, FP32
+DATA: loaded 640x480 RGB-D orchard scene, 25 ground-truth fruit [synthetic]
+VERIFY: PASS (HSV tol 1e-03, mask exact, CCL labels EXACT after canonicalization, detection stats rel tol 1e-2)
+DETECT: detection rate >= 0.80 threshold and false positives <= 2 threshold -> PASS
+LOCALIZE: center error <= 0.015 m threshold and radius error <= 0.006 m threshold -> PASS
+RIPENESS: rank correlation >= 0.70 threshold -> PASS
+ARTIFACT: wrote demo/out/detections.pgm (22 rings burned in)
+ARTIFACT: wrote demo/out/fruit_map.csv (22 rows)
+RESULT: PASS (GPU matches CPU reference; detection/localization/ripeness gates met)
