@@ -1,107 +1,95 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 34.03 (Ergodic control: spectral multiscale coverage (FFT-based — very GPU-friendly)).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample-data generator for 34.03 (Ergodic control: spectral
+multiscale coverage, FFT-based).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
-
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+This project needs no sensor data at all — the "scenario" is a starting position for the
+agent and a target information density made of two Gaussian hotspots plus a uniform washout.
+Both are entirely synthetic by construction (there is no real-world dataset for "where should
+a robot look"), so this generator is not a workaround, it IS the natural data source
+(CLAUDE.md paragraph 8's default). The committed CSV documents the target-distribution and
+controller constants for provenance and reproducibility; the values ACTUALLY compiled into the
+program (and therefore always in agreement with README/THEORY's derivations and numbers) live
+in src/kernels.cuh as `constexpr` — this file's job is to record them alongside the one value
+main.cu actually reads at runtime (the agent's start position and the step count), so a learner
+can see the whole scenario in one small, human-readable file (the same role 08.01's
+cartpole_scenario.csv plays for its cart-pole plant).
 
 Usage
 -----
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    python make_synthetic.py                      # writes ../data/sample/ergodic_scenario.csv
+    python make_synthetic.py --x0 0.2 0.8 --steps 6000
 """
 
 import argparse
-import csv
-import random
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
+# These mirror src/kernels.cuh's constexpr values EXACTLY (documentary — the
+# compiled constants are the single source of truth actually used, CLAUDE.md
+# paragraph 12). If you change kernels.cuh, update this docstring/table too.
+MU1 = (0.25, 0.70); SIGMA1 = 0.07; W1 = 0.45
+MU2 = (0.75, 0.30); SIGMA2 = 0.09; W2 = 0.45
+W_BG = 0.10
+K_MODES = 32          # per axis -> 1024 total modes
+V_MAX = 0.40           # domain-units/s (agent speed budget)
+DT = 0.01              # s
+DEFAULT_STEPS = 6000   # = 60.0 s / 0.01 s
+DEFAULT_X0 = (0.5, 0.5)
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
 
-
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+def make_scenario_csv(x0, steps, out_path: Path) -> None:
+    """Write the tiny scenario CSV main.cu loads at startup.
 
     Parameters
     ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
+    x0       : (x1, x2) agent start position, domain-normalized [0,1]^2 (unitless).
+    steps    : number of 0.01 s control steps (> kVerifyWindow+2, see kernels.cuh).
     out_path : destination CSV. Parent directories are created if missing.
 
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+    Format: '#'-prefixed provenance/documentation comments, then two functional
+    rows main.cu's load_scenario() actually parses: "X0,x1,x2" and "STEPS,n".
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
     with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 34.03\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+        f.write("# SYNTHETIC scenario for project 34.03 (ergodic-control) — generated by scripts/make_synthetic.py\n")
+        f.write("# The target distribution + controller CONSTANTS below are documentary: the values actually\n")
+        f.write("# compiled into the program (single source of truth, CLAUDE.md paragraph 12) live in src/kernels.cuh.\n")
+        f.write(f"# hotspot1: mu=({MU1[0]},{MU1[1]}) sigma={SIGMA1} weight={W1}\n")
+        f.write(f"# hotspot2: mu=({MU2[0]},{MU2[1]}) sigma={SIGMA2} weight={W2}\n")
+        f.write(f"# washout weight={W_BG} (uniform floor added everywhere before normalization)\n")
+        f.write(f"# modes K={K_MODES}x{K_MODES}={K_MODES*K_MODES}, agent speed budget vmax={V_MAX} units/s, "
+                f"dt={DT} s, T={steps*DT:.1f} s ({steps} steps)\n")
+        f.write("# columns: X0 row = agent start position (x1,x2), domain-normalized [0,1]^2, unitless\n")
+        f.write("#          STEPS row = number of 0.01 s control steps in the closed-loop run\n")
+        f.write(f"X0,{x0[0]:.6f},{x0[1]:.6f}\n")
+        f.write(f"STEPS,{steps}\n")
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    print(f"[make_synthetic] wrote scenario to {out_path} (x0={x0}, steps={steps}, labeled SYNTHETIC)")
 
 
 def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
     script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+    default_out = script_dir.parent / "data" / "sample" / "ergodic_scenario.csv"
 
     parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 34.03 (Ergodic control: spectral multiscale coverage (FFT-based — very GPU-friendly)).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
+        description="Generate the tiny synthetic scenario for project 34.03 (Ergodic control: "
+                    "spectral multiscale coverage).")
+    parser.add_argument("--x0", type=float, nargs=2, default=list(DEFAULT_X0),
+                        metavar=("X1", "X2"),
+                        help=f"agent start position in [0,1]^2 (default {DEFAULT_X0})")
+    parser.add_argument("--steps", type=int, default=DEFAULT_STEPS,
+                        help=f"number of 0.01s control steps (default {DEFAULT_STEPS} = 60s)")
     parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
+                        help="output CSV path (default: ../data/sample/ergodic_scenario.csv)")
     args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
+    if not (0.0 <= args.x0[0] <= 1.0 and 0.0 <= args.x0[1] <= 1.0):
+        parser.error("--x0 components must lie in [0,1]")
+    if args.steps < 60:
+        parser.error("--steps must be large enough to exercise the verify window (kVerifyWindow=50 in kernels.cuh)")
 
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    make_scenario_csv(tuple(args.x0), args.steps, args.out)
 
 
 if __name__ == "__main__":

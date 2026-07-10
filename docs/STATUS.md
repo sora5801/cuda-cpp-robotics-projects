@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 33/505 done** (6.5%)
+**Overall: 34/505 done** (6.7%)
 
 | Status | Count |
 |--------|-------|
-| todo | 472 |
+| todo | 471 |
 | in-progress | 0 |
-| done | 33 |
+| done | 34 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -63,7 +63,7 @@
 | 31 Safety, Verification & Testing | 1/12 |
 | 32 Embedded, Jetson & Systems Infrastructure | 1/17 |
 | 33 Foundational GPU Libraries (Build-Your-Own) | 1/15 |
-| 34 Theoretical & Research Frontier | 0/17 |
+| 34 Theoretical & Research Frontier | 1/17 |
 | 35 Micro & Nano Robotics | 0/9 |
 | 36 Modular & Self-Reconfigurable Robots | 0/5 |
 
@@ -706,13 +706,13 @@
 | 33.14 | Robust geometric predicates on GPU | [R&D] research |  | todo |  |  |
 | 33.15 | Control-sampling library (the MPPI building block: noise generation + cost softmin reductions) | intermediate |  | todo |  |  |
 
-## 34. Theoretical & Research Frontier (`34-theory-frontier`) — 0/17 done
+## 34. Theoretical & Research Frontier (`34-theory-frontier`) — 1/17 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 34.01 | Differentiable everything: simulation + rendering + planning, end-to-end gradients | [R&D] research |  | todo |  |  |
 | 34.02 | Optimal transport for swarm distribution control (GPU Sinkhorn) | [R&D] research |  | todo |  |  |
-| 34.03 | Ergodic control: spectral multiscale coverage (FFT-based — very GPU-friendly) | [R&D] research | ⭐ | todo |  |  |
+| 34.03 | Ergodic control: spectral multiscale coverage (FFT-based — very GPU-friendly) | [R&D] research | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); [R&D] reduced scope; metric ↓116x; lawnmower 4.7x worse |
 | 34.04 | Sums-of-squares / moment relaxations with GPU first-order SDP solvers | [R&D] research |  | todo |  |  |
 | 34.05 | Graphs-of-convex-sets motion planning acceleration | [R&D] research |  | todo |  |  |
 | 34.06 | High-dimensional Hamilton-Jacobi via tensor decompositions | [R&D] research |  | todo |  |  |

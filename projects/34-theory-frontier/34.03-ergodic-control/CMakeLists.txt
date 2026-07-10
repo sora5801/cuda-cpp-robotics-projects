@@ -67,12 +67,14 @@ target_compile_options(ergodic-control PRIVATE
   $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-lineinfo>
 )
 
-# No target_link_libraries needed: with CUDA as an enabled language, CMake
-# links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
-# Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(ergodic-control PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# CUDA runtime links automatically (CUDA_RUNTIME_LIBRARY defaults to Static
+# — matching the .vcxproj's cudart_static.lib choice: the exe runs with
+# only a driver installed). cuFFT is linked explicitly: kernels.cu's
+# launch_build_phi_k makes ONE 2-D double-precision transform
+# (cufftPlan2d + cufftExecZ2Z) that turns the target density's trapezoidal
+# grid into its Fourier coefficients phi_k via the DCT-I-via-FFT identity
+# (kernels.cu's file header derives it in full) — the catalog bullet's
+# named "FFT-based, very GPU-friendly" hook. Mirrors the .vcxproj's
+# cufft.lib link with the same justification.
+find_package(CUDAToolkit REQUIRED)
+target_link_libraries(ergodic-control PRIVATE CUDA::cufft)

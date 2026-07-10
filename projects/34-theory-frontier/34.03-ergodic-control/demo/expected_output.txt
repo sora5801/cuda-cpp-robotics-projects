@@ -1,8 +1,18 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 34.03 (ergodic-control)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 34.03 (ergodic-control), captured from an actual run on the reference
+# machine (RTX 2080 SUPER, sm_75, CUDA 13.3, Release|x64) — CLAUDE.md paragraph 8's "never fabricate"
+# rule applies to expected output too. Lines starting with '#' are comments; run_demo.ps1/.sh ignore
+# them when diffing. Every non-comment line below must appear VERBATIM in the demo's stdout.
+# "[info]"/"[time]" lines are deliberately NOT checked here — they carry measured numbers (GPU name,
+# timings, epsilon values, coverage fractions) that are legitimately float-noise across GPU
+# architectures/driver versions even though this project has no RNG anywhere; only the PASS/FAIL
+# verdict lines are stable across machines (see src/main.cu's file-header "Determinism" note).
+[demo] Ergodic control: spectral multiscale coverage (project 34.03)
+PROBLEM: SMC ergodic coverage, K=32x32=1024 modes, T=60.0 s @ dt=0.010 s (6000 steps), agent speed budget 0.40 units/s, FP64
+SCENARIO: start at (0.50,0.50); target = 2 Gaussian hotspots + uniform washout; 6000 steps [synthetic]
+TRANSFORM: PASS (DCT-via-cuFFT phi_k matches the independent no-FFT CPU cosine projection, rel tol 1e-6)
+VERIFY: PASS (GPU per-mode update matches CPU reference over a 50-step window, rel tol 1e-6)
+ERGODICITY: PASS (metric decreased >= 5x window-to-window, at most one windowed uptick <= 25%)
+COVERAGE: PASS (time-fraction in each hotspot basin within 0.05 absolute of its numerically-integrated target mass)
+NEGATIVE-CONTROL: PASS (lawnmower sweep's final ergodic metric >= 3x worse than SMC's)
+ARTIFACT: wrote demo/out/trajectory.csv, demo/out/ergodic_metric.csv, demo/out/target_phi.pgm, demo/out/empirical_coverage.pgm (6000 steps)
+RESULT: PASS (transform + verify + ergodicity + coverage + negative-control all hold)

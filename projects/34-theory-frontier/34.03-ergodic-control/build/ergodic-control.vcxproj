@@ -9,9 +9,18 @@
   path edits, everything flows from $(CUDA_PATH) via the CUDA MSBuild
   integration (CLAUDE.md paragraph 5).
 
-  Library policy: this template links ONLY the CUDA runtime. If the real
-  project adds cuBLAS/cuFFT/cuRAND/..., add each .lib to AdditionalDependencies
-  below WITH an XML comment explaining why it is linked (CLAUDE.md paragraph 5).
+  Library policy: this project links the CUDA runtime AND cuFFT.
+  cuFFT (cufft.lib) is a CUDA TOOLKIT library (CLAUDE.md paragraph 5's
+  default-allowed set) — it computes the ONE 2-D double-precision transform
+  (cufftPlan2d + cufftExecZ2Z, CUFFT_Z2Z) that turns the target density's
+  trapezoidal grid into its Fourier (cosine) coefficients phi_k via the
+  DCT-I-via-FFT identity (see src/kernels.cu's file header for the full
+  derivation and what the call computes). This is the catalog bullet's
+  named "FFT-based, very GPU-friendly" hook. cufft.lib is DLL-backed at
+  runtime (cufft64_*.dll, unlike the statically-linked CUDA runtime below)
+  — a clean machine needs the CUDA Toolkit installed to run this project's
+  .exe, which the repo already requires for every project (CLAUDE.md
+  paragraph 5's toolchain standard), so this adds no new install burden.
 ======================================================================== -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
@@ -110,8 +119,16 @@
       <!-- cudart_static.lib: the CUDA runtime linked STATICALLY, so the built
            .exe runs on a machine with just a driver — no cudart64_*.dll to
            ship or lose. The static runtime is the CUDA-sample default and
-           costs little for a single-exe project. -->
-      <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+           costs little for a single-exe project.
+           cufft.lib: the ONE-SHOT DCT-via-FFT library call in kernels.cu's
+           launch_build_phi_k — see the file-header library-policy comment
+           above for what it computes and why it is linked instead of
+           hand-rolled. Unlike cudart_static, cuFFT ships only as a
+           DLL-backed import lib — the built .exe needs cufft64_*.dll on
+           its PATH at run time (present with any CUDA Toolkit install;
+           demo/run_demo.ps1 runs right after building on the same machine,
+           so this is transparent for the committed demo). -->
+      <AdditionalDependencies>cudart_static.lib;cufft.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -150,8 +167,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>      <!-- /OPT:ICF -->
       <OptimizeReferences>true</OptimizeReferences>        <!-- /OPT:REF: drop unreferenced code/data -->
       <AdditionalLibraryDirectories>$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <!-- See the Debug comment: static CUDA runtime => self-contained exe. -->
-      <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- See the Debug comment: static CUDA runtime => self-contained exe;
+           cufft.lib is this project's one-shot DCT-via-FFT library (see the
+           Debug comment and the file-header library-policy note above). -->
+      <AdditionalDependencies>cudart_static.lib;cufft.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>

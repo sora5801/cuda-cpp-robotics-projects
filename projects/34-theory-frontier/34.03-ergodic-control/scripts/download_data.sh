@@ -3,12 +3,13 @@
 # download_data.sh — public-dataset fetcher for 34.03 (Ergodic control: spectral multiscale coverage (FFT-based — very GPU-friendly))
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# STATUS: an honest, permanent no-op. This project's "data" is a synthetic
+# scenario (agent start position + a constructed two-hotspot target density)
+# — there is no real-world "correct" information density to download, so no
+# public dataset ever applies here (CLAUDE.md paragraph 8's synthetic-first
+# default is not a placeholder in this project, it is the final answer).
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any project that DOES need this:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE
