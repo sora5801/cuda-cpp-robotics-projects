@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 29/505 done** (5.7%)
+**Overall: 30/505 done** (5.9%)
 
 | Status | Count |
 |--------|-------|
-| todo | 476 |
+| todo | 475 |
 | in-progress | 0 |
-| done | 29 |
+| done | 30 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -57,7 +57,7 @@
 | 25 Power & Energy | 1/14 |
 | 26 Mechanical Design & Structures | 1/16 |
 | 27 Materials Science & Manufacturing | 1/13 |
-| 28 Soft Robotics | 0/10 |
+| 28 Soft Robotics | 1/10 |
 | 29 Medical & Bio-Robotics | 0/13 |
 | 30 Field & Industry-Specific Robotics | 0/12 |
 | 31 Safety, Verification & Testing | 1/12 |
@@ -597,11 +597,11 @@
 | 27.12 | Magnetorheological fluid device simulation | [R&D] research |  | todo |  |  |
 | 27.13 | Shape-memory polymer actuation simulation | [R&D] research |  | todo |  |  |
 
-## 28. Soft Robotics (`28-soft-robotics`) — 0/10 done
+## 28. Soft Robotics (`28-soft-robotics`) — 1/10 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 28.01 | Real-time FEM soft-arm model + model-based control (GPU SOFA-style) | ★ beginner | ⭐ | todo |  |  |
+| 28.01 | Real-time FEM soft-arm model + model-based control (GPU SOFA-style) | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); EB 0.5%, f1 1.4%, RT factor 1.69x |
 | 28.02 | Cosserat-rod continuum robots batched: tendon-driven, concentric-tube | intermediate |  | todo |  |  |
 | 28.03 | PneuNet actuator FEM design sweeps | intermediate |  | todo |  |  |
 | 28.04 | MPM general soft-body simulation platform | intermediate |  | todo |  |  |

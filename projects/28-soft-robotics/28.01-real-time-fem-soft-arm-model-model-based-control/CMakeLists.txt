@@ -70,9 +70,7 @@ target_compile_options(real-time-fem-soft-arm-model-model-based-control PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(real-time-fem-soft-arm-model-model-based-control PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). 28.01 deliberately uses NO CUDA libraries
+# beyond the runtime (the FEM assembly, integration, and controller are all
+# hand-rolled teaching code — CLAUDE.md paragraph 5's default dependency
+# policy), so nothing else is linked here.

@@ -16,7 +16,8 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `arm_scenario.csv` — the synthetic scenario definition (soft-arm model
+constants + controller tuning + setpoint sequence) the demo loads at startup. It is constants, not
+recordings: regenerate byte-identically with `python ../../scripts/make_synthetic.py` (no RNG, no
+seed). Field-by-field documentation, the SHA-256 checksum, and the MODEL-row cross-check story live
+in [`../README.md`](../README.md).

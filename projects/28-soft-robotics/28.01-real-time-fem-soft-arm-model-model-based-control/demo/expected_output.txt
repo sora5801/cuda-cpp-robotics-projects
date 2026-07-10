@@ -1,8 +1,22 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected STABLE output lines for project 28.01 (Real-time FEM soft-arm model + model-based control).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 28.01 (real-time-fem-soft-arm-model-model-based-control)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset check).
+# Only STABLE lines belong here — never timings ("[time]") or device names/measurements ("[info]"),
+# which vary by machine and run. The stable lines carry verdicts and fixed problem parameters only;
+# the measured numbers behind each verdict are printed on the adjacent "[info]" lines.
+[demo] Real-time FEM soft-arm model + model-based control (project 28.01)
+PROBLEM: corotational FEM soft arm, 120x12 Q4 elements, 1573 nodes, 3146 DOF, dt=3.0e-05 s, E=1.0 MPa, FP32 [synthetic]
+MESH: length 0.240 m, height 0.0240 m, element size 0.0020 m, thickness 0.020 m [synthetic elastomer]
+SCENARIO: identify-then-track, 4 setpoints (step+hold 1.98 s each), control tick 3.0 ms, model rows cross-checked [synthetic]
+VERIFY: PASS (GPU scatter-assembled dynamics match CPU sequential reference within tol dx<=1e-5 m, dv<=5e-3 m/s, all values finite)
+GATE static-deflection: PASS (measured within 30% of Euler-Bernoulli; Q4 discretization honestly allowed for)
+GATE first-mode-frequency: PASS (zero-crossing estimate within 20% of the analytic cantilever formula)
+GATE energy-conservation: PASS (alpha off, featherweight beta, unactuated; peak total-energy drift <= 8% - symplectic Euler's bounded drift)
+IDENTIFY: PASS (quasi-static tip Jacobian measured by probing the FEM model itself, not assumed)
+SETPOINT 0: PASS (reached within hold window, overshoot <= 60%, mean |error| over final 10% of hold <= 0.3 mm)
+SETPOINT 1: PASS (reached within hold window, overshoot <= 60%, mean |error| over final 10% of hold <= 0.3 mm)
+SETPOINT 2: PASS (reached within hold window, overshoot <= 60%, mean |error| over final 10% of hold <= 0.3 mm)
+SETPOINT 3: PASS (reached within hold window, overshoot <= 60%, mean |error| over final 10% of hold <= 0.3 mm)
+ARTIFACT: wrote demo/out/tip_trajectory.csv (2640 rows), demo/out/arm_snapshots.csv (4719 rows), demo/out/arm_deformed.pgm
+REALTIME: PASS (measured real-time factor >= 1x: the FEM model runs faster than the arm it models)
+RESULT: PASS (dynamics verified vs CPU, analytic gates passed, Jacobian identified, all setpoints tracked, real-time factor >= 1x)

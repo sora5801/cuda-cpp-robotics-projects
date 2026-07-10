@@ -1,107 +1,139 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 28.01 (Real-time FEM soft-arm model + model-based control (GPU SOFA-style)).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample-data generator for project 28.01
+(Real-time FEM soft-arm model + model-based control (GPU SOFA-style)).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+This project's "data" is not recordings — it is the SCENARIO DEFINITION of a
+synthetic soft arm: material constants, mesh geometry, tendon-actuation
+parameters, controller tuning, and the closed-loop setpoint sequence. All of
+it is synthetic by construction (there is no physical arm; the material is an
+"elastomer-class" teaching material, NOT a datasheet silicone), so this
+generator writes CONSTANTS, deterministically, with zero RNG — the same bytes
+on every machine, every run. Provenance and field docs live in
+../data/README.md; SHA-256 checksums of the committed file are recorded there.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+The contract with the C++ side
+------------------------------
+../src/main.cu loads ../data/sample/arm_scenario.csv at startup and splits its
+rows into two classes:
+
+  * MODEL rows (mesh + material) — these must MATCH the compiled constants in
+    ../src/kernels.cuh exactly, because the CFL timestep and the analytic-gate
+    formulas are derived from them at compile time (kernels.cuh documents the
+    derivations). main.cu CROSS-CHECKS every model row against the compiled
+    value and refuses to run on a mismatch — the file cannot silently lie
+    about what was simulated. To change the model, change kernels.cuh AND
+    regenerate this file (edit the constants below to match).
+
+  * SCENARIO rows (actuation, controller tuning, setpoint sequence) — these
+    are genuinely runtime inputs: main.cu reads and uses them directly, so a
+    learner can retune the controller or reshape the setpoint sequence by
+    editing the CSV (or this generator) without touching C++ (README
+    "Exercises" builds on exactly that).
+
+Keep the constants below in lockstep with ../src/kernels.cuh (the C++ names
+are given beside each value). If you change anything here, rerun this script
+AND update the SHA-256 + expected output where they are documented.
 
 Usage
 -----
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    python make_synthetic.py                          # writes ../data/sample/arm_scenario.csv
+    python make_synthetic.py --out other/path.csv     # anywhere else (e.g. for experiments)
 """
 
 import argparse
-import csv
-import random
+import hashlib
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
+# ---------------------------------------------------------------------------
+# MODEL rows — must mirror ../src/kernels.cuh (constant names in comments).
+# main.cu verifies each against the compiled constant (relative tolerance
+# 1e-6 after float parsing) and aborts on mismatch.
+# ---------------------------------------------------------------------------
+MODEL = [
+    # (key, value, meaning) — value strings parse exactly to the kernels.cuh constants.
+    ("NELX",           "120",     "elements along the arm length (x) [kNelx]"),
+    ("NELY",           "12",      "elements through the arm height (y) [kNely]"),
+    ("ELEM_SIZE_M",    "0.002",   "square element side h (m) [kElemSize_m]"),
+    ("YOUNGS_E_PA",    "1000000", "Young's modulus (Pa), synthetic elastomer-class [kYoungsE_Pa]"),
+    ("POISSON_NU",     "0.4",     "Poisson's ratio (0.40 not 0.49 - Q4 locking, THEORY.md) [kPoissonNu]"),
+    ("THICKNESS_M",    "0.02",    "out-of-plane depth (m) [kThickness_m]"),
+    ("DENSITY_KGM3",   "1100",    "mass density (kg/m^3), synthetic silicone-like [kDensity_kgm3]"),
+    ("DT_S",           "3e-05",   "integration timestep (s), CFL-derived in kernels.cuh [kDt_s]"),
+    ("RAYLEIGH_ALPHA", "3.8",     "mass-proportional damping (1/s), zeta_1 ~ 0.149 [kRayleighAlphaOn]"),
+    ("RAYLEIGH_BETA",  "2e-05",   "stiffness-proportional damping (s), high-mode damper [kRayleighBetaOn]"),
+    ("TENDON_BIAS_N",  "0.25",    "co-contraction pretension per tendon (N); 2*bias ~ 51% of the buckling load [kTendonBiasN]"),
+]
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+# ---------------------------------------------------------------------------
+# SCENARIO rows — runtime inputs main.cu actually consumes. The tuning story
+# for each value is told in ../src/main.cu beside its default constant and in
+# THEORY.md "The model-based-control story".
+# ---------------------------------------------------------------------------
+SCENARIO = [
+    ("PROBE_DELTA_T_N",    "0.18",  "tension differential (N) used to identify the tip Jacobian"),
+    ("CONTROL_SUBSTEPS",   "100",   "dynamics steps per control tick (100 x 3e-5 s = 3 ms -> ~333 Hz)"),
+    ("HOLD_STEPS",         "66000", "dynamics steps held per setpoint (~2.0 s ~ 4 first-mode periods)"),
+    ("PI_MARGIN_ALPHA",    "0.3",   "Kp = alpha/|J|; resonant loop gain ~ alpha/(2*zeta) ~ 0.7 < 1 (no sustained ring)"),
+    ("PI_INTEGRAL_TIME_S", "0.15",  "Ki = Kp/Ti (s); crossover ~ alpha/Ti = 2 rad/s, well below the resonance"),
+    ("DELTA_T_CLAMP_FRAC", "1.8",   "|deltaT| <= frac * TENDON_BIAS_N (keeps both tendons taut: bias-clamp/2 > 0)"),
+    ("SETPOINT_SAFE_FRAC", "0.65",  "setpoint scale = J * frac * clamp (stays inside the identified range)"),
+    # The step+hold setpoint sequence, as fractions of the safe scale above:
+    # up, down past center, half up, back to center — exercises both tendons
+    # and a return-to-zero (integrator unwinding) in one run.
+    ("SETPOINT_FRACS",     "0.6;-0.6;0.3;0", "setpoint sequence (fractions of the safe scale, ';'-separated)"),
+]
 
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
-
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
-    """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
+def write_scenario(out_path: Path) -> None:
+    """Write the scenario CSV: '#'-comment header (label + provenance +
+    regeneration command), then 'key,value' rows. No RNG anywhere — the file
+    is constants, byte-identical on every platform (LF line endings written
+    explicitly so the SHA-256 in ../data/README.md is stable across OSes)."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 28.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+    lines = []
+    lines.append("# SYNTHETIC data - generated by scripts/make_synthetic.py for project 28.01")
+    lines.append("# Scenario definition for the corotational-FEM soft arm: model constants")
+    lines.append("# (cross-checked against src/kernels.cuh at startup) + runtime controller")
+    lines.append("# scenario. No RNG; the material is a synthetic elastomer-class teaching")
+    lines.append("# material, not a datasheet substance. regenerate: python make_synthetic.py")
+    lines.append("# format: key,value   (comments and blank lines ignored by the loader)")
+    lines.append("")
+    lines.append("# --- MODEL (must match src/kernels.cuh; loader aborts on mismatch) ---")
+    for key, value, meaning in MODEL:
+        lines.append(f"# {key}: {meaning}")
+        lines.append(f"{key},{value}")
+    lines.append("")
+    lines.append("# --- SCENARIO (runtime inputs: actuation, controller tuning, setpoints) ---")
+    for key, value, meaning in SCENARIO:
+        lines.append(f"# {key}: {meaning}")
+        lines.append(f"{key},{value}")
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    data = ("\n".join(lines) + "\n").encode("utf-8")
+    out_path.write_bytes(data)   # write_bytes: no platform newline translation
+
+    sha = hashlib.sha256(data).hexdigest()
+    print(f"[make_synthetic] wrote {out_path} ({len(data)} bytes, labeled SYNTHETIC)")
+    print(f"[make_synthetic] SHA-256: {sha}")
+    print("[make_synthetic] record this hash in ../data/README.md if the file changed")
 
 
 def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
+    """Parse arguments and run the generator (kept separate so the writer is
+    importable without argparse in the way — template convention)."""
     script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+    default_out = script_dir.parent / "data" / "sample" / "arm_scenario.csv"
 
     parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 28.01 (Real-time FEM soft-arm model + model-based control (GPU SOFA-style)).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
+        description="Generate the synthetic scenario sample for project 28.01 "
+                    "(soft-arm FEM + model-based control). Deterministic constants; no RNG.")
     parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
+                        help="output CSV path (default: ../data/sample/arm_scenario.csv)")
     args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    write_scenario(args.out)
 
 
 if __name__ == "__main__":
