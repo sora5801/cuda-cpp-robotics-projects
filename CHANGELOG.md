@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-09 — flagship 05.01 TSDF fusion + marching cubes done (6/505); analytic ground truth; fabricated bounds caught and replaced with measured ones — [push-note](push-notes/2026-07-09-01-flagship-05-01-tsdf-fusion.md)
 - 2026-07-09 — flagship 04.01 massive particle filter done (5/505); carries unverified in-progress src for 05.01/22.01/31.01 — [push-note](push-notes/2026-07-09-00-flagship-04-01-particle-filter.md)
 - 2026-07-08 — flagship 08.01 MPPI cart-pole done (4/505) — the four Phase-1 foundations are complete — [push-note](push-notes/2026-07-08-04-flagship-08-01-mppi-foundations-complete.md)
 - 2026-07-08 — flagship 07.09 jump-flooding Voronoi/distance transforms done (3/505); 1+JFA after the oracle caught plain JFA — [push-note](push-notes/2026-07-08-03-flagship-07-09-jump-flooding.md)

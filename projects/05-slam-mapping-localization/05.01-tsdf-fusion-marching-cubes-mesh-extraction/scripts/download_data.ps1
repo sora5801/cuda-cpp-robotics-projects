@@ -1,10 +1,14 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 05.01 (TSDF fusion (KinectFusion clone) + marching-cubes mesh extraction)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 05.01 DECISION: no public dataset applies — this project's "sensor input"
+# is 24 depth frames rendered IN-CODE by closed-form ray casting of an
+# analytic scene (a sphere over a ground plane), specifically so the fused
+# result can be checked against the scene's exact signed-distance ground
+# truth instead of a recorded fixture. A real RGB-D dataset (e.g. TUM RGB-D,
+# ScanNet) would remove that exact-ground-truth property, not add teaching
+# value here. This script stays the honest no-op below;
+# ../scripts/make_synthetic.py writes the camera path (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

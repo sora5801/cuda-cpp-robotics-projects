@@ -16,7 +16,10 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `camera_path.csv` (~2.4 KiB, synthetic) — pinhole intrinsics plus 24 camera
+poses orbiting the scene on a circle. The 24 depth *images* those poses would see are never stored:
+they are rendered inside the demo, every run, by closed-form ray casting of the analytic scene defined
+in `../../src/kernels.cuh` (a sphere floating above a ground plane) — so the fused result can be checked
+against that scene's exact signed distance function instead of a recorded fixture. Format and checksum:
+[`../README.md`](../README.md); regenerate byte-identically with
+`python ../../scripts/make_synthetic.py`.

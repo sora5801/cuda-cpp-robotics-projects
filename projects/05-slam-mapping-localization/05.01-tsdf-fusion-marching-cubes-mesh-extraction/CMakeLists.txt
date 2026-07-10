@@ -75,4 +75,7 @@ target_compile_options(tsdf-fusion-marching-cubes-mesh-extraction PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(tsdf-fusion-marching-cubes-mesh-extraction PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 05.01 note: the source list above is complete for this project and no extra
+# libraries are linked — the marching-cubes case table (src/mc_tables.h) is
+# plain compiled-in data, not a dependency, and the depth "sensor" is a
+# closed-form ray caster hand-rolled in main.cu by design.

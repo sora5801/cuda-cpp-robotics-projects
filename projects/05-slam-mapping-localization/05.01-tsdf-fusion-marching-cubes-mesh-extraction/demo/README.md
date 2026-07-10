@@ -12,23 +12,45 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+**A dense 3-D reconstruction, fused from scratch and turned into a mesh, in well under a second of GPU
+time.** The demo renders 24 synthetic depth frames of a sphere floating above a ground plane (by
+closed-form ray casting — no downloads, no stored images), fuses all of them into a 128³-voxel truncated
+signed distance field on the GPU, checks the result against the scene's *exact* analytic signed distance
+function (real ground truth, not a fixture), and extracts an explicit triangle mesh from the fused field
+with marching cubes. Watch for:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+- **`VERIFY: PASS`** — the GPU integration kernel and its plain-C++ CPU twin agree on a 4-frame subset
+  to `0.0` (bit-identical; both paths execute the same IEEE-754 operations in the same order).
+- **`GROUND TRUTH: PASS`** — the fully fused field matches the scene's real SDF within documented
+  bounds. The `[info]` lines right above it print the measured mean/max error in two shells around the
+  surface — read them to see the actual numbers this project is checking, not just the verdict.
+- **`MESH: PASS`** — the GPU's triangle count matches an independent CPU recount *exactly*, sits in a
+  wide sanity range, and every vertex lands on the analytic surface within 2 cm.
+
+**This demo writes two artifacts** into `out/` (git-ignored, regenerated every run):
+
+- **`mesh.obj`** — the extracted iso-surface, in plain Wavefront OBJ (open it in Blender, MeshLab, or
+  any 3-D viewer). Un-indexed (every triangle carries its own 3 vertices) — README Exercise 5 adds
+  vertex welding.
+- **`tsdf_slice.pgm`** — a vertical (x–z) slice through the fused volume at the sphere's center, as an
+  8-bit grayscale image (any image viewer opens PGM, or convert with any tool). **Black** = never
+  observed by any camera; **dark → light** = inside the surface → free space; the **boundary** between
+  dark and light *is* the zero crossing — the surface itself. You should see the sphere's circular
+  cross-section, the flat line of the ground plane, and a black wedge of never-observed space in the
+  sphere's "shadow" directly beneath it (no camera pose in this orbit can see underneath the sphere).
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
+| `[info]`    | GPU name, sample-file path, and every numeric diagnostic (error statistics, mesh triangle counts, final voxel counts) — varies by machine and, for the error statistics, is the actual measured evidence behind each `PASS`. | No. |
 | `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `SAMPLE:`   | The committed camera path's shape (frame count, synthetic label). | Yes — stable. |
+| `[time]`    | Render time, CPU/GPU integration time, marching-cubes kernel time — **teaching artifacts, never benchmark claims** (single-shot, one machine, kernel-only where labeled). | No. |
+| `VERIFY:` / `GROUND TRUTH:` / `MESH:` | The three independent checks THEORY.md's "How we verify correctness" explains. | Yes — stable. |
+| `ARTIFACT:` | Confirms `mesh.obj` / `tsdf_slice.pgm` were written. | Yes — stable. |
+| `RESULT:`   | Overall `PASS`/`FAIL` verdict. The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines

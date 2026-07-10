@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 5/505 done** (1.0%)
+**Overall: 6/505 done** (1.2%)
 
 | Status | Count |
 |--------|-------|
 | todo | 497 |
-| in-progress | 3 |
-| done | 5 |
+| in-progress | 2 |
+| done | 6 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -34,7 +34,7 @@
 | 02 Perception — LiDAR & Point Clouds | 0/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 0/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
-| 05 SLAM, Mapping & Localization | 0/18 |
+| 05 SLAM, Mapping & Localization | 1/18 |
 | 06 Motion Planning | 0/20 |
 | 07 Collision Detection & Geometry | 1/13 |
 | 08 Control Systems | 1/16 |
@@ -157,11 +157,11 @@
 | 04.12 | Covariance-intersection distributed fusion for swarms | intermediate |  | todo |  |  |
 | 04.13 | Map-matching localization (correlative scan matching — brute-force over pose grid, ideal for GPU) | intermediate |  | todo |  |  |
 
-## 5. SLAM, Mapping & Localization (`05-slam-mapping-localization`) — 0/18 done
+## 5. SLAM, Mapping & Localization (`05-slam-mapping-localization`) — 1/18 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 05.01 | TSDF fusion (KinectFusion clone) + marching-cubes mesh extraction | ★ beginner | ⭐ | in-progress | worker | interrupted batch 1a; finisher pending |
+| 05.01 | TSDF fusion (KinectFusion clone) + marching-cubes mesh extraction | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); bit-identical GPU/CPU fusion |
 | 05.02 | Voxel-hashed large-scale TSDF; ESDF generation for planners (nvblox-style) | intermediate |  | todo |  |  |
 | 05.03 | Occupancy-grid mapping via batched raycasting | intermediate |  | todo |  |  |
 | 05.04 | Probabilistic 3D octree mapping (GPU OctoMap) | intermediate |  | todo |  |  |

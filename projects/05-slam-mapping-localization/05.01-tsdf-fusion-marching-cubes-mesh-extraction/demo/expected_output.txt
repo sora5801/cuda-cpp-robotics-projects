@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 05.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 05.01 (tsdf-fusion-marching-cubes-mesh-extraction)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (voxel counts, error statistics, mesh/vertex diagnostics)
+# and "[time]" lines vary by machine and are deliberately unchecked; the GROUND TRUTH and MESH
+# bounds behind RESULT carry documented headroom (see ../src/main.cu) so the verdict is stable
+# even where deterministic-but-machine-dependent FP rounding differs across GPU generations.
+# Change the program's stable lines and this file together.
+[demo] TSDF fusion + marching cubes: sphere-over-plane scene (project 05.01)
+PROBLEM: TSDF fusion, 128^3 voxels @ 0.02 m (2.56 m cube), truncation mu=0.12 m, 24 depth frames 160x120, FP32
+SAMPLE: 24 camera poses on a circle + pinhole intrinsics [synthetic]; depth rendered in-code by ray casting the analytic scene
+VERIFY: PASS (GPU TSDF matches CPU reference on the 4-frame subset within abs tol 1e-5)
+GROUND TRUTH: PASS (fused TSDF vs analytic scene SDF: surface max err <= 0.13 m, band max err <= 0.13 m)
+MESH: PASS (GPU count == CPU recount, count in [40000, 100000], vertices on the analytic surface within 0.02 m)
+ARTIFACT: wrote demo/out/mesh.obj
+ARTIFACT: wrote demo/out/tsdf_slice.pgm
+RESULT: PASS (fusion verified against CPU twin and analytic ground truth; mesh extracted)
