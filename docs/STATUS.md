@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 27/505 done** (5.3%)
+**Overall: 28/505 done** (5.5%)
 
 | Status | Count |
 |--------|-------|
-| todo | 478 |
+| todo | 477 |
 | in-progress | 0 |
-| done | 27 |
+| done | 28 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -55,7 +55,7 @@
 | 23 Navigation Stack (Mobile Robots) | 1/11 |
 | 24 Actuators & Motors | 1/14 |
 | 25 Power & Energy | 1/14 |
-| 26 Mechanical Design & Structures | 0/16 |
+| 26 Mechanical Design & Structures | 1/16 |
 | 27 Materials Science & Manufacturing | 0/13 |
 | 28 Soft Robotics | 0/10 |
 | 29 Medical & Bio-Robotics | 0/13 |
@@ -558,11 +558,11 @@
 | 25.13 | Vibration energy-harvesting resonance sweeps | [R&D] research |  | todo |  |  |
 | 25.14 | Tether power/communication co-optimization | intermediate |  | todo |  |  |
 
-## 26. Mechanical Design & Structures (`26-mechanical-design-structures`) — 0/16 done
+## 26. Mechanical Design & Structures (`26-mechanical-design-structures`) — 1/16 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 26.01 | Topology optimization (SIMP/level-set) on GPU for lightweight links and brackets — flagship design project | ★ beginner | ⭐ | todo |  |  |
+| 26.01 | Topology optimization (SIMP/level-set) on GPU for lightweight links and brackets — flagship design project | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); patch test 2.8e-6; textbook strut topologies |
 | 26.02 | GPU FEA: static, modal (arm vibration modes), harmonic response | intermediate |  | todo |  |  |
 | 26.03 | Explicit-dynamics impact/drop/crash simulation for drones | intermediate |  | todo |  |  |
 | 26.04 | Lattice/gyroid infill generation + homogenized property computation | intermediate |  | todo |  |  |

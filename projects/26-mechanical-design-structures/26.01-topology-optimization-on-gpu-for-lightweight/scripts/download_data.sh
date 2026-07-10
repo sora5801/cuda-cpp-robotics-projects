@@ -3,10 +3,10 @@
 # download_data.sh — public-dataset fetcher for 26.01 (Topology optimization (SIMP/level-set) on GPU for lightweight links and brackets — flagship design project)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DELIBERATE NO-OP: this project's "data" is a problem DEFINITION (mesh size,
+# material constants, boundary conditions — see ../data/README.md), not a
+# recording of anything a public dataset could supply. There is nothing to
+# fetch; scripts/make_synthetic.py is this project's only data source.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

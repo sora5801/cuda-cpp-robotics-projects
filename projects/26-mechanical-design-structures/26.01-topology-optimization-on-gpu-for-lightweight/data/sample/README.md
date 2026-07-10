@@ -16,7 +16,8 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `mbb_scenario.csv` and `bracket_scenario.csv` — the two topology-
+optimization problem definitions the demo solves (the classic half-MBB beam and a robot L-bracket).
+Both are written by `python ../../scripts/make_synthetic.py` and are a few hundred bytes each: a
+mesh size, material constants, and a handful of boundary-condition/load rows — no RNG, no
+recordings. See [`../README.md`](../README.md) for the full field documentation and checksums.

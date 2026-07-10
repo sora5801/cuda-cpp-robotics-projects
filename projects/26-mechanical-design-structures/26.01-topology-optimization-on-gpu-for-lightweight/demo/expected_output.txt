@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected output for project 26.01 (SIMP topology optimization on GPU).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 26.01 (topology-optimization-on-gpu-for-lightweight)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines
+# belong here — never timings ("[time]") or device names/measured numbers ("[info]"), which
+# vary by machine and (for CG iteration counts) by GPU. These lines were captured from an
+# actual passing run on the reference machine (RTX 2080 SUPER, CUDA 13.3, Release|x64).
+[demo] SIMP topology optimization on GPU: matrix-free CG FEA + OC (project 26.01)
+PROBLEM: SIMP compliance minimization, plane-stress Q4 mesh, matrix-free Jacobi-PCG FEA, p=3, nu=0.3, FP32
+VERIFY: PASS (GPU matches CPU oracle: disp rel tol 1e-02, compliance rel tol 5e-03)
+PATCH: PASS (uniform-tension strip reproduces the exact linear displacement field, rel tol 1e-3)
+BEAM: PASS (solid cantilever tip deflection within documented allowance of Timoshenko theory)
+SCENARIO: MBB 120x40 elements (4800 active), E0=6.89e+10 Pa, Emin/E0=1.0e-03, volfrac=0.40, max 80 outer iters [synthetic]
+MBB: PASS (volume fraction within 0.02 of target, connected component >= 90% of solid, compliance monotone non-increasing after early iterations)
+SCENARIO: BRACKET 80x80 elements (4800 active), E0=6.89e+10 Pa, Emin/E0=1.0e-03, volfrac=0.40, max 80 outer iters [synthetic]
+BRACKET: PASS (volume fraction within 0.02 of target, connected component >= 90% of solid, compliance monotone non-increasing after early iterations)
+ARTIFACT: wrote demo/out/topology_mbb.pgm, demo/out/topology_bracket.pgm, demo/out/convergence.csv
+RESULT: PASS (verify + patch test + beam gate + both optimization runs all passed)
