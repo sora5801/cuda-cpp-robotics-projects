@@ -1,8 +1,14 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt for project 31.01 (Hamilton-Jacobi reachability)
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 31.01 (hamilton-jacobi-reachability)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# here — never "[time]" (machine-dependent timings) or "[info]" (GPU name, file paths, and the
+# unchecked verification detail lines), which vary by machine/run and are deliberately not diffed.
+# See the "output contract" comment at the top of ../src/main.cu for the full list of stable prefixes:
+# "[demo]", "PROBLEM:", "SCENARIO:", "VERIFY:", "ANALYTIC:", "ARTIFACT:", "RESULT:".
+[demo] Hamilton-Jacobi reachability: double-integrator backward reachable tube (project 31.01)
+PROBLEM: HJ reachability tube, 256x256 grid over x [-3,3] m x v [-2,2] m/s, |u| <= 0.8 m/s^2, horizon T=0.4 s, FP32
+SCENARIO: target = {min-time-to-origin <= 0.6 s}; 109 sweeps @ dt=3.670 ms (local Lax-Friedrichs + freezing, CFL 0.5) [synthetic]
+VERIFY: PASS (GPU value field matches CPU twin within max |dV| tol 1e-3)
+ANALYTIC: PASS (grid classification matches the closed-form bang-bang solution everywhere outside a 3-cell boundary band)
+ARTIFACT: wrote demo/out/value_function.pgm and demo/out/brs_boundary.csv (256x256 grid)
+RESULT: PASS (backward reachable tube verified against the CPU twin and the analytic minimum-time solution)

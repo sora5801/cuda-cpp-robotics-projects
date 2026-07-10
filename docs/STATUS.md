@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 7/505 done** (1.4%)
+**Overall: 8/505 done** (1.6%)
 
 | Status | Count |
 |--------|-------|
 | todo | 497 |
-| in-progress | 1 |
-| done | 7 |
+| in-progress | 0 |
+| done | 8 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -60,7 +60,7 @@
 | 28 Soft Robotics | 0/10 |
 | 29 Medical & Bio-Robotics | 0/13 |
 | 30 Field & Industry-Specific Robotics | 0/12 |
-| 31 Safety, Verification & Testing | 0/12 |
+| 31 Safety, Verification & Testing | 1/12 |
 | 32 Embedded, Jetson & Systems Infrastructure | 0/17 |
 | 33 Foundational GPU Libraries (Build-Your-Own) | 1/15 |
 | 34 Theoretical & Research Frontier | 0/17 |
@@ -647,11 +647,11 @@
 | 30.11 | Security patrol: multi-camera re-identification pipelines | intermediate |  | todo |  |  |
 | 30.12 | Delivery robots: sidewalk hazard perception; snow/wet surface classification | intermediate |  | todo |  |  |
 
-## 31. Safety, Verification & Testing (`31-safety-verification`) — 0/12 done
+## 31. Safety, Verification & Testing (`31-safety-verification`) — 1/12 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 31.01 | Hamilton-Jacobi reachability: level-set grid solvers (stencil ops — GPU-perfect) | ★ beginner | ⭐ | in-progress | worker | interrupted batch 1a; finisher pending |
+| 31.01 | Hamilton-Jacobi reachability: level-set grid solvers (stencil ops — GPU-perfect) | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); analytic bang-bang check |
 | 31.02 | Zonotope/interval reachability batched over uncertainty sets | intermediate |  | todo |  |  |
 | 31.03 | Neural-network verification: interval bound propagation / CROWN-style kernels | [R&D] research |  | todo |  |  |
 | 31.04 | CBF safety filters evaluated at kHz over constraint batches | intermediate |  | todo |  |  |

@@ -346,8 +346,8 @@ int main(int argc, char** argv)
                 kBandCells, n_band, n_wrong_out, n_wrong_in);
     std::printf("[info] analytic: sup |V_num - V_exact| = %.4f s (first-order LF dissipation — THEORY.md quantifies it)\n",
                 sup_err);
-    std::printf("ANALYTIC: %s (grid classification matches the closed-form bang-bang solution everywhere outside a 2-cell boundary band)\n",
-                analytic_pass ? "PASS" : "FAIL");
+    std::printf("ANALYTIC: %s (grid classification matches the closed-form bang-bang solution everywhere outside a %d-cell boundary band)\n",
+                analytic_pass ? "PASS" : "FAIL", kBandCells);
 
     // ======================= ARTIFACTS ==========================================
     // The result is inherently visual — ship it (CLAUDE.md §6.3). demo/out/

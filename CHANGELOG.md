@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-09 — flagship 31.01 HJ reachability done (8/505) — batch 1a complete; verified against the closed-form bang-bang solution — [push-note](push-notes/2026-07-09-03-flagship-31-01-hj-reachability-batch-1a-complete.md)
 - 2026-07-09 — flagship 22.01 100k-agent swarm simulator done (7/505); lockstep oracle + emergence gates — [push-note](push-notes/2026-07-09-02-flagship-22-01-swarm-simulator.md)
 - 2026-07-09 — flagship 05.01 TSDF fusion + marching cubes done (6/505); analytic ground truth; fabricated bounds caught and replaced with measured ones — [push-note](push-notes/2026-07-09-01-flagship-05-01-tsdf-fusion.md)
 - 2026-07-09 — flagship 04.01 massive particle filter done (5/505); carries unverified in-progress src for 05.01/22.01/31.01 — [push-note](push-notes/2026-07-09-00-flagship-04-01-particle-filter.md)

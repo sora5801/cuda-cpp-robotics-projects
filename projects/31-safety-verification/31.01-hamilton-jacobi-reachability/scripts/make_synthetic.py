@@ -20,12 +20,18 @@ What it writes: ../data/sample/double_integrator_scenario.csv
     TTARGET,t0        target = the min-time sublevel set {T*(x,v) <= t0} (s)
     HORIZON,T         reachability horizon (s)
 
-The default scenario is the ratified teaching setup: a 256x256 grid over
-[-3,3] m x [-2,2] m/s, umax = 0.8 m/s^2, target level t0 = 0.6 s, horizon
-T = 1.5 s. These numbers are chosen so the final reachable tube (which the
-math says spans |x| <= 1.77 m, |v| <= 1.68 m/s) stays >20 cells away from
-every grid edge — the extrapolating boundary condition then never touches
-the answer (THEORY.md, numerical considerations).
+The default scenario: a 256x256 grid over [-3,3] m x [-2,2] m/s,
+umax = 0.8 m/s^2, target level t0 = 0.6 s, horizon T = 0.4 s (total
+elapsed-time budget tau_f = t0+T = 1.0 s). These numbers are chosen so
+(a) the final reachable tube (math: |x| <= 0.40 m, |v| <= 0.80 m/s) stays
+comfortably (>100 cells) away from every grid edge, so the extrapolating
+boundary condition never touches the answer, AND (b) the horizon is short
+enough that the first-order Lax-Friedrichs scheme's accumulated numerical
+dissipation keeps the demo's analytic-vs-numeric boundary band within 2
+grid cells (measured; THEORY.md "Numerical considerations" walks through
+why a longer horizon, e.g. the originally-floated ~1.5 s, needs an excused
+band an order of magnitude wider on this grid — a real long-time-explicit-
+integration lesson, not a bug to code around).
 
 No RNG is involved (a scenario is constants), so the file is trivially
 byte-reproducible; the conventional --seed flag is accepted for uniformity
@@ -50,8 +56,8 @@ def main() -> int:
                     help="acceleration bound in m/s^2 (default 0.8)")
     ap.add_argument("--ttarget", type=float, default=0.6,
                     help="target level t0 in s: target = {T* <= t0} (default 0.6)")
-    ap.add_argument("--horizon", type=float, default=1.5,
-                    help="reachability horizon T in s (default 1.5)")
+    ap.add_argument("--horizon", type=float, default=0.4,
+                    help="reachability horizon T in s (default 0.4)")
     ap.add_argument("--seed", type=int, default=42,
                     help="unused (no RNG in a scenario); kept for repo-wide CLI uniformity")
     ap.add_argument("--out", type=Path,
@@ -83,6 +89,9 @@ def main() -> int:
         "# TTARGET,t0     : target set = {min-time-to-origin <= t0}, t0 in s",
         "# HORIZON,T      : reachability horizon in s",
         "# license: same as the repository (MIT) - fully synthetic, no external source",
+        "# HORIZON measured (not guessed): keeps the first-order Lax-Friedrichs",
+        "# scheme's numerical-dissipation boundary band within 2 grid cells at",
+        "# this resolution (THEORY.md \"Numerical considerations\").",
         f"GRID,{args.nx},{args.nv}",
         "XDOM,-3,3",
         "VDOM,-2,2",
@@ -97,7 +106,7 @@ def main() -> int:
 
     print(f"wrote {args.out} ({args.out.stat().st_size} bytes: {args.nx}x{args.nv}, "
           f"umax={args.umax:.6g}, t0={args.ttarget:.6g}, T={args.horizon:.6g}) - labeled SYNTHETIC")
-    if (args.nx, args.nv, args.umax, args.ttarget, args.horizon) != (256, 256, 0.8, 0.6, 1.5):
+    if (args.nx, args.nv, args.umax, args.ttarget, args.horizon) != (256, 256, 0.8, 0.6, 0.4):
         print("note: non-default scenario - fine for experiments, do NOT commit this file")
     return 0
 

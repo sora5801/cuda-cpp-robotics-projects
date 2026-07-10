@@ -16,7 +16,11 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `double_integrator_scenario.csv` (819 bytes, synthetic) — the whole
+problem definition: state-space grid, acceleration bound `umax`, target level `t0`, and
+reachability horizon `T`. A reachability solver's "data" *is* its scenario; the initial level
+function, every PDE sweep, and the analytic minimum-time oracle are all computed in-demo from these
+six numbers plus closed-form mathematics — nothing here is recorded sensor data or precomputed
+ground truth. Format, units, and the (measured, documented) reasoning behind the committed horizon:
+[`../README.md`](../README.md); regenerate byte-identically with
+`python ../../scripts/make_synthetic.py`.

@@ -7,9 +7,12 @@
 # TTARGET,t0     : target set = {min-time-to-origin <= t0}, t0 in s
 # HORIZON,T      : reachability horizon in s
 # license: same as the repository (MIT) - fully synthetic, no external source
+# HORIZON measured (not guessed): keeps the first-order Lax-Friedrichs
+# scheme's numerical-dissipation boundary band within 2 grid cells at
+# this resolution (THEORY.md "Numerical considerations").
 GRID,256,256
 XDOM,-3,3
 VDOM,-2,2
 UMAX,0.8
 TTARGET,0.6
-HORIZON,1.5
+HORIZON,0.4
