@@ -17,18 +17,24 @@ particle filter closed-loop on the committed synthetic sample: a 64×64 occupanc
 120-step loop drive with noisy odometry and noisy 16-beam range scans. Every 100 ms step, the GPU
 **predicts** all 100,000 particles through the odometry twist (each with its own noise, from an
 in-kernel counter-based RNG) and **weights** each one by ray-casting 16 beams into the map —
-~10⁸ occupancy lookups per scan, ~1.3 ms of kernel time where one CPU core needs ~340 ms. The
+up to ~10⁸ occupancy lookups per scan, ~0.58 ms of isolated weight-kernel time where one CPU core
+needs ~350 ms (measured on the reference machine, RTX 2080 SUPER, sm_75 — a teaching artifact, not
+a benchmark claim). The predict+weight pair together average ~1.0 ms/step over the closed loop. The
 host then takes the weighted mean as the pose estimate and systematically resamples. Try
-`--particles 1000000` to see the catalog's upper bound run (~6.4 ms/scan measured here).
+`--particles 1000000` to see the catalog's upper bound run (~6.7 ms/step measured here — the kernels
+scale almost linearly with K, so the host-side download/resample loop, not the GPU, is the next
+bottleneck; see README Exercise 5).
 
 Two checks gate the verdict:
 
 1. **VERIFY** — the §5 GPU-vs-CPU gate, kernel by kernel on step 0's inputs: predict poses must
-   agree within abs 1e-4 (measured ~5e-7), and weight log-likelihoods on identical poses within
-   rel 1e-3 (measured ~2e-7).
+   agree within abs 1e-4 (measured worst case ~4.8e-7), and weight log-likelihoods on identical
+   poses within rel 1e-3 (measured worst case ~2.4e-7).
 2. **RESULT** — the estimation check: position RMSE of the estimate vs the (synthetic,
-   fully-known) ground truth over all 120 steps must beat 0.15 m (it typically lands near
-   0.02 m).
+   fully-known) ground truth over all 120 steps must beat 0.15 m (measured ~0.019 m at K=100,000;
+   ~0.019 m at K=1,000,000 too — more particles buy a richer, less-degenerate cloud, not
+   dramatically lower RMSE once the cloud already tracks well; see THEORY.md §numerics on
+   effective sample size).
 
 **This demo writes an artifact**: `out/trajectory_est.csv` (git-ignored, regenerated each run)
 with columns `step, t_s, gt_x_m, gt_y_m, gt_theta_rad, est_x_m, est_y_m, est_theta_rad,
