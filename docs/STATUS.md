@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 28/505 done** (5.5%)
+**Overall: 29/505 done** (5.7%)
 
 | Status | Count |
 |--------|-------|
-| todo | 477 |
+| todo | 476 |
 | in-progress | 0 |
-| done | 28 |
+| done | 29 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -56,7 +56,7 @@
 | 24 Actuators & Motors | 1/14 |
 | 25 Power & Energy | 1/14 |
 | 26 Mechanical Design & Structures | 1/16 |
-| 27 Materials Science & Manufacturing | 0/13 |
+| 27 Materials Science & Manufacturing | 1/13 |
 | 28 Soft Robotics | 0/10 |
 | 29 Medical & Bio-Robotics | 0/13 |
 | 30 Field & Industry-Specific Robotics | 0/12 |
@@ -579,14 +579,14 @@
 | 26.15 | Deployable structure simulation | [R&D] research |  | todo |  |  |
 | 26.16 | Housing aerodynamics/thermal CFD for outdoor robots | intermediate |  | todo |  |  |
 
-## 27. Materials Science & Manufacturing (`27-materials-manufacturing`) — 0/13 done
+## 27. Materials Science & Manufacturing (`27-materials-manufacturing`) — 1/13 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 27.01 | Molecular dynamics (mini-LAMMPS) of elastomers → soft-robot material models | [R&D] research |  | todo |  |  |
 | 27.02 | Crystal plasticity / microstructure homogenization for structural alloys | [R&D] research |  | todo |  |  |
 | 27.03 | Self-healing polymer network models | [R&D] research |  | todo |  |  |
-| 27.04 | Composite layup optimization + Tsai-Wu failure envelope sweeps | intermediate | ⭐ | todo |  |  |
+| 27.04 | Composite layup optimization + Tsai-Wu failure envelope sweeps | intermediate | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); 4 analytic gates ~1e-7; F66=3F11 isotropy proof |
 | 27.05 | 3D printing: GPU slicing, support generation, FDM warp/thermal sim, SLM melt-pool sim | [R&D] research |  | todo |  |  |
 | 27.06 | Print-parameter optimization via parallel process simulation | intermediate |  | todo |  |  |
 | 27.07 | CNC toolpath verification (GPU material-removal simulation) | intermediate |  | todo |  |  |

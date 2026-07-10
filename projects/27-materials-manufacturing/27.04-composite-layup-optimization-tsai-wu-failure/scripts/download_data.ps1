@@ -1,10 +1,11 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 27.04 (Composite layup optimization + Tsai-Wu failure envelope sweeps)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED: no public dataset applies. This project's "data" is a lamina
+# material's elastic/strength constants and a stacking/load-case design —
+# design parameters, not measurements — so scripts/make_synthetic.py is the
+# ONLY generator this project needs (CLAUDE.md paragraph 8). This script
+# remains the honest, repo-uniform no-op every project ships.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

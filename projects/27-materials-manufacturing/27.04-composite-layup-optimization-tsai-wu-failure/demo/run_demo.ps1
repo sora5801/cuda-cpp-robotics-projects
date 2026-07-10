@@ -5,12 +5,11 @@
 # runs it on the sample data, prints the output, and checks the STABLE lines
 # of that output against expected_output.txt. Exit code 0 = demo passed.
 #
-# WORKS AS SCAFFOLDED: the template's SAXPY placeholder builds, runs, and
-# matches its committed expected_output.txt out of the box — so running this
-# script on a freshly scaffolded project is a full toolchain smoke test.
-# TODO(scaffold): once the real implementation lands, this script usually
-# needs NO changes — just keep expected_output.txt in sync with the stable
-# lines main.cu prints (see the "output contract" comment in ../src/main.cu).
+# RESOLVED: the real implementation (the layup + envelope sweep, src/main.cu)
+# has landed and this script needed no changes to drive it — it builds, runs,
+# and diffs the real stable lines against the committed expected_output.txt
+# exactly as it did for the scaffold's SAXPY placeholder (see the "output
+# contract" comment in ../src/main.cu for what counts as a stable line).
 #
 # Diffing rules (shared contract with expected_output.txt and main.cu):
 #   * Lines in expected_output.txt starting with '#' are COMMENTS — ignored.
@@ -101,7 +100,7 @@ if (-not (Test-Path $Expected)) {
 }
 
 # Keep only checkable expected lines: drop blanks and '#' comment lines
-# (the TODO(scaffold) marker line in the template is such a comment).
+# (expected_output.txt's own header comments are such lines).
 $expectedLines = @(Get-Content $Expected |
     Where-Object { $_.Trim() -ne '' -and -not $_.TrimStart().StartsWith('#') } |
     ForEach-Object { $_.TrimEnd() })

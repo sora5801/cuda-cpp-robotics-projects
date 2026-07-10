@@ -12,13 +12,27 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The demo runs the full pipeline described in [`../README.md`](../README.md): a GPU sweep scores
+all 256 symmetric 8-ply layups (from the `{0,45,-45,90}` alphabet) against two load-case sets
+(`MIXED`: 16 combined `Nx/Ny/Nxy` directions; `ALIGNED`: pure `+/-Nx`), ranks them by worst-case
+Tsai-Wu first-ply-failure load factor, then maps the full `(Nx,Ny)` failure envelope for both the
+`MIXED`-set winner and the documented `[0/90/0/90]s` cross-ply baseline.
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+**What to notice:**
+- The `MIXED` winner (`[info] MIXED winner: ...`) is always a permutation of one-ply-each-angle — a
+  quasi-isotropic-like stack — and the `ALIGNED` winner is the all-0-degree stack, by a wide margin.
+  Both are visible directly in `demo/out/layup_ranking.csv`'s top-10 rows.
+- `demo/out/envelope_best.pgm` / `envelope_cross.pgm` are viewable grayscale images (any viewer
+  that reads plain PGM, or open in a text editor — it is ASCII) of the failure-load-factor field
+  over the `(Nx,Ny)` plane; brighter = more margin. `envelope_best_contour.csv` /
+  `envelope_cross_contour.csv` are point clouds of the exact factor=1 boundary — the classic
+  Tsai-Wu failure envelope — plot them as a scatter to see the boundary shape (see README Exercises
+  for a plotting suggestion).
+- Four `GATE_*:` lines are closed-form / physical checks independent of the sweep itself — see
+  `THEORY.md` §How we verify correctness for what each one proves and why.
+
+Both PGMs use the SAME fixed `[0, 5]` factor-to-gray scale (documented in each file's own comment
+header) so the two images are directly brightness-comparable.
 
 ## How to read the output
 

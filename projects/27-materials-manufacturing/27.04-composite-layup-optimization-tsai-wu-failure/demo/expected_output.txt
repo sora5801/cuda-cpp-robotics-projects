@@ -1,8 +1,21 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected stable output for 27.04 (Composite layup optimization + Tsai-Wu failure envelope sweeps).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 27.04 (composite-layup-optimization-tsai-wu-failure)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines
+# belong here — never "[time]"/"[info]" lines, which carry machine-specific numbers (GPU name,
+# kernel timings, the exact winning layup_id/score, and the contour point counts — all of which
+# legitimately vary run to run and machine to machine, THEORY.md §numerical considerations).
+# Measured on the reference machine (RTX 2080 SUPER, CUDA 13.3, Release|x64).
+[demo] Composite layup optimization + Tsai-Wu failure envelope sweeps (project 27.04)
+PROBLEM: CLT + Tsai-Wu first-ply-failure sweep, 256 symmetric 8-ply layups (alphabet {0,45,-45,90} deg, 4^4), MIXED=16 + ALIGNED=2 load cases, envelope 128x128, FP32
+SCENARIO: E1=135.0 E2=10.0 G12=5.0 GPa nu12=0.28, ply 0.125 mm x 8 = 1.000 mm, Xt=1500 Xc=1200 Yt=50 Yc=200 S12=70 MPa [synthetic]
+VERIFY: PASS (GPU sweep+envelope match the full CPU oracle within rel tol 1.0e-03)
+GATE_SINGLE_PLY_CLOSED_FORM: PASS (a single 0-deg ply under pure Nx must fail at exactly Xt*t in tension, Xc*t in compression)
+GATE_ISOTROPIC_ENVELOPE: PASS (an isotropic-degenerate material's failure strength must not depend on the applied uniaxial load's orientation)
+GATE_CLT_SANITY: PASS ([0/90/0/90]s must give A11=A22 exactly; Qbar(theta=0) must reproduce Q exactly)
+GATE_LOAD_HOMOGENEITY: PASS (the failure load factor must scale exactly inversely with load magnitude)
+ARTIFACT: wrote demo/out/layup_ranking.csv (20 rows)
+ARTIFACT: wrote demo/out/envelope_best.pgm (128x128)
+ARTIFACT: wrote demo/out/envelope_cross.pgm (128x128)
+ARTIFACT: wrote demo/out/envelope_best_contour.csv
+ARTIFACT: wrote demo/out/envelope_cross_contour.csv
+RESULT: PASS (VERIFY + GATE_SINGLE_PLY_CLOSED_FORM + GATE_ISOTROPIC_ENVELOPE + GATE_CLT_SANITY + GATE_LOAD_HOMOGENEITY all passed)

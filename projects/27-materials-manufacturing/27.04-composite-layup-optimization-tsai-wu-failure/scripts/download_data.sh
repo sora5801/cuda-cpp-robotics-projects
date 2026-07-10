@@ -3,10 +3,9 @@
 # download_data.sh — public-dataset fetcher for 27.04 (Composite layup optimization + Tsai-Wu failure envelope sweeps)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED: no public dataset applies (see download_data.ps1's header for
+# why) — scripts/make_synthetic.py is this project's only generator. This
+# script remains the honest, repo-uniform no-op every project ships.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

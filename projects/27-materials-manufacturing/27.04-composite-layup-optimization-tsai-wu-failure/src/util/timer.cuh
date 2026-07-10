@@ -49,9 +49,11 @@
 //    recorded before the stop event has finished. Callers rely on this
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
-//    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    single-stream structure of this project (two sequential kernel launches
+//    per sweep stage — layup_sweep_kernel then envelope_kernel — with no
+//    concurrency between them to exploit; N/A here because nothing in this
+//    project's small, one-shot problem size would benefit from multiple
+//    streams). Multi-stream projects should record into their own streams.
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

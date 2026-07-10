@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — flagship 27.04 composite layup + Tsai–Wu done (29/505); four ~1e-7 analytic gates incl. the F66=3F11 isotropy proof — [push-note](push-notes/2026-07-10-13-flagship-27-04-composite-layup.md)
 - 2026-07-10 — flagship 26.01 SIMP topology optimization done (28/505) — batch 1f complete; patch test 2.8e-6, textbook strut topologies — [push-note](push-notes/2026-07-10-12-flagship-26-01-topology-optimization-batch-1f-complete.md)
 - 2026-07-10 — flagship 25.01 battery electro-thermal done (27/505); jR/5D gate convergence-calibrated; conduction-vs-boundary cooling finding — [push-note](push-notes/2026-07-10-11-flagship-25-01-battery-pack.md)
 - 2026-07-10 — flagship 24.01 magnetostatic FEA + cogging sweeps done (26/505); Ampère gate 0.19%; cogging minimum found at arc 0.70 — [push-note](push-notes/2026-07-10-10-flagship-24-01-magnetostatic-fea.md)

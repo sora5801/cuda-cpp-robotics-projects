@@ -17,23 +17,48 @@ Provenance, licensing, and field documentation for everything under `data/` (CLA
 
 ## This project's data
 
-TODO(scaffold): fill in the table and field documentation for the real sample data.
+There is no recorded dataset here at all — a laminate's material properties, strengths, stacking
+alphabet, and the load cases it is scored against are **design parameters**, not measurements of
+anything. `scripts/make_synthetic.py` writes all of them out as one small CSV.
 
 | Property | Value |
 |----------|-------|
-| Kind | TODO(scaffold): synthetic (default) or public dataset (name it) |
-| Generator / source | TODO(scaffold): `../scripts/make_synthetic.py` invocation, or source URL |
-| License | TODO(scaffold): e.g. "synthetic — repo MIT license applies" or the dataset's license |
-| Size (committed) | TODO(scaffold): keep it tiny (well under 50 MB; prefer KB) |
-| Checksum | TODO(scaffold): SHA-256 of each committed sample file |
-| Regenerate with | TODO(scaffold): exact command, including the fixed seed |
+| Kind | Synthetic (default, and only, source — CLAUDE.md §8) |
+| Generator / source | `../scripts/make_synthetic.py` (no `--seed`: every computation in this project is a pure function of its inputs, so there is no randomness to seed — CLAUDE.md §8's "prefer deterministic no-noise") |
+| License | Synthetic — repo MIT license applies |
+| Size (committed) | `laminate_scenario.csv`, ~2.1 KiB |
+| Checksum (SHA-256) | `2b545c6399040eeadff9721c6d519b28bab775441dcbea923c21ce027c5da1bf` |
+| Regenerate with | `python make_synthetic.py` (writes the exact committed file byte-for-byte) |
 
 ### Fields / format
 
-TODO(scaffold): document every column/field of every sample file — name, type, **units, frame**
-(SI, right-handed, `T_parent_child` conventions per CLAUDE.md §12), and valid range.
+`data/sample/laminate_scenario.csv` — one `LABEL,value[,value,...]` row per field, parsed by the
+strict loader in `../src/main.cu`'s `load_scenario()`. Every field is required.
 
-> **Placeholder status:** as scaffolded, the SAXPY placeholder demo generates its input **in memory**
-> (deterministically, no seed needed — see `make_input()` in `../src/main.cu`) and needs no files.
-> `../scripts/make_synthetic.py` writes a small demonstration CSV into `sample/` so the synthetic-data
-> pattern is visible from day one.
+| Label | Meaning | Units |
+|-------|---------|-------|
+| `E1_GPA` | Lamina fiber-direction Young's modulus | GPa |
+| `E2_GPA` | Lamina transverse Young's modulus | GPa |
+| `G12_GPA` | Lamina in-plane shear modulus | GPa |
+| `NU12` | Lamina major Poisson ratio | unitless |
+| `T_PLY_MM` | Single-ply cured thickness | mm |
+| `XT_MPA` / `XC_MPA` | Longitudinal tensile / compressive strength (magnitude) | MPa |
+| `YT_MPA` / `YC_MPA` | Transverse tensile / compressive strength (magnitude) | MPa |
+| `S12_MPA` | In-plane shear strength | MPa |
+| `N_ENV_MAX_NM` | Failure-envelope grid half-span (Nx and Ny each span `[-N_ENV_MAX_NM, +N_ENV_MAX_NM]`) | N/m |
+| `ANGLE_ALPHABET_DEG` | The 4 candidate ply angles `{0, 45, -45, 90}` — the catalog's documented alphabet | degrees |
+| `N_MIXED_CASES` | Row count of the `LOAD_MIXED` rows that follow (16 in the committed sample) | count |
+| `LOAD_MIXED` (repeated) | One combined `Nx,Ny,Nxy` load case — see the generator's docstring for the 16-direction grid (12 biaxial directions at 30-deg steps + 2 pure-shear + 2 combined) | N/m each |
+| `N_ALIGNED_CASES` | Row count of the `LOAD_ALIGNED` rows that follow (2 in the committed sample) | count |
+| `LOAD_ALIGNED` (repeated) | One pure-Nx load case (tension, then compression) | N/m each |
+
+**Material honesty:** `E1/E2/G12/nu12` and the five Tsai-Wu strengths are a **SYNTHETIC teaching
+lamina** — order-of-magnitude consistent with a real aerospace-grade unidirectional carbon/epoxy
+tape (comparable to published T300/5208-class values), but these exact numbers are invented for
+this project and are **not** sourced from any manufacturer datasheet. `src/kernels.cuh`'s `Lamina`
+struct documents every field's units; `THEORY.md` derives the physics each one feeds.
+
+The two load-case SETS (`MIXED`, `ALIGNED`) are this project's actual "experiment": the ranking
+sweep scores every one of the 256 candidate stacking sequences against both sets, and the classic
+result (quasi-isotropic-like stacks win MIXED, 0-heavy stacks win ALIGNED) is the demo's headline
+finding — see `README.md` and `THEORY.md` §the-problem.

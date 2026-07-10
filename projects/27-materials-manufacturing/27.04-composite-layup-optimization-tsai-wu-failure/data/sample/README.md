@@ -16,7 +16,8 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `laminate_scenario.csv` (~1.6 KiB) — the lamina material, its Tsai-Wu
+strengths, the envelope grid's half-span, the 4-angle stacking alphabet, and the two load-case sets
+(`MIXED`, `ALIGNED`) the demo sweeps every candidate layup against. Regenerate with
+`python ../../scripts/make_synthetic.py`; full field-by-field documentation lives in
+[`../README.md`](../README.md).
