@@ -16,7 +16,10 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `obstacle_scenario.csv` (566 bytes, synthetic) — the planning task
+definition: a 10 × 10 m map, a start at (1, 1), a goal at (9, 9), and 3 circular obstacles straddling
+the diagonal (so the straight-line initialization collides and STOMP has real work to do). A planner's
+data *is* its scenario; the obstacle-cost field, the exploration noise, and the rollouts are all
+generated in-demo from this scenario and fixed seeds, and verified against the CPU scoring oracle plus
+the closed-loop collision/cost-reduction verdict. Format and checksum: [`../README.md`](../README.md);
+regenerate byte-identically with `python ../../scripts/make_synthetic.py`.

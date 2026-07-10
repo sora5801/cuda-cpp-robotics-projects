@@ -1,108 +1,121 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 06.05 (STOMP: parallel noisy-rollout trajectory optimization (born for GPU)).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic scenario generator for project 06.05
+(STOMP: parallel noisy-rollout trajectory optimization).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+A planner's "dataset" is a SCENARIO, not recordings: a map, a start, a goal,
+and the obstacles in between. That scenario is this project's committed sample
+-- everything else (the inflated cost field, the exploration noise, the K
+rollouts) is generated inside the demo from the scenario and fixed seeds, and
+correctness comes from the CPU scoring oracle plus the closed-loop collision /
+cost-reduction verdict, not from stored ground truth.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What it writes: ../data/sample/obstacle_scenario.csv
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    MAP,w,h            world size in metres (square map assumed by the demo)
+    START,x,y          fixed start position (m)
+    GOAL,x,y           fixed goal position (m)
+    OBST,cx,cy,r       one circular obstacle: centre (m) + radius (m); repeats
+
+The default scenario places OBST_COUNT circular obstacles ALONG the start->goal
+diagonal (with a small seeded perpendicular jitter and radius variation), so
+that (a) the straight-line initialization the demo starts from drives straight
+through an obstacle -- giving STOMP real work to do -- while (b) there is ample
+free space on either side to route around. Seed 42 makes the jitter/radii
+byte-reproducible; the geometry constants are chosen so the scenario is always
+solvable.
+
+Usage:
+    python make_synthetic.py                       # the committed scenario (seed 42)
+    python make_synthetic.py --obstacles 4 --seed 7   # experiments; do not commit
 """
 
 import argparse
-import csv
+import math
 import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+def build_scenario(obstacles: int, seed: int):
+    """Return (map_w, map_h, start, goal, [ (cx, cy, r), ... ]).
 
-
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
-
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+    Determinism: a single random.Random(seed) drives every draw in a fixed
+    order (Python's Mersenne Twister is specified, so this is cross-platform
+    reproducible). The geometry constants below are chosen so the scenario is
+    always solvable and always non-trivial.
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    rng = random.Random(seed)
 
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 06.05\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+    map_w = map_h = 10.0                 # a 10 x 10 m world
+    start = (1.0, 1.0)
+    goal = (9.0, 9.0)
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    # Unit vector along the start->goal diagonal, and the perpendicular to it.
+    dx, dy = goal[0] - start[0], goal[1] - start[1]
+    length = math.hypot(dx, dy)
+    ux, uy = dx / length, dy / length            # along the diagonal
+    px, py = -uy, ux                             # perpendicular (unit)
+
+    obs = []
+    for i in range(obstacles):
+        # Spread the obstacles across the middle of the diagonal (t in ~[0.3, 0.7]).
+        t = 0.3 + 0.4 * (i + 0.5) / obstacles
+        base_x = start[0] + t * dx
+        base_y = start[1] + t * dy
+        # Small seeded perpendicular jitter (<= 0.4 m). Kept below the radius so
+        # the straight-line diagonal still clips at least the central obstacle.
+        jitter = rng.uniform(-0.4, 0.4)
+        radius = rng.uniform(0.75, 0.95)
+        cx = base_x + jitter * px
+        cy = base_y + jitter * py
+        obs.append((cx, cy, radius))
+
+    return map_w, map_h, start, goal, obs
 
 
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--obstacles", type=int, default=3,
+                    help="number of circular obstacles (default 3)")
+    ap.add_argument("--seed", type=int, default=42,
+                    help="RNG seed for jitter/radii (default 42 = the committed scenario)")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample" / "obstacle_scenario.csv")
+    args = ap.parse_args()
 
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 06.05 (STOMP: parallel noisy-rollout trajectory optimization (born for GPU)).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
+    if args.obstacles < 1:
+        ap.error("--obstacles must be >= 1")
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
+    map_w, map_h, start, goal, obs = build_scenario(args.obstacles, args.seed)
 
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    lines = [
+        "# obstacle_scenario.csv - SYNTHETIC scenario for project 06.05 (STOMP)",
+        "# generated by scripts/make_synthetic.py (seed governs obstacle jitter/radii)",
+        "# MAP,w,h       : world size in metres (square map assumed by the demo)",
+        "# START,x,y     : fixed start position (m)",
+        "# GOAL,x,y      : fixed goal position (m)",
+        "# OBST,cx,cy,r  : one circular obstacle, centre (m) + radius (m)",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+        f"MAP,{map_w:.6g},{map_h:.6g}",
+        f"START,{start[0]:.6g},{start[1]:.6g}",
+        f"GOAL,{goal[0]:.6g},{goal[1]:.6g}",
+    ]
+    for (cx, cy, r) in obs:
+        lines.append(f"OBST,{cx:.6g},{cy:.6g},{r:.6g}")
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:   # LF pinned
+        f.write("\n".join(lines) + "\n")
+
+    print(f"wrote {args.out} ({args.out.stat().st_size} bytes: {len(obs)} obstacles, "
+          f"seed={args.seed}) - labeled SYNTHETIC")
+    if args.obstacles != 3 or args.seed != 42:
+        print("note: non-default scenario - fine for experiments, do NOT commit this file")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

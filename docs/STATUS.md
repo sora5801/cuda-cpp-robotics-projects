@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 8/505 done** (1.6%)
+**Overall: 9/505 done** (1.8%)
 
 | Status | Count |
 |--------|-------|
-| todo | 497 |
+| todo | 496 |
 | in-progress | 0 |
-| done | 8 |
+| done | 9 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -35,7 +35,7 @@
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 0/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
-| 06 Motion Planning | 0/20 |
+| 06 Motion Planning | 1/20 |
 | 07 Collision Detection & Geometry | 1/13 |
 | 08 Control Systems | 1/16 |
 | 09 Robot Dynamics & Kinematics | 1/14 |
@@ -180,7 +180,7 @@
 | 05.17 | Language-embedded maps: CLIP feature fusion into 3D for "find the mug" queries | [R&D] research |  | todo |  |  |
 | 05.18 | Map streaming/compression for robot fleets | intermediate |  | todo |  |  |
 
-## 6. Motion Planning (`06-motion-planning`) — 0/20 done
+## 6. Motion Planning (`06-motion-planning`) — 1/20 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -188,7 +188,7 @@
 | 06.02 | PRM construction with GPU KNN + parallel edge checks | intermediate |  | todo |  |  |
 | 06.03 | GPU grid search: parallel-wavefront A*/Dijkstra, D* Lite replanning | intermediate |  | todo |  |  |
 | 06.04 | Hybrid A* for car-like robots with GPU Dubins/Reeds-Shepp + swept collision | intermediate |  | todo |  |  |
-| 06.05 | STOMP: parallel noisy-rollout trajectory optimization (born for GPU) | ★ beginner | ⭐ | todo |  |  |
+| 06.05 | STOMP: parallel noisy-rollout trajectory optimization (born for GPU) | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); converged iter 16 |
 | 06.06 | CHOMP with GPU ESDF gradients | intermediate |  | todo |  |  |
 | 06.07 | cuRobo-style arm planner: massively parallel seeded IK + trajectory opt + collision | intermediate |  | todo |  |  |
 | 06.08 | MPPI planner for mobile robots (also see Control) | ★ beginner |  | todo |  |  |

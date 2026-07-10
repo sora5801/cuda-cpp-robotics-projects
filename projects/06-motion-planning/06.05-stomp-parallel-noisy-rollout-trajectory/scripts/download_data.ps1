@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 06.05 (STOMP: parallel noisy-rollout trajectory optimization (born for GPU))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 06.05 DECISION: no public dataset applies — a planner's input is a SCENARIO
+# (a map, a start, a goal, and obstacles), not recordings; the cost field,
+# exploration noise, and rollouts are all generated in-demo from the committed
+# scenario and fixed seeds, and correctness comes from the CPU scoring oracle
+# plus the closed-loop collision/cost-reduction verdict. This script stays the
+# honest no-op below; ../scripts/make_synthetic.py writes the scenario (see
+# ../data/README.md). Per CLAUDE.md paragraph 8 this project is synthetic-first.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

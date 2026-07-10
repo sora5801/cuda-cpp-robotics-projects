@@ -1,8 +1,14 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 06.05.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 06.05 (stomp-parallel-noisy-rollout-trajectory)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (device, verify deviation, cost/convergence numbers) and
+# "[time]" lines vary by machine and are deliberately unchecked; the verdict thresholds behind
+# RESULT carry wide margins so it stays stable even where noise-stream low bits differ across
+# platforms (see the determinism note at the top of ../src/main.cu). Change the program's stable
+# lines and this file together.
+[demo] STOMP planner: 2-D trajectory optimization through an obstacle field (project 06.05)
+PROBLEM: STOMP, K=1024 noisy rollouts x N=64 waypoints (2-D), 100 iters max, obstacle+smoothness cost, FP32
+SCENARIO: start (1.0, 1.0) m -> goal (9.0, 9.0) m through 3 circular obstacles on a 10x10 m map [synthetic]
+VERIFY: PASS (GPU rollout costs match CPU reference within rel tol 1e-3)
+ARTIFACT: wrote demo/out/trajectory.csv (66 points) and demo/out/costfield.pgm (256x256)
+RESULT: PASS (final trajectory collision-free with margin; total cost reduced vs straight-line init)
