@@ -1,108 +1,114 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 15.01 (Minimum-snap trajectory optimization batched over waypoint sets).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample generator for project 15.01
+(Minimum-snap trajectory optimization batched over waypoint sets).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+This project's *committed* sample is a small set of HAND-DESIGNED, NAMED
+5-waypoint sequences (a straight line, an L-turn, a slalom, an S-curve, and
+a loop) — not recordings, and not (for these five) the output of a random
+process either: a waypoint set for this demo is a small list of (x, y)
+points, and hand-picking a few that exercise different path shapes teaches
+more than random points would. The DEFAULT --seed flag is kept for
+consistency with every other generator script in this repository (and
+because scripts/../src/main.cu uses the SAME xorshift32 generator, seeded
+independently, to fill the remaining ~9,995 sets of the demo's 10,000-set
+batch at *run time*, in memory, never touching a file) — but it has NO
+EFFECT on the five fixed sets this script writes; that is stated plainly
+below and in ../data/README.md so nobody is misled about what the seed
+does here.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What it writes: ../data/sample/waypoint_sets.csv
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    SET,<name>              opens a new waypoint set
+    WP,<x_m>,<y_m>          exactly 5 of these follow (kNumWaypoints in
+                             ../src/kernels.cuh — keep the two in sync)
+
+'slalom' MUST be present in the committed file: main.cu requires it (it is
+the waypoint set the demo dense-samples into the trajectory/PGM artifact)
+and aborts loudly if it is missing.
+
+Usage:
+    python make_synthetic.py                 # the committed file (5 sets)
+    python make_synthetic.py --seed 7         # same 5 sets — seed is unused
+                                               # here; see the docstring above
 """
 
 import argparse
-import csv
-import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
+# The five hand-designed sets. Each is exactly 5 (x, y) waypoints, meters,
+# world frame (x-forward, y-left — SYSTEM_DESIGN.md §3.2). Chosen to
+# exercise different path shapes:
+#   straight_line — near-zero curvature; a useful "is the solver sane on
+#                   the simplest possible input" sanity case.
+#   right_angle   — a single sharp direction change at the middle waypoint.
+#   slalom        — REQUIRED (used for the demo's dense-sampled artifact):
+#                   a zig-zag that makes the pumped, curving flight this
+#                   project is about visually obvious when plotted.
+#   s_curve       — a smooth reversing curve (opposite of right_angle's
+#                   sharp corner).
+#   big_loop      — returns near its own start; the four segments together
+#                   trace a closed-ish quadrilateral.
+WAYPOINT_SETS = [
+    ("straight_line", [(0.0, 0.0), (1.0, 0.0), (2.0, 0.0), (3.0, 0.0), (4.0, 0.0)]),
+    ("right_angle",   [(0.0, 0.0), (1.0, 0.0), (2.0, 0.0), (2.0, 1.0), (2.0, 2.0)]),
+    ("slalom",        [(0.0, 0.0), (1.0, 1.5), (2.0, -1.5), (3.0, 1.5), (4.0, 0.0)]),
+    ("s_curve",       [(0.0, 0.0), (1.0, 1.0), (2.0, 0.0), (3.0, -1.0), (4.0, 0.0)]),
+    ("big_loop",      [(0.0, 0.0), (2.0, 1.0), (4.0, 0.0), (2.0, -1.0), (0.0, 0.0)]),
+]
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
 
+def write_waypoint_sets(out_path: Path) -> int:
+    """Write WAYPOINT_SETS to out_path in the SET/WP CSV format main.cu's
+    strict loader expects (see the docstring above and ../src/main.cu's
+    load_sample_sets). Returns the byte count written.
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
-
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+    LF line endings are pinned explicitly (newline="\n") so the committed
+    file is byte-identical across Windows/Linux checkouts — the same
+    discipline 08.01's make_synthetic.py uses for its scenario file.
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
+    lines = [
+        "# waypoint_sets.csv - SYNTHETIC, HAND-DESIGNED committed waypoint sets for project 15.01",
+        "# generated by scripts/make_synthetic.py (fixed constants; --seed has no effect on these 5 sets)",
+        "# format: repeated blocks of",
+        "#   SET,<name>          opens a new waypoint set",
+        "#   WP,<x_m>,<y_m>      exactly 5 of these follow, in flight order",
+        "# units: meters, world frame (x-forward, y-left per docs/SYSTEM_DESIGN.md #3.2)",
+        "# 'slalom' MUST be present - main.cu uses it for the trajectory/PGM artifact",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+    ]
+    for name, points in WAYPOINT_SETS:
+        lines.append(f"SET,{name}")
+        for (x, y) in points:
+            lines.append(f"WP,{x:.6g},{y:.6g}")
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 15.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:   # LF pinned
+        f.write("\n".join(lines) + "\n")
+    return out_path.stat().st_size
 
 
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--seed", type=int, default=42,
+                    help="present for consistency with the repo's generator scripts; "
+                         "UNUSED here (the 5 committed sets are fixed hand-designed "
+                         "constants, not drawn from this seed) — see the docstring")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample" / "waypoint_sets.csv")
+    args = ap.parse_args()
 
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 15.01 (Minimum-snap trajectory optimization batched over waypoint sets).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
-
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    size = write_waypoint_sets(args.out)
+    names = ", ".join(name for name, _ in WAYPOINT_SETS)
+    print(f"wrote {args.out} ({size} bytes: {len(WAYPOINT_SETS)} hand-designed sets: {names}) "
+          f"- labeled SYNTHETIC")
+    print(f"note: --seed {args.seed} was accepted but has NO EFFECT on these fixed sets "
+          f"(see the script docstring)")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

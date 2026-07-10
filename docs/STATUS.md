@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 9/505 done** (1.8%)
+**Overall: 10/505 done** (2.0%)
 
 | Status | Count |
 |--------|-------|
-| todo | 496 |
+| todo | 495 |
 | in-progress | 0 |
-| done | 9 |
+| done | 10 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -44,7 +44,7 @@
 | 12 Machine Learning & AI for Robots | 0/25 |
 | 13 Locomotion — Legged | 0/13 |
 | 14 Locomotion — Wheeled & Tracked | 0/10 |
-| 15 Locomotion — Aerial | 0/16 |
+| 15 Locomotion — Aerial | 1/16 |
 | 16 Locomotion — Marine & Underwater | 0/11 |
 | 17 Locomotion — Space | 0/13 |
 | 18 Locomotion — Everything Else | 0/10 |
@@ -367,11 +367,11 @@
 | 14.09 | Controlled drifting via sampling MPC | [R&D] research |  | todo |  |  |
 | 14.10 | Suspension co-simulation for rough terrain | intermediate |  | todo |  |  |
 
-## 15. Locomotion — Aerial (`15-locomotion-aerial`) — 0/16 done
+## 15. Locomotion — Aerial (`15-locomotion-aerial`) — 1/16 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 15.01 | Minimum-snap trajectory optimization batched over waypoint sets | ★ beginner | ⭐ | todo |  |  |
+| 15.01 | Minimum-snap trajectory optimization batched over waypoint sets | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); constraint residuals verified for all 10k sets |
 | 15.02 | Time-optimal quadrotor trajectories via GPU multiple shooting | [R&D] research |  | todo |  |  |
 | 15.03 | MPPI/NMPC quadrotor control with onboard Jetson | intermediate |  | todo |  |  |
 | 15.04 | Drone racing: fused gate-detection + state-estimation pipeline | intermediate |  | todo |  |  |

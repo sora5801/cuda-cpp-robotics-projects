@@ -75,4 +75,8 @@ target_compile_options(minimum-snap-trajectory-optimization-batched PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(minimum-snap-trajectory-optimization-batched PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 15.01 note: the source list above is complete for this project and no
+# extra libraries are linked — the batched 32x32 Gaussian elimination is
+# hand-rolled by design (see THEORY.md's GPU-mapping section for why a
+# cuSOLVER batched solve is the production comparison, not the teaching
+# implementation here).

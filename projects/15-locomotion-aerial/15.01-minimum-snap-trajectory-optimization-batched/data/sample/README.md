@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `waypoint_sets.csv` (820 bytes, synthetic, hand-designed) — five named
+5-waypoint sequences (`straight_line`, `right_angle`, `slalom`, `s_curve`, `big_loop`), the front of
+every batch the demo runs. `slalom` is required: the demo dense-samples that exact set into
+`demo/out/trajectory.csv` and `demo/out/slalom_path.pgm`. Format, per-set rationale, and checksum:
+[`../README.md`](../README.md); regenerate byte-identically with
+`python ../../scripts/make_synthetic.py`.

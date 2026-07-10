@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 15.01 (Minimum-snap trajectory optimization batched over waypoint sets)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 15.01 DECISION: no public dataset applies — a minimum-snap batch's input
+# is 10,000 (x,y) waypoint sets, not recordings. The five hand-designed
+# sample sets are committed constants (scripts/make_synthetic.py); the
+# other ~9,995 sets of the demo's default batch are generated IN-DEMO from
+# a documented fixed seed (src/main.cu's generate_random_waypoint_set) and
+# verified against the CPU oracle plus the constraint-residual check. This
+# script stays the honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
