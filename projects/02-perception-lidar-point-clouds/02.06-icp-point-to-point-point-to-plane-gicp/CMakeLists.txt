@@ -70,9 +70,11 @@ target_compile_options(icp-point-to-point-point-to-plane-gicp PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(icp-point-to-point-point-to-plane-gicp PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). This project links NOTHING beyond the CUDA
+# runtime + C++17 standard library (CLAUDE.md paragraph 5's default budget):
+# the 6x6 Cholesky solve, the Jacobi eigensolve, and the brute-force nearest-
+# neighbor search are all hand-rolled teaching code (see src/kernels.cu and
+# src/main.cu) rather than cuSOLVER/cuBLAS calls — deliberately, so the
+# whole pipeline stays inspectable end to end (CLAUDE.md paragraph 1: no
+# black boxes). README.md "Prior art" names where cuSOLVER/PCL/Open3D would
+# take over in a production stack.

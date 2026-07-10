@@ -12,23 +12,41 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The full ICP teaching pipeline, end to end, on two committed synthetic pairs (`data/sample/`): brute-
+force GPU nearest-neighbor correspondence search, PCA/Jacobi surface-normal estimation, and a two-stage
+GPU reduction that builds a 6x6 Gauss-Newton normal system every iteration — run in **both** the
+point-to-point and point-to-plane variants, on both pairs (four closed-loop registrations total). The
+demo verifies its own GPU kernels against a CPU oracle (`VERIFY:` lines), then checks every run's
+recovered pose against the COMMITTED GROUND TRUTH (`CHECK:` lines), and — the project's central taught
+result — checks that point-to-plane needed measurably FEWER iterations than point-to-point to converge
+on the wall-dominated main pair.
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+Two artifacts land in `demo/out/` (git-ignored; regenerated every run):
+
+- **`aligned.csv`** — pair 0's point-to-plane result: the source cloud after applying the recovered
+  transform, subsampled to ~1500 points, alongside an equally-subsampled copy of the target cloud, both
+  labeled by a `cloud` column (`aligned` / `target`). Plot both as 3D scatter, colored by `cloud` — a
+  correct registration shows them coincide on the floor, the two walls, and the box.
+- **`convergence.csv`** — pair 0's per-iteration RMS correspondence error and valid-match count, for
+  BOTH variants (`mode` column). Plot `rms_m` vs `iter`, one line per mode: point-to-plane should reach
+  its floor in a handful of iterations; point-to-point takes visibly longer to get there (README
+  Exercise 1 asks you to explain the shape from THEORY.md's "sliding along the plane" argument).
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, timings, and measured errors/iteration-counts — varies by machine/run. | No. |
+| `PROBLEM:`  | The exact problem instance (iteration cap, correspondence gate, damping). | Yes — stable. |
+| `SCENARIO:` | Each pair's point counts and ground-truth translation magnitude (from the committed data — deterministic, not machine-dependent). | Yes — stable. |
+| `VERIFY:`   | GPU-vs-CPU agreement for correspondences and both normal-system variants (tolerances only — measured deviations are in the preceding `[info]` line). | Yes — stable. |
+| `CHECK:`    | Ground-truth pose-error gate (both pairs, both variants) plus the point-to-plane-converges-faster claim — thresholds only, no measured numbers. | Yes — stable. |
+| `ARTIFACT:` | Confirms `aligned.csv` / `convergence.csv` were written. | Yes — stable. |
+| `RESULT:`   | Final `PASS`/`FAIL` verdict. The program exits nonzero on `FAIL`. | Yes — stable. |
+
+Every `[info]` line quoted above carries the actual MEASURED numbers (iteration counts, rotation/
+translation error, RMS, GPU timings) — read those to see how far under threshold the real runs land.
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines

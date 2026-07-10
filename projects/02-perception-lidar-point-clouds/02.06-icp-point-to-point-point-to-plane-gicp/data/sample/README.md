@@ -16,7 +16,15 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+## What is here
+
+Five files: two point-cloud pairs (`pair0_*.bin`, `pair1_*.bin` — source + target each) plus
+`pairs_meta.csv` carrying each pair's ground-truth transform. `main.cu` loads all five at startup; the
+demo performs zero downloads and zero synthesis at run time. Full provenance, the byte-exact binary
+format, checksums, and per-field documentation live in [`../README.md`](../README.md).
+
+Regenerate (byte-identical, verify against the checksums in `../README.md`):
+
+```powershell
+python ../../scripts/make_synthetic.py --seed 42
+```

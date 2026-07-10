@@ -1,0 +1,6 @@
+# SYNTHETIC ground-truth metadata for project 02.06 ICP demo pairs.
+# regenerate: python make_synthetic.py --seed 42
+# columns: PAIR,name,source_file,target_file,n_source,n_target,qw,qx,qy,qz,tx_m,ty_m,tz_m,noise_sigma_m
+# q is the unit quaternion (w,x,y,z) and t the translation (m) of T_target_source: apply it to the SOURCE cloud to land it in the TARGET frame.
+PAIR,pair0,pair0_source.bin,pair0_target.bin,30000,30000,0.9981347984,0.0000000000,0.0000000000,0.0610485395,0.2500000000,-0.1800000000,0.0600000000,0.0050000000
+PAIR,pair1,pair1_source.bin,pair1_target.bin,5000,5000,0.9969173337,0.0153136474,0.0076568237,0.0765682372,-0.2000000000,0.3200000000,-0.0500000000,0.0050000000

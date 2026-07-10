@@ -1,8 +1,20 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected output — project 02.06 (ICP: point-to-point -> point-to-plane -> GICP, all batched).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.06 (icp-point-to-point-point-to-plane-gicp)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check — the
+# program also prints "[info]"/"[time]" lines with machine- and run-dependent numbers that are
+# deliberately NOT checked here; see src/main.cu's "Output contract" header comment).
+[demo] ICP point-to-point / point-to-plane registration (GICP documented) — project 02.06
+PROBLEM: brute-force GPU correspondence search + linearized Gauss-Newton ICP, max_iters=60, corr_gate=2.0 m, damping=1e-03, FP32 kernels / FP64 host reduction
+SCENARIO: pair0: N_source=30000 N_target=30000 synthetic room (floor+2 walls+box), ground-truth |t|=0.314 m [synthetic]
+SCENARIO: pair1: N_source=5000 N_target=5000 synthetic room (floor+2 walls+box), ground-truth |t|=0.381 m [synthetic]
+VERIFY: PASS (correspondence indices match CPU reference exactly; dist2 within rel tol 1e-04)
+VERIFY: PASS (point-to-point normal system matches CPU reference within rel tol 1e-03)
+VERIFY: PASS (point-to-plane normal system matches CPU reference within rel tol 1e-03)
+CHECK: PASS (pair0 point-to-point: rot_err < 1.00 deg AND trans_err < 0.050 m)
+CHECK: PASS (pair0 point-to-plane: rot_err < 1.00 deg AND trans_err < 0.050 m)
+CHECK: PASS (pair1 point-to-point: rot_err < 1.00 deg AND trans_err < 0.050 m)
+CHECK: PASS (pair1 point-to-plane: rot_err < 1.00 deg AND trans_err < 0.050 m)
+CHECK: PASS (point-to-plane converges in fewer iterations than point-to-point on pair0, the wall-dominated scene)
+ARTIFACT: wrote demo/out/aligned.csv (pair0, point-to-plane result)
+ARTIFACT: wrote demo/out/convergence.csv (pair0, both variants)
+RESULT: PASS (verify passed; all 4 runs met the pose-error gate; point-to-plane converged faster than point-to-point on pair0)

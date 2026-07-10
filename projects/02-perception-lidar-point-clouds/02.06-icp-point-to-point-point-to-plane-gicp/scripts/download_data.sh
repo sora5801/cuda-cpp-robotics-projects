@@ -3,10 +3,18 @@
 # download_data.sh — public-dataset fetcher for 02.06 (ICP: point-to-point → point-to-plane → GICP, all batched)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (CLAUDE.md paragraph 8): this project stays synthetic-only. ICP
+# needs a KNOWN ground-truth transform to be verifiable at all, and public
+# LiDAR datasets (KITTI, nuScenes, ...) do not ship exact scan-to-scan
+# ground truth of the precision this project's pose-error gate checks —
+# and both carry non-commercial/no-redistribution licenses that would
+# forbid committing even a tiny derived sample here (CLAUDE.md paragraph 8
+# names exactly this KITTI/nuScenes case). A learner who wants to try real
+# LiDAR scans should point 02.08 (deskewing) or 05.09 (LIO) at KITTI's
+# official download portal directly — this project's synthetic room (see
+# ../data/README.md) is deliberately the more teachable input for THIS
+# lesson (a controllable ground truth beats an uncontrollable real one).
+# This script therefore remains an honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

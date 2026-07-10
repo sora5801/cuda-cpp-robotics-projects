@@ -19,19 +19,19 @@
 
 ## Summary
 
-**Overall: 13/505 done** (2.6%)
+**Overall: 14/505 done** (2.8%)
 
 | Status | Count |
 |--------|-------|
-| todo | 492 |
+| todo | 491 |
 | in-progress | 0 |
-| done | 13 |
+| done | 14 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
 | 01 Perception — Cameras & Vision | 1/24 |
-| 02 Perception — LiDAR & Point Clouds | 0/20 |
+| 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 0/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
@@ -96,7 +96,7 @@
 | 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | todo |  |  |
 | 01.24 | Transparent/reflective object detection via polarization imaging | intermediate |  | todo |  |  |
 
-## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 0/20 done
+## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 1/20 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -105,7 +105,7 @@
 | 02.03 | Ground segmentation: RANSAC plane fit; Patchwork++-style GPU port | ★ beginner |  | todo |  |  |
 | 02.04 | Euclidean clustering via GPU union-find / connected components | intermediate |  | todo |  |  |
 | 02.05 | KD-tree or LBVH construction + KNN/radius search on GPU | intermediate |  | todo |  |  |
-| 02.06 | ICP: point-to-point → point-to-plane → GICP, all batched | ★ beginner | ⭐ | todo |  |  |
+| 02.06 | ICP: point-to-point → point-to-plane → GICP, all batched | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); pt-to-plane 6 vs 48 iters; GICP documented milestone |
 | 02.07 | NDT scan matching (Autoware-style map localizer) | intermediate |  | todo |  |  |
 | 02.08 | Per-point motion deskew with pose interpolation | intermediate |  | todo |  |  |
 | 02.09 | Normal + curvature estimation at millions of points/sec | intermediate |  | todo |  |  |
