@@ -1,108 +1,90 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 20.01 (GelSight/DIGIT processing: contact patch, shear field via optical flow, slip detection in real time).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample generator for project 20.01
+(GelSight/DIGIT processing: contact patch, shear field via optical flow,
+slip detection in real time).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+A tactile sensor's "dataset" here is a SCENARIO, not recordings — exactly
+08.01's precedent for a controller's task definition. Every one of the
+demo's 100 frames is RENDERED IN-CODE, deterministically, by ../src/main.cu
+(render_frame()) from two things: this tiny committed scenario file, and the
+fixed physical model (image size, marker grid, Hertzian contact physics,
+Cattaneo-Mindlin stick/slip law, phase lengths) that lives ONCE in
+../src/kernels.cuh so the renderer and every ground-truth gate agree on the
+same numbers. Nothing about the SCENE needs a downloaded or hand-labeled
+dataset: the contact footprint, the marker displacement field, and the
+slip-onset frame are all exact, closed-form consequences of the physics
+model, so ground truth is free and perfect by construction (no laser scan,
+no hand annotation, no sensor calibration rig required) — the same synthetic
+advantage 08.01/01.02 lean on.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What it writes: ../data/sample/tactile_scenario.csv
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    INDENTER,sphere|edge   which indenter shape presses into the gel (the
+                           catalog bullet's "a sphere and later an edge" —
+                           see ../src/main.cu's contact_distance_px()); the
+                           COMMITTED scenario uses sphere (the demo's
+                           ground-truth gates are calibrated for it — see
+                           README "Limitations & honesty" for the edge mode's
+                           documented, reduced scope).
+    SEED,n                 the RNG seed for the gel's FIXED micro-texture
+                           noise (deterministic hash, not per-frame — see
+                           kernels.cuh; the same seed reproduces the same
+                           bytes on any machine).
+
+Usage:
+    python make_synthetic.py                       # the committed scenario
+    python make_synthetic.py --indenter edge        # experiment; do NOT commit
+    python make_synthetic.py --seed 7               # experiment; do NOT commit
 """
 
 import argparse
-import csv
-import random
+import sys
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
+DEFAULT_INDENTER = "sphere"
 DEFAULT_SEED = 42
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
 
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--indenter", choices=["sphere", "edge"], default=DEFAULT_INDENTER,
+                    help=f"indenter shape (default {DEFAULT_INDENTER}; the committed sample's "
+                         "ground-truth gates are calibrated for sphere only)")
+    ap.add_argument("--seed", type=int, default=DEFAULT_SEED,
+                    help=f"gel micro-texture noise seed (default {DEFAULT_SEED})")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample" / "tactile_scenario.csv")
+    args = ap.parse_args()
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+    if args.seed < 0:
+        ap.error("--seed must be >= 0 (main.cu reads it as an unsigned integer)")
 
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
+    lines = [
+        "# tactile_scenario.csv - SYNTHETIC scenario for project 20.01",
+        "# generated by scripts/make_synthetic.py (deterministic hash noise - no RNG state)",
+        "# INDENTER,sphere|edge : which indenter shape presses into the gel this run",
+        "# SEED,n               : fixed-texture noise seed (see ../src/kernels.cuh, ../src/main.cu)",
+        "# every OTHER number (image size, marker grid, contact physics, phase lengths) is",
+        "# single-sourced in ../src/kernels.cuh - this file only selects the two knobs above.",
+        "# license: same as the repository (MIT) - fully synthetic, no external source",
+        f"INDENTER,{args.indenter}",
+        f"SEED,{args.seed}",
+    ]
 
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
-    """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:   # LF pinned
+        f.write("\n".join(lines) + "\n")
 
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 20.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
-
-
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
-
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 20.01 (GelSight/DIGIT processing: contact patch, shear field via optical flow, slip detection in real time).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
-
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    print(f"wrote {args.out} ({args.out.stat().st_size} bytes: indenter={args.indenter}, "
+          f"seed={args.seed}) - labeled SYNTHETIC")
+    if args.indenter != DEFAULT_INDENTER or args.seed != DEFAULT_SEED:
+        print("note: non-default scenario - fine for experiments, do NOT commit this file "
+              "(the committed demo/expected_output.txt gates assume the default sphere scenario)")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

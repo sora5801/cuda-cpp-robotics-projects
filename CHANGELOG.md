@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — flagship 20.01 GelSight tactile processing done (24/505) — batch 1e complete; slip onset within 1 frame of the Cattaneo–Mindlin model — [push-note](push-notes/2026-07-10-08-flagship-20-01-gelsight-batch-1e-complete.md)
 - 2026-07-10 — flagship 19.01 antipodal grasp scoring done (23/505); analytic-object gates + 12/12 adversarial rejection — [push-note](push-notes/2026-07-10-07-flagship-19-01-grasp-scoring.md)
 - 2026-07-10 — flagship 18.01 snake serpenoid sweeps done (22/505); anisotropy-necessity measured as a gate (6.3%) — [push-note](push-notes/2026-07-10-06-flagship-18-01-snake-serpenoid.md)
 - 2026-07-10 — flagship 16.01 thruster allocation QP done (21/505); pseudoinverse-clip vs QP demonstrated (7.6% vs 70.5% surge retention) — [push-note](push-notes/2026-07-10-05-flagship-16-01-thruster-allocation.md)

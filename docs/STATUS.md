@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 23/505 done** (4.6%)
+**Overall: 24/505 done** (4.8%)
 
 | Status | Count |
 |--------|-------|
-| todo | 482 |
+| todo | 481 |
 | in-progress | 0 |
-| done | 23 |
+| done | 24 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -49,7 +49,7 @@
 | 17 Locomotion — Space | 1/13 |
 | 18 Locomotion — Everything Else | 1/10 |
 | 19 Manipulation & Grasping | 1/16 |
-| 20 Tactile & Force Sensing | 0/7 |
+| 20 Tactile & Force Sensing | 1/7 |
 | 21 Human-Robot Interaction & Teleoperation | 0/12 |
 | 22 Multi-Robot Systems & Swarms | 1/12 |
 | 23 Navigation Stack (Mobile Robots) | 1/11 |
@@ -458,11 +458,11 @@
 | 19.15 | Fixture/jig auto-design through parallel stability evaluation | intermediate |  | todo |  |  |
 | 19.16 | Visual servoing for insertion at camera frame rate | intermediate |  | todo |  |  |
 
-## 20. Tactile & Force Sensing (`20-tactile-force-sensing`) — 0/7 done
+## 20. Tactile & Force Sensing (`20-tactile-force-sensing`) — 1/7 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 20.01 | GelSight/DIGIT processing: contact patch, shear field via optical flow, slip detection in real time | ★ beginner | ⭐ | todo |  |  |
+| 20.01 | GelSight/DIGIT processing: contact patch, shear field via optical flow, slip detection in real time | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); slip onset\|err\|=1 frame; bit-exact pipeline |
 | 20.02 | E-skin taxel arrays: contact clustering + force reconstruction (inverse FEM) | [R&D] research |  | todo |  |  |
 | 20.03 | Tactile SLAM: object shape from touch sequences | [R&D] research |  | todo |  |  |
 | 20.04 | Learned slip prediction fused into the grasp control loop | intermediate |  | todo |  |  |

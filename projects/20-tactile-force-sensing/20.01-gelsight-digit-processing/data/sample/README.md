@@ -16,7 +16,8 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `tactile_scenario.csv` (581 bytes) — a task definition (indenter shape +
+texture-noise seed), not recorded images. Every one of the demo's 100 frames is rendered in-code,
+deterministically, by `../../src/main.cu`'s `render_frame()` from this file plus the fixed physical
+model in `../../src/kernels.cuh` — see `../README.md` for why a scenario, not committed images, is the
+right shape for this project's data (the same call 08.01's cart-pole scenario makes).

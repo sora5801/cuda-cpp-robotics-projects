@@ -1,10 +1,17 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 20.01 (GelSight/DIGIT processing: contact patch, shear field via optical flow, slip detection in real time)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (see ../data/README.md "Why a scenario file, not committed images"):
+# this project's "dataset" is a SCENARIO (indenter shape + texture-noise
+# seed), not recordings — every frame is rendered in-code from it plus the
+# fixed physical model in ../src/kernels.cuh, exactly 08.01's precedent for
+# a controller's task definition. No public tactile-sensor dataset (e.g. the
+# GelSight/DIGIT project's own released logs) is fetched here: this project
+# is about the PIPELINE (contact/shear/slip from images), which needs known
+# ground truth to grade against, and only a synthesized scene gives that
+# exactly and license-free (real logs have no dense ground-truth contact
+# footprint or slip-onset frame to check against). This script is therefore
+# an honest, permanent no-op, not a stub awaiting an implementation.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

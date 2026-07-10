@@ -49,9 +49,14 @@
 //    recorded before the stop event has finished. Callers rely on this
 //    (main.cu copies results back immediately after timing).
 //  * Events are recorded into the default stream (0), matching the simple
-//    single-stream structure of the demos. Multi-stream projects should
-//    record into their own streams — TODO(scaffold): adapt if this project
-//    uses streams.
+//    single-stream structure of the demos. This project's five kernels per
+//    frame (contact mask, erosion, dilation, patch stats, marker detect/
+//    track) all run sequentially in the default stream — every kernel in a
+//    frame depends on the previous one's output (erosion needs the mask,
+//    track_markers needs the mask AND detect_markers), so there is no
+//    independent work to overlap across streams here; multi-stream overlap
+//    is the right next step only for pipelines with genuinely independent
+//    kernels (e.g. processing two sensors' frames concurrently).
 //  * Resolution is roughly half a microsecond — plenty for kernel timing.
 //  * RAII: the constructor creates the two events, the destructor destroys
 //    them, so a GpuTimer cannot leak events even on early returns.

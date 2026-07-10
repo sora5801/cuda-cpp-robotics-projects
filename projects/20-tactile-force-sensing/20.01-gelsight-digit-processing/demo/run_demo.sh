@@ -7,11 +7,13 @@
 # Visual Studio solution + run_demo.ps1 is the required, verified deliverable.
 # Requires: cmake >= 3.24, a CUDA 13.x toolkit, and a host C++ compiler.
 #
+# 20.01: the real implementation is in; this script is unchanged from the
+# template. expected_output.txt carries the real stable lines — the output
+# contract lives at the top of ../src/main.cu; change the two together.
+#
 # Same diffing contract as run_demo.ps1: '#'-prefixed and blank lines in
 # expected_output.txt are ignored; every remaining line must appear verbatim
 # in the program's output (subset check - timing/info lines are not checked).
-# TODO(scaffold): keep expected_output.txt in sync with the real project's
-# stable output lines (see the "output contract" comment in ../src/main.cu).
 # ===========================================================================
 set -euo pipefail
 

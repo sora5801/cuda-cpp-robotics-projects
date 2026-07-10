@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 20.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 20.01 (gelsight-digit-processing)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (GPU name, scenario file path) and "[time]" (kernel timings)
+# vary by machine and are deliberately unchecked. Every number on the lines below comes from this
+# project's DETERMINISTIC synthetic scenario (fixed seed, no RNG state beyond the fixed hash — see
+# kernels.cuh/main.cu), so it is reproducible on any CUDA-capable machine that can run the demo.
+# Change the program's stable lines and this file together.
+[demo] GelSight/DIGIT tactile processing: contact patch, shear field, slip detection (project 20.01)
+PROBLEM: synthetic gel-sensor sequence 320x240, 100 frames (6 baseline + 24 press + 30 shear + 40 slip), 221 markers
+SCENARIO: [synthetic, seed 42] indenter=sphere, R=5.0mm, depth_max=1.20mm (contact radius ~49.0px), commanded shear 5.0px, Cattaneo-Mindlin partial slip
+VERIFY: PASS (GPU matches CPU reference EXACTLY on every frame: contact mask+morphology, patch stats, marker detect+track)
+CONTACT: patch area mean rel err 1.3% (max 1.3%) vs Hertzian footprint, centroid max err 0.13px, over 8 press-hold frames
+SHEAR: mean tracked displacement max err 0.00px vs commanded 5.0px, over 12 shear-hold frames
+SLIP: detected onset at frame 85 (modeled 86, |err|=1, tol +/-2); false slip during stick phase (frames 0-59): no
+ARTIFACT: wrote demo/out/contact_mask.pgm, demo/out/shear_field.csv, demo/out/slip_timeline.csv
+RESULT: PASS (contact patch, shear field, and slip-onset ground-truth gates all met)
