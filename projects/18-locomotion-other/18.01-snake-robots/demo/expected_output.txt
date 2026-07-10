@@ -1,8 +1,18 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected stable output for 18.01 (Snake robots: serpenoid gait sweeps, anisotropic friction).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 18.01 (snake-robots)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines
+# belong here — never "[time]"/"[info]" lines, which carry machine-specific numbers (GPU name,
+# kernel timings, the exact best-gait indices/speed) that legitimately vary run to run and
+# machine to machine. Measured on the reference machine (RTX 2080 SUPER, CUDA 13.3, Release|x64).
+[demo] Snake robots: serpenoid gait sweep, anisotropic friction (project 18.01)
+PROBLEM: sweep G=8192 gaits (32 amp x 32 beta x 8 omega), T_sim=8.0 s @ dt=1.0 ms, N_LINKS=12 planar links, FP32
+SCENARIO: link 0.10 m x 12 (1.20 m body), friction mu_t=0.10 mu_n=0.70 (anisotropy 7.0x), gravity 9.81 m/s^2 [synthetic]
+VERIFY: PASS (GPU sweep matches independently-recomputed CPU oracle on 32 spot-checked gaits within 1.0e-03 m)
+GATE_ZERO_AMPLITUDE: PASS (amp=0 gait must produce zero net displacement)
+GATE_ISOTROPIC_FRICTION: PASS (mu_t=mu_n must collapse propulsion well below the anisotropic optimum)
+GATE_TURNING_BIAS: PASS (gamma!=0 must shift final yaw by a measurable amount of the documented sign, relative to the gamma=0 baseline)
+GATE_AMPLITUDE_RIDGE: PASS (speed must peak in the amplitude INTERIOR, clearing both grid boundaries)
+ARTIFACT: wrote demo/out/sweep_surface.csv (1024 rows)
+ARTIFACT: wrote demo/out/sweep_surface.pgm (32x32)
+ARTIFACT: wrote demo/out/best_gait_path.csv (401 rows)
+RESULT: PASS (VERIFY + GATE_ZERO_AMPLITUDE + GATE_ISOTROPIC_FRICTION + GATE_TURNING_BIAS + GATE_AMPLITUDE_RIDGE all passed)

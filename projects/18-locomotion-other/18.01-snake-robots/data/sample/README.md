@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds `snake_scenario.csv` (889 bytes) — the robot geometry, ground friction, and 3-D
+gait-sweep grid `src/main.cu` loads at startup. It was written by
+`python ../../scripts/make_synthetic.py` and is fully reproducible: the generator takes no seed
+(this project's physics has no randomness anywhere) and always produces byte-identical output for the
+same command-line arguments. Full field-by-field documentation, units, and the file's SHA-256 checksum
+live in [`../README.md`](../README.md).

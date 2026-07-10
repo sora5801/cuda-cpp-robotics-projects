@@ -3,10 +3,12 @@
 # download_data.sh — public-dataset fetcher for 18.01 (Snake robots: serpenoid gait sweeps coupled to granular sim)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED (not a placeholder): this project's data is a task definition
+# (robot geometry, ground friction, sweep grid), not a recording — no public
+# dataset applies, and there is nothing more a download could teach here
+# (data/README.md documents this decision). This script is a deliberate,
+# permanent no-op, kept only so every project in the repo has the same
+# scriptable shape (CLAUDE.md paragraph 8).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

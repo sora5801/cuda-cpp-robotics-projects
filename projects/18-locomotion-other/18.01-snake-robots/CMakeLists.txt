@@ -75,4 +75,8 @@ target_compile_options(snake-robots PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(snake-robots PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# RESOLVED: this project links no CUDA library beyond the runtime above — the
+# sweep kernel (src/kernels.cu) is plain arithmetic (sinf/cosf, no batched
+# linear algebra, no FFT, no RNG library), and the sources list above (main.cu,
+# kernels.cu, reference_cpu.cpp) is already this project's real, final source
+# list — nothing further to extend here.

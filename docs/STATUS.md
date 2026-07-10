@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 21/505 done** (4.2%)
+**Overall: 22/505 done** (4.4%)
 
 | Status | Count |
 |--------|-------|
-| todo | 484 |
+| todo | 483 |
 | in-progress | 0 |
-| done | 21 |
+| done | 22 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -47,7 +47,7 @@
 | 15 Locomotion — Aerial | 1/16 |
 | 16 Locomotion — Marine & Underwater | 1/11 |
 | 17 Locomotion — Space | 1/13 |
-| 18 Locomotion — Everything Else | 0/10 |
+| 18 Locomotion — Everything Else | 1/10 |
 | 19 Manipulation & Grasping | 0/16 |
 | 20 Tactile & Force Sensing | 0/7 |
 | 21 Human-Robot Interaction & Teleoperation | 0/12 |
@@ -422,11 +422,11 @@
 | 17.12 | On-orbit assembly contact simulation | [R&D] research |  | todo |  |  |
 | 17.13 | Fault-tolerant GPU compute patterns for radiation environments | [R&D] research |  | todo |  |  |
 
-## 18. Locomotion — Everything Else (`18-locomotion-other`) — 0/10 done
+## 18. Locomotion — Everything Else (`18-locomotion-other`) — 1/10 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 18.01 | Snake robots: serpenoid gait sweeps coupled to granular sim | intermediate | ⭐ | todo |  |  |
+| 18.01 | Snake robots: serpenoid gait sweeps coupled to granular sim | intermediate | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); anisotropy-necessity gate 6.3% |
 | 18.02 | Climbing robots: gecko/electroadhesion contact models ; negative-pressure CFD | [R&D] research |  | todo |  |  |
 | 18.03 | Brachiation swing-trajectory optimization | intermediate |  | todo |  |  |
 | 18.04 | Hopping/parkour maneuver discovery via massive sampling | intermediate |  | todo |  |  |

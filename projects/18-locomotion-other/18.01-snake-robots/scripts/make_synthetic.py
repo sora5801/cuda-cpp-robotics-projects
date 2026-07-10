@@ -1,107 +1,163 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 18.01 (Snake robots: serpenoid gait sweeps coupled to granular sim).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample-data generator for 18.01 (Snake robots: serpenoid gait sweeps).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+This project's "data" is not a recording of anything — it is the TASK
+DEFINITION: the robot's geometry, the ground's anisotropic friction
+coefficients, and the (amplitude, phase offset, temporal frequency) sweep
+grid the demo searches. All of that is a handful of numbers with a known,
+documented meaning, so it is written out as a small, deterministic,
+human-readable CSV rather than "downloaded" or "recorded" from anywhere.
+There is no randomness anywhere in this project's physics (no RNG in
+src/kernels.cuh's snake_step — every simulation is a pure function of its
+gait parameters), so unlike most of this repo's generators, this one takes
+NO --seed: the same command always produces the same bytes, trivially
+(CLAUDE.md paragraph 8: "seed only if noise is used; prefer deterministic
+no-noise").
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What the script writes
+-----------------------
+../data/sample/snake_scenario.csv — one "LABEL,value" row per required
+scenario field (src/main.cu's load_scenario() parses this exact format;
+see ../data/README.md for the full field-by-field documentation). All 17
+fields are REQUIRED by the strict loader — this script always writes every
+one of them, so the default invocation alone produces a complete, valid
+scenario file.
 
 Usage
 -----
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    python make_synthetic.py                     # writes the committed defaults
+    python make_synthetic.py --n-amp 16 --n-beta 16 --n-omega 4   # a smaller/faster sweep
+    python make_synthetic.py --out ../data/sample/snake_scenario.csv
 """
 
 import argparse
-import csv
-import random
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
+# ---------------------------------------------------------------------------
+# Defaults. These MUST match src/kernels.cuh's kDefault* constants — both
+# are "the documented fallback shape of this experiment"; keeping the
+# numbers in lockstep means a reader who studies either file recognizes the
+# same values in the other (CLAUDE.md paragraph 12: single-sourced facts).
+# ---------------------------------------------------------------------------
+DEFAULTS = {
+    # Robot geometry + mass (SI units).
+    "LINK_LEN_M": 0.10,       # per-link length, m -> 12 links = 1.20 m body
+    "LINK_MASS_KG": 0.15,     # per-link mass, kg -> 12 links = 1.80 kg total
+    "GRAVITY": 9.81,          # m/s^2
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+    # Ground friction: the anisotropy ratio (MU_N / MU_T = 7.0) is the ONE
+    # number this whole project is about — THEORY.md derives why mu_t << mu_n
+    # is necessary for a serpenoid wave to produce net forward thrust.
+    "MU_T": 0.10,             # tangential (along-link) Coulomb coefficient — LOW
+    "MU_N": 0.70,             # normal (across-link) Coulomb coefficient — HIGH
+
+    # The 3-D sweep grid: amplitude x phase-offset x temporal-frequency.
+    "N_AMP": 32,
+    "AMP_MIN_R": 0.05,        # rad (~2.9 deg)
+    "AMP_MAX_R": 1.05,        # rad (~60.2 deg)
+    "N_BETA": 32,
+    "BETA_MIN_R": 0.10,       # rad
+    "BETA_MAX_R": 3.00,       # rad
+    "N_OMEGA": 8,
+    "OMEGA_MIN_R": 1.0,       # rad/s -> 6.28 s period
+    "OMEGA_MAX_R": 6.0,       # rad/s -> 1.05 s period
+
+    # Per-gait simulation duration + step, and the turning-bias gate's test offset.
+    "T_SIM_S": 8.0,           # simulated seconds per gait
+    "DT_S": 0.001,            # 1 ms integration step
+    "TURN_GAMMA_R": 0.15,     # rad (~8.6 deg)
+}
+
+# The exact row order the file is written in — cosmetic (the loader accepts
+# any order) but keeps the committed file readable top-to-bottom as "robot,
+# then friction, then the three sweep axes, then simulation settings".
+ROW_ORDER = [
+    "LINK_LEN_M", "LINK_MASS_KG", "GRAVITY", "MU_T", "MU_N",
+    "N_AMP", "AMP_MIN_R", "AMP_MAX_R",
+    "N_BETA", "BETA_MIN_R", "BETA_MAX_R",
+    "N_OMEGA", "OMEGA_MIN_R", "OMEGA_MAX_R",
+    "T_SIM_S", "DT_S", "TURN_GAMMA_R",
+]
+
+INT_FIELDS = {"N_AMP", "N_BETA", "N_OMEGA"}
 
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+def write_scenario(values: dict, out_path: Path) -> None:
+    """Write one scenario CSV. `values` must contain every key in ROW_ORDER.
 
     Parameters
     ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
+    values   : dict of LABEL -> numeric value (int fields written without a
+               decimal point, float fields with fixed precision so the file
+               is byte-stable across regenerations on any platform).
     out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    g = values["N_AMP"] * values["N_BETA"] * values["N_OMEGA"]
+    n_steps = round(values["T_SIM_S"] / values["DT_S"])
 
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
     with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
         f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 18.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+        f.write("# This is a TASK DEFINITION (robot geometry, ground friction, sweep grid), not a\n")
+        f.write("# recording — every field is a documented design choice, not measured from anything.\n")
+        f.write(f"# regenerate: python make_synthetic.py --out {out_path.as_posix()}\n")
+        f.write(f"# derived (not stored): G = N_AMP*N_BETA*N_OMEGA = {g} gaits, "
+                f"n_steps = round(T_SIM_S/DT_S) = {n_steps} steps/gait\n")
+        f.write("# columns: LABEL,value — see ../README.md for units/meaning of every field\n")
+        for label in ROW_ORDER:
+            v = values[label]
+            if label in INT_FIELDS:
+                f.write(f"{label},{int(v)}\n")
+            else:
+                f.write(f"{label},{v:.6f}\n")
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    print(f"[make_synthetic] wrote scenario to {out_path} "
+          f"(G={g} gaits, {n_steps} steps/gait, labeled SYNTHETIC)")
 
 
 def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
     script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+    default_out = script_dir.parent / "data" / "sample" / "snake_scenario.csv"
 
     parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 18.01 (Snake robots: serpenoid gait sweeps coupled to granular sim).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
+        description="Generate the committed scenario (robot geometry, friction, sweep grid) "
+                    "for project 18.01 (Snake robots: serpenoid gait sweeps).")
+    parser.add_argument("--link-len-m", type=float, default=DEFAULTS["LINK_LEN_M"])
+    parser.add_argument("--link-mass-kg", type=float, default=DEFAULTS["LINK_MASS_KG"])
+    parser.add_argument("--gravity", type=float, default=DEFAULTS["GRAVITY"])
+    parser.add_argument("--mu-t", type=float, default=DEFAULTS["MU_T"], help="tangential (low) friction coefficient")
+    parser.add_argument("--mu-n", type=float, default=DEFAULTS["MU_N"], help="normal (high) friction coefficient")
+    parser.add_argument("--n-amp", type=int, default=DEFAULTS["N_AMP"])
+    parser.add_argument("--amp-min-r", type=float, default=DEFAULTS["AMP_MIN_R"])
+    parser.add_argument("--amp-max-r", type=float, default=DEFAULTS["AMP_MAX_R"])
+    parser.add_argument("--n-beta", type=int, default=DEFAULTS["N_BETA"])
+    parser.add_argument("--beta-min-r", type=float, default=DEFAULTS["BETA_MIN_R"])
+    parser.add_argument("--beta-max-r", type=float, default=DEFAULTS["BETA_MAX_R"])
+    parser.add_argument("--n-omega", type=int, default=DEFAULTS["N_OMEGA"])
+    parser.add_argument("--omega-min-r", type=float, default=DEFAULTS["OMEGA_MIN_R"])
+    parser.add_argument("--omega-max-r", type=float, default=DEFAULTS["OMEGA_MAX_R"])
+    parser.add_argument("--t-sim-s", type=float, default=DEFAULTS["T_SIM_S"])
+    parser.add_argument("--dt-s", type=float, default=DEFAULTS["DT_S"])
+    parser.add_argument("--turn-gamma-r", type=float, default=DEFAULTS["TURN_GAMMA_R"])
+    parser.add_argument("--out", type=Path, default=default_out, help="output CSV path")
     args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
+    if args.n_amp < 2 or args.n_beta < 2 or args.n_omega < 1:
+        parser.error("--n-amp and --n-beta must be >= 2, --n-omega must be >= 1")
+    if args.t_sim_s <= 0.0 or args.dt_s <= 0.0:
+        parser.error("--t-sim-s and --dt-s must be > 0")
 
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    values = {
+        "LINK_LEN_M": args.link_len_m, "LINK_MASS_KG": args.link_mass_kg, "GRAVITY": args.gravity,
+        "MU_T": args.mu_t, "MU_N": args.mu_n,
+        "N_AMP": args.n_amp, "AMP_MIN_R": args.amp_min_r, "AMP_MAX_R": args.amp_max_r,
+        "N_BETA": args.n_beta, "BETA_MIN_R": args.beta_min_r, "BETA_MAX_R": args.beta_max_r,
+        "N_OMEGA": args.n_omega, "OMEGA_MIN_R": args.omega_min_r, "OMEGA_MAX_R": args.omega_max_r,
+        "T_SIM_S": args.t_sim_s, "DT_S": args.dt_s, "TURN_GAMMA_R": args.turn_gamma_r,
+    }
+    write_scenario(values, args.out)
 
 
 if __name__ == "__main__":

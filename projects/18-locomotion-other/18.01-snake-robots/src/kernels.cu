@@ -1,131 +1,135 @@
 // ===========================================================================
-// kernels.cu — GPU kernels for project 18.01 (Snake robots: serpenoid gait sweeps coupled to granular sim)
+// kernels.cu — GPU implementation for project 18.01
+//              Snake robots: serpenoid gait sweeps (anisotropic friction)
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real kernels.
-// TODO(scaffold): delete the SAXPY kernel and implement the real ones (one
-// teaching-focused kernel per concept, each commented to the standard shown
-// here and in CLAUDE.md §6.2 / docs/COMMENTING_STANDARD.md).
+// The big idea
+// ------------
+// The GPU content this project teaches is a PARAMETER SWEEP, the same
+// "thread-per-independent-problem" batched-simulation pattern as 08.01's
+// rollouts (one thread = one candidate control sequence) and 10.03's farm
+// (one thread = one environment) — here, one thread = one CANDIDATE GAIT
+// (amplitude, phase offset, temporal frequency). Every thread runs an
+// independent multi-second physics simulation (thousands of internal dt
+// steps) and reduces it to a handful of scalars (speed, straightness, cost
+// of transport). No thread reads another thread's data at any point — by
+// construction, the whole point of a design-space sweep — so this kernel
+// has NO shared memory and NO atomics, exactly like 08.01/10.03's kernels.
 //
-// Role in the project
-// -------------------
-// All __global__ (GPU) code lives here, together with the small host-side
-// launch wrappers that own the grid/block math. Keeping the launch math next
-// to the kernel means the launch-configuration reasoning (the comments the
-// repo standard requires) sits beside the code it configures.
+// What is DIFFERENT from 08.01/10.03's kernels:
+//   * Each thread's "problem" needs a small per-link SCRATCH ARRAY (see
+//     snake_step in kernels.cuh) instead of a handful of scalars — the
+//     first project in this repo's sampling family whose per-thread state
+//     is a little N-link chain, not a point mass. Register footprint is
+//     therefore larger (~kNLinks*6 + (kNLinks-1) floats); occupancy is
+//     correspondingly lower than 08.01's 4-float rollout state, but the
+//     workload (G <= a few thousand gaits) never needed thousands of
+//     threads resident at once to saturate the GPU anyway — see the launch
+//     wrapper's comment.
+//   * The per-thread WORK is much larger (thousands of dt steps, each with
+//     dozens of sinf/cosf calls) — this kernel is COMPUTE-bound on
+//     transcendental throughput (the GPU's Special Function Units), not
+//     memory-bound like SAXPY or bandwidth-bound like a rollout kernel with
+//     a large noise array. THEORY.md §GPU-mapping walks the arithmetic.
 //
-// Big idea of the placeholder kernel
-// ----------------------------------
-// SAXPY is a pure MAP: out[i] depends only on in[i]. The GPU mapping is
-// therefore the simplest one that exists — one thread per element — written
-// here in its robust production form, the GRID-STRIDE LOOP. Learn this
-// pattern well: a large fraction of the kernels in this repository are maps
-// or start from one.
+// ALL the physics lives in kernels.cuh's snake_step()/simulate_gait() as
+// __host__ __device__ inline functions (the 10.03 pattern) — this file is
+// deliberately thin: decode this thread's gait, call simulate_gait, write
+// the result. That thinness is not laziness, it is the point: it guarantees
+// the GPU path and the CPU oracle (reference_cpu.cpp) run the EXACT SAME
+// code, so the §5 VERIFY gate measures floating-point implementation
+// differences (sinf/cosf), not two independently-typed algorithms drifting
+// apart (CLAUDE.md §12).
 //
-// Read this after: main.cu, kernels.cuh.  Read this before: reference_cpu.cpp.
+// Read this after: kernels.cuh (the physics + the state/gait/result
+// contracts). Companion oracle: reference_cpu.cpp.
 // ===========================================================================
 
-#include "kernels.cuh"           // our own interface — keeps decl/def in sync at compile time
-#include "util/cuda_check.cuh"   // CUDA_CHECK_LAST_ERROR for post-launch error surfacing
+#include "kernels.cuh"
+#include "util/cuda_check.cuh"   // CUDA_CHECK / CUDA_CHECK_LAST_ERROR (CLAUDE.md §6.1 rule 7)
 
-// ---------------------------------------------------------------------------
-// saxpy_kernel — one grid-stride pass computing y[i] = a * x[i] + y[i].
+// ===========================================================================
+// sweep_kernel — one thread = one gait.
 //
-// Thread-to-data mapping:
-//   Thread (blockIdx.x, threadIdx.x) starts at global element
-//       i0 = blockIdx.x * blockDim.x + threadIdx.x
-//   and then strides by the TOTAL number of threads in the grid
-//       stride = gridDim.x * blockDim.x
-//   visiting i0, i0+stride, i0+2*stride, ... < n.
+// Thread-to-data mapping: thread g = blockIdx.x*blockDim.x + threadIdx.x
+// owns sweep index g (the SAME flattening decode_gait() inverts everywhere
+// in this project — kernels.cuh, reference_cpu.cpp, main.cu all agree).
 //
-// Why a grid-stride loop instead of the naive "one thread = one element,
-// return if i >= n"?
-//   1) Correct for ANY n, even n larger than the maximum grid size —
-//      the loop just runs more iterations per thread.
-//   2) Lets the CALLER choose the grid size for occupancy reasons instead of
-//      being forced to launch exactly ceil(n/block) blocks.
-//   3) It is the idiom used throughout CUDA's own samples and libraries, so
-//      learning it here pays off everywhere.
-//   The cost: two extra registers and a loop branch — negligible for a
-//   memory-bound kernel.
-//
-// Memory behavior (the whole performance story for SAXPY):
-//   Adjacent threads (threadIdx.x, threadIdx.x+1) read adjacent addresses
-//   x[i], x[i+1] — so each 32-thread warp touches one contiguous 128-byte
-//   span, which the hardware COALESCES into the minimum number of memory
-//   transactions. Coalescing is THE first-order GPU optimization; a strided
-//   or random access pattern here could cost 10-30x. No shared memory is
-//   used because no data is reused between threads — shared memory only pays
-//   when threads share or revisit data (see THEORY.md "The GPU mapping").
-//
-// Parameters:
-//   n   — element count (> 0); unitless placeholder data
-//   a   — the SAXPY scalar (FP32, exactly representable 2.0 in the demo)
-//   x   — [n] device pointer, read-only input. __restrict__ promises the
-//         compiler x and y do not alias, unlocking wider loads/scheduling.
-//   y   — [n] device pointer, read AND written in place (input y, output
-//         a*x+y). In-place is safe because element i never reads element j.
-//
-// Numerical note: the compiler typically fuses a*x[i]+y[i] into one FMA
-// (fused multiply-add, a single rounding step). The CPU reference may round
-// twice (mul, then add). Max divergence ~1 ULP — which is exactly why
-// main.cu compares with a small tolerance instead of demanding bit equality.
-//
-// Launch configuration: owned by launch_saxpy() below — see its comment.
-// ---------------------------------------------------------------------------
-__global__ void saxpy_kernel(int n,
-                             float a,
-                             const float* __restrict__ x,
-                             float*       __restrict__ y)
+// Memory behavior:
+//   global reads  : grid/sim/mu_t/mu_n are KERNEL PARAMETERS (passed by
+//                   value, live in constant-like parameter memory —
+//                   broadcast to every thread at effectively zero cost,
+//                   the same "uniform read" spot on 08.01's memory-spectrum
+//                   note as u_nom[t], just promoted one level further by
+//                   being parameters instead of a pointed-to array).
+//   global writes : SIX coalesced writes at the very end (one float per
+//                   output array per thread) — a warp's 32 threads write
+//                   32 consecutive floats to each array, the textbook
+//                   coalesced pattern (33.01's lesson).
+//   registers/local: the ENTIRE multi-thousand-step simulation — every
+//                   per-link scratch array inside snake_step(), the
+//                   running body state — lives here for the kernel's whole
+//                   lifetime. Nothing touches global memory in between
+//                   (contrast 08.01, which re-reads eps[t*K+k] from global
+//                   every step; this kernel's per-step "input" is a
+//                   deterministic function of t, not read from memory).
+// No shared memory (gaits share nothing), no atomics, no divergence beyond
+// the ragged-tail guard: every thread runs the SAME number of steps
+// (sim.n_steps), so — unlike 07.09's field kernels — there is not even the
+// usual small amount of data-dependent branching inside the loop.
+// ===========================================================================
+__global__ void sweep_kernel(GaitGridParams grid, SimParams sim, float mu_t, float mu_n,
+                             float* __restrict__ out_distance_m,
+                             float* __restrict__ out_straightness,
+                             float* __restrict__ out_cot,
+                             float* __restrict__ out_effort_j,
+                             float* __restrict__ out_final_x_m,
+                             float* __restrict__ out_final_y_m,
+                             int G)
 {
-    // This thread's first element, and the whole-grid stride (see mapping
-    // note above). Both fit in int here because n is int; a real project
-    // handling >2^31 elements would use long long / size_t indexing.
-    int i      = blockIdx.x * blockDim.x + threadIdx.x;  // my starting element
-    int stride = gridDim.x * blockDim.x;                 // total threads in the grid
+    const int g = blockIdx.x * blockDim.x + threadIdx.x;   // this thread's flattened sweep index
+    if (g >= G) return;                                    // ragged-tail guard (G need not be a multiple of blockDim)
 
-    // Each iteration: 2 loads (x[i], y[i]), 1 FMA, 1 store — ~12 bytes moved
-    // per 2 FLOPs. Memory-bound, as promised. The loop condition also guards
-    // the ragged tail: threads whose i starts beyond n simply do nothing.
-    for (; i < n; i += stride) {
-        y[i] = a * x[i] + y[i];
-    }
+    // Decode -> simulate -> reduce: the whole kernel in three calls, all
+    // three shared verbatim with the CPU oracle (kernels.cuh's file header
+    // explains why that sharing matters for the §5 VERIFY gate).
+    const GaitParams gp = decode_gait(g, grid, mu_t, mu_n);
+    GaitResult res;
+    simulate_gait(gp, sim, res);
+
+    // One coalesced write per output array (see the header comment above).
+    out_distance_m[g]   = res.distance_m;
+    out_straightness[g] = res.straightness;
+    out_cot[g]           = res.cot;
+    out_effort_j[g]      = res.effort_j;
+    out_final_x_m[g]     = res.final_x_m;
+    out_final_y_m[g]      = res.final_y_m;
 }
 
-// ---------------------------------------------------------------------------
-// launch_saxpy — host wrapper that owns the launch configuration.
+// ===========================================================================
+// launch_sweep — host launcher (declared in kernels.cuh). All six output
+// pointers are DEVICE pointers of G floats each, allocated by the caller
+// (main.cu); this function allocates nothing and frees nothing.
 //
-// Purpose: keep the <<<grid, block>>> math, its reasoning, and the mandatory
-// post-launch error check in ONE place, so callers (main.cu) stay clean and
-// no launch in the codebase goes unchecked (CLAUDE.md §6.1 rule 7).
-//
-// Parameters: as saxpy_kernel, but x/y are DEVICE pointers the CALLER owns —
-// this function allocates nothing, frees nothing, and synchronizes nothing
-// (the caller times/syncs via events; see main.cu step 3).
-//
-// Launch configuration reasoning:
-//   block = 256 threads — a solid default on sm_75..sm_89: a multiple of the
-//     32-thread warp (mandatory for full warps), large enough for good
-//     occupancy, small enough to keep per-block resources (registers) free.
-//     Powers of two between 128 and 512 are all reasonable; measure before
-//     believing any single number.
-//   grid = ceil(n / block), capped at 4096 blocks — enough blocks to fill
-//     every SM on any current GPU many times over (an RTX 2080 has 46 SMs);
-//     beyond that, more blocks add scheduling overhead without adding
-//     parallelism, and the grid-stride loop absorbs the remainder anyway.
-//     The integer ceil idiom (n + block - 1) / block is used all over this
-//     repo — it rounds UP so the last partial block is not lost.
-// ---------------------------------------------------------------------------
-void launch_saxpy(int n, float a, const float* d_x, float* d_y)
+// Launch configuration reasoning: block = 128, not the repo's usual 256.
+// This kernel's per-thread register footprint is much larger than a rollout
+// or farm-step thread (kNLinks-sized scratch arrays, THEORY.md §GPU-mapping
+// counts the registers) — a smaller block trades a little scheduling
+// overhead for headroom against register-limited occupancy, still a
+// multiple of the 32-thread warp. G is typically a few thousand (the
+// committed scenario: 32*32*8 = 8192), so even a handful of waves of
+// 128-thread blocks comfortably covers an RTX 2080 SUPER's 46 SMs; unlike
+// 08.01/10.03 this project never needed to reason about a 4096-block cap —
+// G is nowhere near that large.
+// ===========================================================================
+void launch_sweep(const GaitGridParams& grid, const SimParams& sim, float mu_t, float mu_n,
+                  float* d_distance_m, float* d_straightness, float* d_cot, float* d_effort_j,
+                  float* d_final_x_m, float* d_final_y_m, int G)
 {
-    const int block = 256;                              // threads per block (warp multiple; see above)
-    int grid = (n + block - 1) / block;                 // ceil(n/block): cover every element
-    if (grid > 4096) grid = 4096;                       // cap: grid-stride loop covers the rest
+    const int block = 128;                          // see the reasoning above
+    const int blocks = (G + block - 1) / block;      // ceil(G/block): cover every gait, no cap needed
 
-    saxpy_kernel<<<grid, block>>>(n, a, d_x, d_y);
-
-    // Kernel launches return errors ASYNCHRONOUSLY: an invalid configuration
-    // or a crashed kernel surfaces on a LATER call unless we ask. This macro
-    // (util/cuda_check.cuh) calls cudaGetLastError() right away so a broken
-    // launch is reported HERE, at the launch site, not three calls later.
-    CUDA_CHECK_LAST_ERROR("saxpy_kernel launch");
+    sweep_kernel<<<blocks, block>>>(grid, sim, mu_t, mu_n,
+                                    d_distance_m, d_straightness, d_cot, d_effort_j,
+                                    d_final_x_m, d_final_y_m, G);
+    CUDA_CHECK_LAST_ERROR("sweep_kernel launch");
 }
