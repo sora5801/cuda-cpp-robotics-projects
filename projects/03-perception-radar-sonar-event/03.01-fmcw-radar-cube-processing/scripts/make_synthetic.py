@@ -1,108 +1,154 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 03.01 (FMCW radar cube processing: range-Doppler-angle FFTs + CA/OS-CFAR detection).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample-data generator for project 03.01
+(FMCW radar cube processing: range-Doppler-angle FFTs + CA/OS-CFAR detection).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
----------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+-----------------------------------------------------------------
+This project's "sensor data" is not recordings at all: it is (a) the fixed
+chirp/antenna configuration of a simulated FMCW radar front end, and (b) a
+short list of ground-truth targets (range, radial velocity, azimuth,
+reflection amplitude). The raw ADC cube itself (Ns x Nc x Na complex
+samples, ~2 MB) is never written to disk — main.cu's GPU kernel and
+reference_cpu.cpp's CPU twin each SYNTHESIZE it, in code, from these two
+tiny committed files plus a fixed noise seed baked into src/kernels.cuh
+(kNoiseSeed). This is the same pattern 05.01 (TSDF fusion) and 08.01 (MPPI)
+use for their own synthetic scenarios: the committed sample is the TASK
+definition, not a recording, and it is trivially reproducible.
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What this script writes
+------------------------
+    ../data/sample/radar_params.csv   the chirp/antenna configuration
+                                      (fc, bandwidth, chirp duration, Ns,
+                                      Nc, Na) — main.cu loads this and
+                                      CROSS-CHECKS it against the
+                                      compile-time constants in
+                                      src/kernels.cuh; a mismatch aborts
+                                      the demo loudly rather than silently
+                                      running an inconsistent scenario.
+    ../data/sample/targets.csv        the ground-truth target list: one row
+                                      per target, columns
+                                      range_m,vel_mps,az_deg,amp. This is a
+                                      FIXED list (not drawn from an RNG —
+                                      like 08.01's scenario file, "a
+                                      scenario is constants"), chosen (seed
+                                      42, in the sense that the underlying
+                                      design was validated with a
+                                      seed-42 noise realization — see
+                                      data/README.md) to:
+                                        - span the unambiguous range/
+                                          velocity/azimuth envelope,
+                                        - include one WEAK, far target
+                                          (tests detection sensitivity),
+                                        - include a CLOSE PAIR (targets 5
+                                          and 6: 1.5 m / 3 range bins and
+                                          0.9 m/s / 3 Doppler bins apart,
+                                          with a 6.7x amplitude ratio) that
+                                          demonstrates CA-CFAR's classic
+                                          masking weakness while OS-CFAR
+                                          still resolves the weaker one —
+                                          the project's headline comparison
+                                          (THEORY.md "The algorithm").
 
-Usage
------
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+The default values below MUST match src/kernels.cuh exactly (main.cu will
+refuse to run otherwise) — if you retune the radar configuration, update
+BOTH files together.
+
+Usage:
+    python make_synthetic.py                 # writes the committed sample
+    python make_synthetic.py --out-dir DIR    # write elsewhere (experiments)
 """
 
 import argparse
-import csv
-import random
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
+# ---- radar configuration: MUST match src/kernels.cuh's constexpr values ----
+FC_HZ = 77.0e9
+BANDWIDTH_HZ = 300.0e6
+CHIRP_DUR_S = 50.0e-6
+NS = 256
+NC = 128
+NA = 8
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+# ---- the committed ground-truth target list -------------------------------
+# columns: range_m, vel_mps, az_deg, amp
+#   vel_mps sign convention: POSITIVE = APPROACHING the radar (closing).
+#   amp is a unitless, RCS-ish reflection scale (this project does not model
+#   the full radar range equation's 1/R^4 power falloff — see THEORY.md
+#   "The problem" for why, and PRACTICE.md for what a calibrated system adds).
+TARGETS = [
+    # range_m, vel_mps,  az_deg, amp    # role
+    (15.0,      8.0,     -20.0,  1.00),  # near, fast-approaching, strong
+    (45.0,    -12.0,      10.0,  0.60),  # mid-range, receding
+    (80.0,      3.0,       35.0, 0.30),  # far, weak, slow (sensitivity check)
+    (25.5,     -5.0,      -45.0, 0.50),  # off-boresight, receding
+    (60.0,      6.0,       5.0,  1.00),  # CLOSE PAIR: strong member
+    (61.5,      6.9,       5.0,  0.15),  # CLOSE PAIR: weak member (masked by
+                                         # CA-CFAR, found by OS-CFAR — see
+                                         # THEORY.md "The algorithm")
+]
 
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+def write_radar_params(out_path: Path) -> None:
+    """Write the chirp/antenna configuration record.
 
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+    Not a runtime knob: Ns/Nc/Na fix the size of compile-time CFAR/cuFFT
+    structures in src/kernels.cuh, so this file exists purely as a
+    committed, human-readable RECORD that main.cu cross-checks itself
+    against — a silent mismatch between "what the binary was built for"
+    and "what the demo claims to run" would be exactly the kind of
+    unreproducible result CLAUDE.md paragraph 8 forbids.
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 03.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    lines = [
+        "# radar_params.csv - SYNTHETIC FMCW radar configuration for project 03.01",
+        "# generated by scripts/make_synthetic.py - main.cu cross-checks this file",
+        "# against the compile-time constants in ../src/kernels.cuh and ABORTS on",
+        "# any mismatch (these values size compile-time CFAR/cuFFT structures, so",
+        "# they cannot be changed at runtime - see this script's module docstring).",
+        "# fc_hz,bandwidth_hz,chirp_dur_s,ns,nc,na",
+        f"{FC_HZ:.1f},{BANDWIDTH_HZ:.1f},{CHIRP_DUR_S:.9f},{NS},{NC},{NA}",
+    ]
+    with out_path.open("w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"[make_synthetic] wrote {out_path} ({out_path.stat().st_size} bytes) - labeled SYNTHETIC")
 
 
-def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
-    script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+def write_targets(out_path: Path) -> None:
+    """Write the fixed ground-truth target list (no RNG - see module docstring)."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# targets.csv - SYNTHETIC ground-truth target list for project 03.01",
+        "# generated by scripts/make_synthetic.py (no RNG - a target list is",
+        "# constants, same philosophy as 08.01's scenario file). The raw ADC cube",
+        "# is synthesized IN CODE from this list plus the fixed noise seed",
+        "# kNoiseSeed in ../src/kernels.cuh - never written to disk.",
+        "# columns: range_m,vel_mps,az_deg,amp",
+        "# vel_mps sign convention: POSITIVE = APPROACHING the radar (closing)",
+        "# targets 5 and 6 (0-indexed 4 and 5) are a CLOSE PAIR: see this script's",
+        "# module docstring for why they demonstrate the CA-vs-OS-CFAR comparison.",
+    ]
+    for (r, v, az, amp) in TARGETS:
+        lines.append(f"{r:.4f},{v:.4f},{az:.4f},{amp:.4f}")
+    with out_path.open("w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"[make_synthetic] wrote {out_path} ({out_path.stat().st_size} bytes, {len(TARGETS)} targets) - labeled SYNTHETIC")
 
-    parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 03.01 (FMCW radar cube processing: range-Doppler-angle FFTs + CA/OS-CFAR detection).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
-    parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
-    args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--out-dir", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "data" / "sample",
+                    help="output directory (default: ../data/sample/, the committed location)")
+    args = ap.parse_args()
 
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    write_radar_params(args.out_dir / "radar_params.csv")
+    write_targets(args.out_dir / "targets.csv")
+
+    print("[make_synthetic] note: Ns/Nc/Na/fc/bandwidth/chirp_dur are compile-time")
+    print("[make_synthetic]       constants in ../src/kernels.cuh - do not edit only")
+    print("[make_synthetic]       this script's values without updating that file too.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

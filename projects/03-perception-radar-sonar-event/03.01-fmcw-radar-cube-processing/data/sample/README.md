@@ -16,7 +16,10 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds exactly two files: `radar_params.csv` (the chirp/antenna configuration, cross-checked
+against `../../src/kernels.cuh`'s compile-time constants) and `targets.csv` (the fixed 6-target
+ground-truth scene, including the close pair that demonstrates CA-CFAR's masking weakness). Both are
+loaded by `../../src/main.cu` at startup. The raw ADC radar cube itself (~2 MB) is **never written to
+disk** — it is synthesized in code, deterministically, by both the GPU kernel and the CPU oracle, from
+these two tiny files plus a fixed noise seed. See [`../README.md`](../README.md) for full field
+documentation and provenance.

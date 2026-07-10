@@ -1,10 +1,14 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 03.01 (FMCW radar cube processing: range-Doppler-angle FFTs + CA/OS-CFAR detection)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): synthetic-only. Real automotive radar cube /
+# ADC-level recordings are effectively never published raw (radar OEMs
+# treat raw cubes as proprietary; public datasets like nuScenes/RADIal ship
+# already-processed detections or spectrograms, not the Ns x Nc x Na
+# complex baseband this project teaches from). Nothing here would teach
+# the range/Doppler/angle-FFT pipeline better than a synthetic cube with
+# EXACT, documented ground truth (CLAUDE.md paragraph 8's synthetic-first
+# default) — so this script is an honest, permanent no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

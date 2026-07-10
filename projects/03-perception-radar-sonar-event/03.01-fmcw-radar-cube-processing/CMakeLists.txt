@@ -67,12 +67,13 @@ target_compile_options(fmcw-radar-cube-processing PRIVATE
   $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-lineinfo>
 )
 
-# No target_link_libraries needed: with CUDA as an enabled language, CMake
-# links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
-# Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(fmcw-radar-cube-processing PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# CUDA-as-a-language links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY
+# defaults to Static — matching the .vcxproj's cudart_static.lib choice: the
+# exe runs with only a driver installed). cuFFT is NOT part of that default
+# set and must be linked explicitly:
+find_package(CUDAToolkit REQUIRED)
+# CUDA::cufft — the batched FFT library src/kernels.cu's three FFT stages
+# (range, Doppler, per-detection angle) call; see that file's header
+# comment for what each cufftPlanMany/cufftExecC2C call computes and why
+# cuFFT (not a hand-rolled FFT) is used here (CLAUDE.md paragraph 5).
+target_link_libraries(fmcw-radar-cube-processing PRIVATE CUDA::cufft)

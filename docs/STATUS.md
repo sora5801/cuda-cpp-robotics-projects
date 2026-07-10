@@ -19,20 +19,20 @@
 
 ## Summary
 
-**Overall: 14/505 done** (2.8%)
+**Overall: 15/505 done** (3.0%)
 
 | Status | Count |
 |--------|-------|
-| todo | 491 |
+| todo | 490 |
 | in-progress | 0 |
-| done | 14 |
+| done | 15 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
 | 01 Perception — Cameras & Vision | 1/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
-| 03 Perception — Radar, Sonar, Event & Exotic Sensors | 0/13 |
+| 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
 | 06 Motion Planning | 1/20 |
@@ -121,11 +121,11 @@
 | 02.19 | PointPillars/CenterPoint voxelization + scatter kernels feeding TensorRT | intermediate |  | todo |  |  |
 | 02.20 | LiDAR intensity calibration across channels | intermediate |  | todo |  |  |
 
-## 3. Perception — Radar, Sonar, Event & Exotic Sensors (`03-perception-radar-sonar-event`) — 0/13 done
+## 3. Perception — Radar, Sonar, Event & Exotic Sensors (`03-perception-radar-sonar-event`) — 1/13 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 03.01 | FMCW radar cube processing: range-Doppler-angle FFTs + CA/OS-CFAR detection | ★ beginner | ⭐ | todo |  |  |
+| 03.01 | FMCW radar cube processing: range-Doppler-angle FFTs + CA/OS-CFAR detection | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); OS-CFAR 6/6, CA masking shown |
 | 03.02 | Radar ego-velocity estimation (RANSAC over Doppler returns) | intermediate |  | todo |  |  |
 | 03.03 | Radar occupancy grids and micro-Doppler preprocessing for classification | intermediate |  | todo |  |  |
 | 03.04 | Sonar beamforming: delay-and-sum, MVDR | intermediate |  | todo |  |  |

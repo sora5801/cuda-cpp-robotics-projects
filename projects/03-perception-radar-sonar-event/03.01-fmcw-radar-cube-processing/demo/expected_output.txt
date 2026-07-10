@@ -1,8 +1,22 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 03.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 03.01 (fmcw-radar-cube-processing)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here: "[info]" (per-target errors, detection counts, worst-deviation
+# numbers) and "[time]" lines are deliberately EXCLUDED — they vary by GPU architecture (cuFFT's
+# internal algorithm and FP32 rounding differ sm_75 vs sm_86 vs sm_89) even though this demo is
+# fully deterministic on any ONE machine (fixed seed, no host RNG races — see src/main.cu's
+# output-contract header comment). Measured on the reference machine (RTX 2080 SUPER, sm_75):
+# CA-CFAR 5/6 detections (0 false alarms, misses the close pair's weak target — the taught
+# masking failure); OS-CFAR 6/6 detections (0 false alarms); GPU-vs-CPU worst relative RD-map
+# deviation 0.0055 (tol 0.05); GPU pipeline ~33 ms, CPU O(N^2) oracle ~436 ms (~13x, a teaching
+# artifact, not a benchmark). See README "Expected output" and THEORY.md "How we verify
+# correctness" for the full numbers and their derivation.
+[demo] FMCW radar cube processing: range-Doppler-angle FFTs + CA/OS-CFAR detection (project 03.01)
+PROBLEM: FMCW radar cube Ns=256 x Nc=128 x Na=8 samples, fc=77.0 GHz, B=300.0 MHz, Tc=50.0 us, FP32
+RESOLUTION: range 0.500 m (max 127.9 m); velocity 0.304 m/s (max +/-19.47 m/s); angle FFT 64-pt zero-padded from 8 antennas
+SCENARIO: 6 targets loaded from data/sample/targets.csv [synthetic, seed 42]
+VERIFY: PASS (GPU range-Doppler power map matches the CPU O(N^2) DFT reference within tolerance)
+GROUND_TRUTH: PASS (every injected target found by OS-CFAR within tolerance; false alarms within bound)
+CFAR_COMPARE: PASS (CA-CFAR is masked by the neighboring strong target on the close pair; OS-CFAR is not)
+ARTIFACT: wrote demo/out/range_doppler.pgm and demo/out/detections.csv
+RESULT: PASS (GPU matches CPU reference; every target detected by OS-CFAR; CA-vs-OS masking behavior confirmed)
