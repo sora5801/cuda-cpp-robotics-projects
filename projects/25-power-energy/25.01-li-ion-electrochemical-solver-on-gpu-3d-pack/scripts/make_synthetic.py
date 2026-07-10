@@ -1,107 +1,123 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 25.01 (Li-ion electrochemical (P2D/SPMe) solver on GPU + 3D pack thermal simulation + cooling-design sweeps).
+"""make_synthetic.py — synthetic sample-data generator for 25.01
+(Li-ion electrochemical (SPM) solver on GPU + 3D pack thermal simulation +
+cooling-design sweeps).
 
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+Why this script exists (CLAUDE.md §8: synthetic-first)
+--------------------------------------------------------
+There is no real, redistributable "24-cell robot battery pack" dataset to
+download — and even if there were, licensing real cell electrochemistry data
+is exactly the kind of thing CLAUDE.md §8 says to avoid. Every number this
+script writes is a SYNTHETIC, hand-chosen TEACHING PARAMETER: shaped to be
+physically plausible (real orders of magnitude for diffusivities, activation
+energies, thermal conductivities) but never claimed to match any real cell,
+pack, or dataset. `../README.md` and `../data/README.md` both repeat this
+label; so does every row of the generated CSV itself (comment header below).
 
-Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
----------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+What this script generates
+---------------------------
+One CSV, data/sample/pack_scenario.csv, with one row per problem-definition
+group (THERMAL, CELL_DIMS, ANODE, CATHODE, ELEC, MISSION, SEG x4, SWEEP_H) —
+the exact row-labeled format src/main.cu's load_scenario() parses (documented
+there and in ../data/README.md). There is no RNG here at all: every value is
+a literal, deliberately chosen constant, so "regenerate" reproduces the exact
+same file byte-for-byte on any machine — determinism by construction, not by
+seeding (CLAUDE.md §12).
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+Where the numbers came from (brief; the full derivation with the resulting
+capacity/SOC/thermal-rise arithmetic lives in THEORY.md "The math" and
+"The problem"):
+  * ANODE/CATHODE geometry+kinetics: graphite-like anode, NMC-like cathode,
+    particle radii and diffusivities at realistic orders of magnitude for
+    Li-ion solid-state diffusion (1e-14..1e-13 m^2/s), activation energies
+    in the commonly-cited 20-50 kJ/mol range.
+  * OCV curves are NOT stored in this file — they are synthetic closed-form
+    polynomials hard-coded in src/main.cu (ocv_anode/ocv_cathode), documented
+    there and in THEORY.md, because they are FUNCTIONS, not scenario data.
+  * THERMAL: anisotropic kx=ky (in-plane) >> kz (through-plane), the real
+    qualitative anisotropy of a wound/stacked cell (THEORY.md "The problem").
+  * MISSION: a 120 s AMR duty cycle (accelerate/cruise/idle/regen-charge)
+    repeated 10x to fill the 1200 s (20 min) mission, currents chosen so the
+    pack's SOC swings a realistic partial-cycle ~15-40% (not a full 0-100%
+    cycle — an AMR on shift does not deep-cycle every 20 minutes) while still
+    generating enough heat to make the cooling-design comparison interesting
+    (THEORY.md documents the exact energy arithmetic behind this choice).
+  * SWEEP_H: six convective coefficients spanning natural convection (air,
+    ~10 W/(m^2 K)) to an aggressive liquid cold plate (~500 W/(m^2 K)).
 
 Usage
 -----
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    python make_synthetic.py                                  # writes ../data/sample/pack_scenario.csv
+    python make_synthetic.py --out ../data/sample/pack_scenario.csv
 """
 
 import argparse
-import csv
-import random
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
-
-
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
-
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+def write_scenario_csv(out_path: Path) -> None:
+    """Write the single committed scenario file. No RNG, no seed: every
+    value below is a literal synthetic teaching constant (see module
+    docstring); "regenerating" reproduces this file byte-for-byte.
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 25.01\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
-
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    lines = [
+        "# SYNTHETIC scenario for project 25.01 — generated by scripts/make_synthetic.py",
+        "# regenerate: python make_synthetic.py",
+        "# Every numeric value below is a hand-chosen SYNTHETIC teaching parameter",
+        "# (plausible orders of magnitude; NOT fit to any real cell or dataset).",
+        "# See ../data/README.md for units/fields and THEORY.md for the derivations",
+        "# and the SOC/thermal-rise arithmetic behind the mission currents below.",
+        "#",
+        "# THERMAL: rho_cp[J/(m3 K)], kx,ky,kz[W/(m K)], T_init[K], T_coolant[K]",
+        "THERMAL,2.0e6,25.0,25.0,3.0,298.15,298.15",
+        "#",
+        "# CELL_DIMS: one cell's footprint Lx,Ly,Lz [m] (tiles exactly into the",
+        "# 4x3x2 pack -> 32x24x16 thermal grid, 8 voxels/cell/axis)",
+        "CELL_DIMS,0.08,0.06,0.12",
+        "#",
+        "# ANODE / CATHODE: R_p[m],D25[m^2/s],Ea_D[J/mol],c_max[mol/m^3],",
+        "#                  c0_frac[-],i0_ref[A/m^2],Ea_k[J/mol],A_surf[m^2]",
+        "# (graphite-like anode; NMC-like cathode — see module docstring)",
+        "ANODE,6.0e-6,3.0e-14,35000,30000,0.75,15.0,30000,2.5",
+        "CATHODE,5.0e-6,1.0e-14,25000,48000,0.40,10.0,30000,3.0",
+        "#",
+        "# ELEC: R_ohm[Ohm] — per-cell lumped internal ohmic resistance",
+        "ELEC,0.10",
+        "#",
+        "# MISSION: dt_thermal[s], n_sub[-] (electrochemistry substeps per",
+        "# thermal step), duration_s[s]",
+        "MISSION,0.1,5,1200",
+        "#",
+        "# SEG: kind[label only], duration_s[s], current_A[A] (+ = discharge).",
+        "# One 120 s AMR duty cycle, repeated 10x to fill the 1200 s mission.",
+        "SEG,accelerate,15,20.0",
+        "SEG,cruise,65,7.0",
+        "SEG,idle,20,1.0",
+        "SEG,charge,20,-10.0",
+        "#",
+        "# SWEEP_H: 6 convective coefficients [W/(m^2 K)], natural convection",
+        "# to an aggressive liquid cold plate; crossed with {bottom,side} in",
+        "# main.cu for the 12-design sweep.",
+        "SWEEP_H,10,25,50,100,250,500",
+        "",
+    ]
+    out_path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    print(f"[make_synthetic] wrote {out_path} ({len(lines)} lines, labeled SYNTHETIC, no RNG)")
 
 
 def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
     script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+    default_out = script_dir.parent / "data" / "sample" / "pack_scenario.csv"
 
     parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 25.01 (Li-ion electrochemical (P2D/SPMe) solver on GPU + 3D pack thermal simulation + cooling-design sweeps).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
+        description="Generate the committed synthetic scenario for project 25.01.")
     parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
+                        help="output CSV path (default: ../data/sample/pack_scenario.csv)")
     args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
-
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    write_scenario_csv(args.out)
 
 
 if __name__ == "__main__":

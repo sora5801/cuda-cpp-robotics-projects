@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 26/505 done** (5.1%)
+**Overall: 27/505 done** (5.3%)
 
 | Status | Count |
 |--------|-------|
-| todo | 479 |
+| todo | 478 |
 | in-progress | 0 |
-| done | 26 |
+| done | 27 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -54,7 +54,7 @@
 | 22 Multi-Robot Systems & Swarms | 1/12 |
 | 23 Navigation Stack (Mobile Robots) | 1/11 |
 | 24 Actuators & Motors | 1/14 |
-| 25 Power & Energy | 0/14 |
+| 25 Power & Energy | 1/14 |
 | 26 Mechanical Design & Structures | 0/16 |
 | 27 Materials Science & Manufacturing | 0/13 |
 | 28 Soft Robotics | 0/10 |
@@ -539,11 +539,11 @@
 | 24.13 | Ball-screw wear Monte Carlo | intermediate |  | todo |  |  |
 | 24.14 | Whole-robot actuator selection optimizer: search catalogs against torque/mass/thermal feasibility at scale | intermediate |  | todo |  |  |
 
-## 25. Power & Energy (`25-power-energy`) — 0/14 done
+## 25. Power & Energy (`25-power-energy`) — 1/14 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 25.01 | Li-ion electrochemical (P2D/SPMe) solver on GPU + 3D pack thermal simulation + cooling-design sweeps | ★ beginner | ⭐ | todo |  |  |
+| 25.01 | Li-ion electrochemical (P2D/SPMe) solver on GPU + 3D pack thermal simulation + cooling-design sweeps | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); 3 analytic gates; conduction-vs-boundary cooling finding |
 | 25.02 | Per-cell SOC/SOH estimation with particle-filter/EKF banks | intermediate |  | todo |  |  |
 | 25.03 | Pack architecture optimization: series/parallel topology, busbar resistance | intermediate |  | todo |  |  |
 | 25.04 | Degradation Monte Carlo over robot mission profiles | intermediate |  | todo |  |  |

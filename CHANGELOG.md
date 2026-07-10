@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — flagship 25.01 battery electro-thermal done (27/505); jR/5D gate convergence-calibrated; conduction-vs-boundary cooling finding — [push-note](push-notes/2026-07-10-11-flagship-25-01-battery-pack.md)
 - 2026-07-10 — flagship 24.01 magnetostatic FEA + cogging sweeps done (26/505); Ampère gate 0.19%; cogging minimum found at arc 0.70 — [push-note](push-notes/2026-07-10-10-flagship-24-01-magnetostatic-fea.md)
 - 2026-07-10 — flagship 21.04 speed-and-separation monitoring done (25/505); 0-frame transition offsets, zero false/missed stops; didactic-not-certified NOTICE in the output contract — [push-note](push-notes/2026-07-10-09-flagship-21-04-ssm.md)
 - 2026-07-10 — flagship 20.01 GelSight tactile processing done (24/505) — batch 1e complete; slip onset within 1 frame of the Cattaneo–Mindlin model — [push-note](push-notes/2026-07-10-08-flagship-20-01-gelsight-batch-1e-complete.md)

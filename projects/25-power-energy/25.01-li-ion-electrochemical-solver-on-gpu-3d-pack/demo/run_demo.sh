@@ -10,8 +10,9 @@
 # Same diffing contract as run_demo.ps1: '#'-prefixed and blank lines in
 # expected_output.txt are ignored; every remaining line must appear verbatim
 # in the program's output (subset check - timing/info lines are not checked).
-# TODO(scaffold): keep expected_output.txt in sync with the real project's
-# stable output lines (see the "output contract" comment in ../src/main.cu).
+# RESOLVED (not a placeholder): expected_output.txt is kept in sync with the
+# real project's stable output lines (see the "output contract" comment in
+# ../src/main.cu) — no script changes were needed for the real implementation.
 # ===========================================================================
 set -euo pipefail
 

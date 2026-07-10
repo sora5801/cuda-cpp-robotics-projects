@@ -70,9 +70,10 @@ target_compile_options(li-ion-electrochemical-solver-on-gpu-3d-pack PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(li-ion-electrochemical-solver-on-gpu-3d-pack PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). RESOLVED (not a placeholder): this project
+# needs no extra CUDA libraries — both kernels (spherical finite-volume
+# diffusion, anisotropic 3-D heat equation) are hand-rolled stencils with no
+# cuBLAS/cuFFT/cuSOLVER call anywhere (CLAUDE.md paragraph 5's default
+# dependency budget: CUDA runtime + C++17 standard library only). The
+# sources above already match the real implementation (main.cu, kernels.cu,
+# reference_cpu.cpp) — nothing further to extend here.

@@ -1,8 +1,22 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 25.01 (li-ion-electrochemical-solver-on-gpu-3d-pack)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Expected STABLE output lines for project 25.01 (Li-ion electrochemical
+# (SPM) solver + 3D pack thermal simulation + cooling-design sweeps).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore
+# them when diffing. Every non-comment line below must appear VERBATIM in
+# the demo's stdout — "[info]"/"[time]" lines (device name, timings, and
+# every measured floating-point number) are DELIBERATELY EXCLUDED: they are
+# real, honest, machine-dependent measurements, not checked constants (see
+# the "Determinism" note in src/main.cu's file header). These lines were
+# captured from an actual PASSing run on the reference RTX 2080 SUPER
+# machine (CUDA 13.3, Release|x64); update them in the same change if a
+# stable line's wording changes.
+[demo] Li-ion SPM electrochemistry + 3D pack thermal cooling-design sweep (project 25.01)
+PROBLEM: SPM electrochemistry (20 radial shells/particle) + anisotropic 3D pack heat equation (32x24x16 voxels, 24 cells), 12-design cooling sweep, FP32
+SCENARIO: 1200 s AMR duty-cycle mission (4 segments/cycle), dt_thermal=0.10 s, n_sub=5, sweep h in [10, 500] W/(m^2 K) x {bottom,side} [synthetic]
+VERIFY: PASS (GPU electrochemistry+thermal solvers match their CPU twins within documented tolerance)
+ANALYTIC_DIFFUSION: PASS (constant-flux sphere's quasi-steady c_surf-c_avg matches the closed form j*R/(5D), rel tol 15% — measured kNShells=20 discretization bias ~12%)
+ANALYTIC_COULOMB: PASS (total mole change equals the exactly-integrated applied flux, rel tol 1%)
+ANALYTIC_THERMAL: PASS (steady uniform-heat, single-cooling-face pack matches the exact energy-balance identity P=h*A*dT, rel tol 5%)
+SWEEP: completed 12 cooling designs (6 h-values x 2 faces) over the full 1200 s mission, batched per step
+PHYSICS: PASS (thermal grid energy balance — generated minus convected minus stored — holds for every design, rel tol 2%)
+ARTIFACT: wrote demo/out/pack_temps.csv, demo/out/design_sweep.csv, demo/out/pack_slice.pgm (12 designs, 24 cells)
+RESULT: PASS (solvers verified against CPU twins and three analytic gates; 12-design cooling sweep completed and passed the energy-conservation check)

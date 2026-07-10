@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 25.01 (Li-ion electrochemical (P2D/SPMe) solver on GPU + 3D pack thermal simulation + cooling-design sweeps)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED (not a placeholder): no public dataset applies to this project.
+# There is no real, redistributable "24-cell robot battery pack" dataset —
+# and licensing real cell electrochemistry data is exactly the risk
+# CLAUDE.md paragraph 8 asks projects to avoid — so this project is
+# synthetic-only by deliberate decision, not by omission. This script is
+# an honest no-op (see the body below); ../scripts/make_synthetic.py is the
+# actual, sole data source (../data/README.md documents every field).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

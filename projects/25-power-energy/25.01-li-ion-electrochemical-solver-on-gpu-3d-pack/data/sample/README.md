@@ -16,7 +16,8 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `pack_scenario.csv` — the pack's electrode/particle geometry and kinetics,
+anisotropic thermal properties, the 20-minute AMR duty-cycle mission profile, and the 6-value cooling
+sweep list. Regenerate with `python ../../scripts/make_synthetic.py` (no RNG — every value is a fixed
+synthetic constant, so the file is byte-identical every time). Full field documentation, units, and the
+SHA-256 checksum are in [`../README.md`](../README.md).
