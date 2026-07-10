@@ -1,12 +1,17 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 29.05 (Ultrasound: GPU beamforming, elastography, image-based servoing)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECIDED: this project stays synthetic-only, permanently — no public dataset
+# fetch is implemented. Reason: there is no license that permits
+# redistributing real patient ultrasound RF/channel data (the raw signal
+# this project's beamformer consumes), and PICMUS-style public plane-wave
+# datasets (README "Prior art") are simulated/phantom acquisitions best
+# fetched and explored directly from their own source, not mirrored here.
+# The committed phantom (data/sample/) is therefore the permanent source of
+# truth; this script is an honest no-op, kept only so every project in the
+# repo exposes the same callable script shape.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any dataset fetch, for reference:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

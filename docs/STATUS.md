@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 30/505 done** (5.9%)
+**Overall: 31/505 done** (6.1%)
 
 | Status | Count |
 |--------|-------|
-| todo | 475 |
+| todo | 474 |
 | in-progress | 0 |
-| done | 30 |
+| done | 31 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -58,7 +58,7 @@
 | 26 Mechanical Design & Structures | 1/16 |
 | 27 Materials Science & Manufacturing | 1/13 |
 | 28 Soft Robotics | 1/10 |
-| 29 Medical & Bio-Robotics | 0/13 |
+| 29 Medical & Bio-Robotics | 1/13 |
 | 30 Field & Industry-Specific Robotics | 0/12 |
 | 31 Safety, Verification & Testing | 1/12 |
 | 32 Embedded, Jetson & Systems Infrastructure | 0/17 |
@@ -612,7 +612,7 @@
 | 28.09 | Growing/vine robot simulation | [R&D] research |  | todo |  |  |
 | 28.10 | Morphological computation studies | [R&D] research |  | todo |  |  |
 
-## 29. Medical & Bio-Robotics (`29-medical-bio-robotics`) — 0/13 done
+## 29. Medical & Bio-Robotics (`29-medical-bio-robotics`) — 1/13 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -620,7 +620,7 @@
 | 29.02 | Needle steering: bevel-tip models + replanning batches | [R&D] research |  | todo |  |  |
 | 29.03 | Concentric-tube robot kinematics batches | [R&D] research |  | todo |  |  |
 | 29.04 | Catheter/guidewire simulation in vessel trees | [R&D] research |  | todo |  |  |
-| 29.05 | Ultrasound: GPU beamforming, elastography, image-based servoing | ★ beginner | ⭐ | todo |  |  |
+| 29.05 | Ultrasound: GPU beamforming, elastography, image-based servoing | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); wires localized <=0.18 mm; resolution physics measured |
 | 29.06 | Endoscopy SLAM in deformable environments ; capsule-robot localization | [R&D] research |  | todo |  |  |
 | 29.07 | Prosthetics: kHz EMG decomposition + intent classification, batched | intermediate |  | todo |  |  |
 | 29.08 | Spike sorting on GPU (template matching at scale) for neural interfaces | intermediate |  | todo |  |  |

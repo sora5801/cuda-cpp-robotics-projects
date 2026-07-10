@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — flagship 29.05 ultrasound DAS beamforming done (31/505); wires localized ≤0.18 mm, resolution physics derived then measured — [push-note](push-notes/2026-07-10-15-flagship-29-05-ultrasound-beamforming.md)
 - 2026-07-10 — flagship 28.01 real-time FEM soft arm done (30/505); EB 0.5%, f1 1.4%, real-time factor 1.69×, four setpoints tracked — [push-note](push-notes/2026-07-10-14-flagship-28-01-soft-arm-fem.md)
 - 2026-07-10 — flagship 27.04 composite layup + Tsai–Wu done (29/505); four ~1e-7 analytic gates incl. the F66=3F11 isotropy proof — [push-note](push-notes/2026-07-10-13-flagship-27-04-composite-layup.md)
 - 2026-07-10 — flagship 26.01 SIMP topology optimization done (28/505) — batch 1f complete; patch test 2.8e-6, textbook strut topologies — [push-note](push-notes/2026-07-10-12-flagship-26-01-topology-optimization-batch-1f-complete.md)

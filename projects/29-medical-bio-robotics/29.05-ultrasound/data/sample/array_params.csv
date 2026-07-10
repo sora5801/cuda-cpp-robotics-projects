@@ -1,0 +1,6 @@
+# SYNTHETIC data — 29.05 ultrasound array/pulse/phantom-region parameters
+# EDUCATIONAL/SYNTHETIC ONLY — no patient data, no diagnostic or therapeutic claim.
+# regenerate: python make_synthetic.py --seed 42
+# columns (no header row, exactly one data row):
+#   num_elements,pitch_m,fc_hz,fs_hz,c_mps,fnumber,incl_x_m,incl_z_m,incl_radius_m
+64,0.00030000,5000000.0,40000000.0,1540.0,1.500,-0.00600000,0.01500000,0.00250000

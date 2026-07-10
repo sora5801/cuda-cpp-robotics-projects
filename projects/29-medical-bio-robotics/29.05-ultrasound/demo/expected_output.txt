@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected stable output — 29.05 Ultrasound: GPU beamforming (plane-wave DAS B-mode)
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 29.05 (ultrasound)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines
+# belong here — never "[info]"/"[time]" lines, which carry measured numbers and device names
+# that vary by machine/GPU architecture (CLAUDE.md's "wide margin" philosophy: every stable
+# line below is a textual verdict or a compile-time-fixed parameter, never a measured value —
+# see src/main.cu's file header "Output contract").
+[demo] Ultrasound: GPU delay-and-sum B-mode beamforming (project 29.05, EDUCATIONAL/SYNTHETIC)
+PROBLEM: 64-element array, pitch 0.30mm, fc=5.0MHz, fs=40.0MHz, plane-wave TX, image 257x801 px over 19.2x20.0mm (x,z), f-number 1.5, FP32
+SCENARIO: 19409 scatterers loaded (9 wire, 1400 inclusion, 18000 speckle) from data/sample/phantom.csv [synthetic, seed 42]
+VERIFY: PASS (GPU matches CPU reference at all three beamforming stages within tolerance)
+LOCALIZATION: PASS (every wire target's image peak within one resolution cell of its true position)
+RESOLUTION: PASS (measured -6dB PSF width matches the derived lambda*F# / cycles*lambda/2 formulas within a 0.3x-3.0x factor)
+CONTRAST: PASS (the high-scattering inclusion's mean dB exceeds background speckle by the documented margin)
+DELAY_CHECK: PASS (DAS two-way delay formula matches an independently re-derived closed-form value)
+ARTIFACT: wrote demo/out/bmode.pgm and demo/out/psf_profile.csv
+RESULT: PASS (GPU matches CPU reference at every stage; wire localization, resolution, contrast, and delay-formula gates all pass)

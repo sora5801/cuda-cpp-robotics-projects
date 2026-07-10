@@ -3,31 +3,15 @@
 # download_data.sh — public-dataset fetcher for 29.05 (Ultrasound: GPU beamforming, elastography, image-based servoing)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
-#
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
-#   * Idempotent — safe to re-run; skip files that already exist with the
-#     right checksum.
-#   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE
-#     stated in comments here AND in ../data/README.md.
-#   * License-respecting — non-commercial / no-redistribution datasets get
-#     pointed at their official source; registration walls never bypassed;
-#     the committed sample stays synthetic in those cases.
-#   * Downloads land in ../data/downloaded/ (git-ignored), NEVER in
-#     ../data/sample/.
-#
-# Illustrative shape of a real fetch (kept as a comment on purpose):
-#   URL='https://example.org/dataset/tiny_subset.zip'    # official source
-#   SHA='SHA256-HEX-HERE'                                # pin the bytes (~123 MB)
-#   DEST="$(dirname "$0")/../data/downloaded/tiny_subset.zip"
-#   mkdir -p "$(dirname "$DEST")"
-#   if [ ! -f "$DEST" ] || ! echo "$SHA  $DEST" | sha256sum -c - >/dev/null 2>&1; then
-#       curl -L -o "$DEST" "$URL"
-#       echo "$SHA  $DEST" | sha256sum -c -   # hard-fail on checksum mismatch
-#   fi
+# DECIDED: this project stays synthetic-only, permanently — no public dataset
+# fetch is implemented. Reason: there is no license that permits
+# redistributing real patient ultrasound RF/channel data (the raw signal
+# this project's beamformer consumes), and PICMUS-style public plane-wave
+# datasets (README "Prior art") are simulated/phantom acquisitions best
+# fetched and explored directly from their own source, not mirrored here.
+# The committed phantom (data/sample/) is therefore the permanent source of
+# truth; this script is an honest no-op, kept only so every project in the
+# repo exposes the same callable script shape (CLAUDE.md paragraph 8).
 # ===========================================================================
 set -euo pipefail
 
