@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 16/505 done** (3.2%)
+**Overall: 17/505 done** (3.4%)
 
 | Status | Count |
 |--------|-------|
-| todo | 489 |
+| todo | 488 |
 | in-progress | 0 |
-| done | 16 |
+| done | 17 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -40,7 +40,7 @@
 | 08 Control Systems | 1/16 |
 | 09 Robot Dynamics & Kinematics | 1/14 |
 | 10 Physics Simulation | 1/20 |
-| 11 Sensor Simulation & Digital Twins | 0/11 |
+| 11 Sensor Simulation & Digital Twins | 1/11 |
 | 12 Machine Learning & AI for Robots | 0/25 |
 | 13 Locomotion — Legged | 0/13 |
 | 14 Locomotion — Wheeled & Tracked | 0/10 |
@@ -288,11 +288,11 @@
 | 10.19 | System identification: CMA-ES fitting simulation to real logs, fitness in parallel | intermediate |  | todo |  |  |
 | 10.20 | Real-to-sim: scene reconstruction → simulation asset pipeline | intermediate |  | todo |  |  |
 
-## 11. Sensor Simulation & Digital Twins (`11-sensor-sim-digital-twins`) — 0/11 done
+## 11. Sensor Simulation & Digital Twins (`11-sensor-sim-digital-twins`) — 1/11 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 11.01 | GPU LiDAR simulator: BVH raycasting + beam divergence, intensity, dropout noise | ★ beginner | ⭐ | todo |  |  |
+| 11.01 | GPU LiDAR simulator: BVH raycasting + beam divergence, intensity, dropout noise | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); analytic gates exact; BVH depth = proved bound |
 | 11.02 | Depth-camera simulator with realistic (Kinect-model) noise | intermediate |  | todo |  |  |
 | 11.03 | Event-camera simulator from high-FPS rendered frames | intermediate |  | todo |  |  |
 | 11.04 | Radar simulator: raytraced multipath + RCS models | [R&D] research |  | todo |  |  |

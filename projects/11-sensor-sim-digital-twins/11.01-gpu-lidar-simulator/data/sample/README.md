@@ -16,7 +16,11 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** four files, ~70 KiB total, all synthetic and RNG-free (a scene mesh and a
+sensor spec are geometry/constants, not recordings) — `warehouse_scene.obj` (2,264-triangle warehouse
+mesh), `materials.csv` (per-triangle-range material table), `sensor_config.csv` (spinning-LiDAR scan
+pattern + noise-model constants), `sensor_poses.csv` (the sensor's world pose). Every beam-level
+RANDOMNESS (dropout, range noise) is generated *inside the demo* from `sensor_config.csv`'s fixed seed —
+nothing stochastic is committed. Format, field-by-field documentation, and checksums:
+[`../README.md`](../README.md); regenerate byte-identically with
+`python ../../scripts/make_synthetic.py`.

@@ -1,8 +1,21 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 11.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 11.01 (gpu-lidar-simulator)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (GPU name, measured counts/ratios/rates) and "[time]" lines
+# vary by machine and are deliberately unchecked; see the "output contract" comment at the top of
+# ../src/main.cu for exactly which lines are stable and why (in particular, why the BVH/artifact
+# lines below carry no measured numbers, only INPUT-derived ones). Change the program's stable
+# lines and this file together.
+[demo] GPU LiDAR simulator: BVH raycasting + beam divergence, intensity, dropout noise (project 11.01)
+SCENE: 2264 triangles, 1233 vertices, 4 materials [synthetic]
+BVH: 1455 nodes, 728 leaves, depth 10 (guaranteed bound 10), median-split by count, built on the host
+PROBLEM: spinning LiDAR raycast, channels=32 x azimuth_steps=1024 = 32768 beams/frame, BVH over 2264 triangles, FP32
+VERIFY: PASS (GPU raycast matches CPU reference: hit/dropped exact, intensity within rel tol 1e-03, range within rel tol 2e-02 for all but documented near-tie edge beams)
+CHECK: ground-plane range matches closed form within rel tol 1e-3 -> PASS
+CHECK: normal-incidence intensity ratio (R vs 2R) matches inverse-square 4:1 within tol 0.01 -> PASS
+CHECK: dropout rate matches configured model within a 5-sigma binomial bound -> PASS
+CHECK: frame hit fraction in documented range (0.40, 0.95) -> PASS
+CHECK: frame mean range in documented range (1.0, 20.0) m -> PASS
+ARTIFACT: wrote demo/out/cloud.csv
+ARTIFACT: wrote demo/out/range_image.pgm (1024x32)
+RESULT: PASS (GPU/CPU agree; all analytic and frame-level gates passed; artifacts written)

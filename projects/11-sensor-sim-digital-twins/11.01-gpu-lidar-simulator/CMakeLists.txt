@@ -75,4 +75,7 @@ target_compile_options(gpu-lidar-simulator PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(gpu-lidar-simulator PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# 11.01 note: the source list above is complete for this project and no
+# extra libraries are linked — the BVH, the ray/triangle intersection, and
+# the OBJ/CSV loaders are all hand-rolled (CLAUDE.md paragraph 5's "build
+# your own BVH before touching OptiX" stance).

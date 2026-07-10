@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 11.01 (GPU LiDAR simulator: BVH raycasting + beam divergence, intensity, dropout noise)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 11.01 DECISION: no public dataset applies. A simulator's inputs are a
+# SCENE (a triangle mesh) and a SENSOR SPEC (scan pattern + noise model),
+# not sensor recordings — and no public dataset ships a synthetic-LiDAR
+# ground-truth mesh+config pair at the precision this project's analytic
+# verification gates demand anyway. scripts/make_synthetic.py builds the
+# scene and config deterministically (see ../data/README.md); this script
+# stays the honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
