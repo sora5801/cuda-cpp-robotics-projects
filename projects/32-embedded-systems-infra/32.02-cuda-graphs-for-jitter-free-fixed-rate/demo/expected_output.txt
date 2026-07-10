@@ -1,8 +1,18 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected output for 32.02 (CUDA Graphs for jitter-free fixed-rate perception-control loops).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 32.02 (cuda-graphs-for-jitter-free-fixed-rate)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset check). Only
+# STABLE lines belong here — never "[time]"/"[info]" lines, which carry measured numbers that
+# vary run to run and machine to machine (see main.cu's "Output contract" header comment). The
+# GATE lines below are stable on purpose: their PASS/FAIL text states the threshold POLICY, not
+# the measured numbers (those are printed on the preceding "[info]" line, deliberately unchecked).
+[demo] CUDA Graphs for jitter-free fixed-rate perception-control loops (project 32.02)
+PROBLEM: tick = 8 kernels + 2 D2D copies (sensorN=512, K=512 rollouts, T=16 horizon), 3 modes x 2000 ticks @ 250 Hz (4.0 ms period), 50 warmup ticks/mode [synthetic]
+SCENARIO: x0=[p=0.00, pdot=0.00, theta=0.30, thdot=0.00], seeds=(eps=1234567, sensor=7654321)
+VERIFY: PASS (GPU tick 0 matches the CPU tick twin within documented tolerance)
+CROSSMODE: PASS (mode B and mode C outputs bit-identical to mode A over 2000 ticks x (16 control + 4 state) floats)
+GATE submit-reduction: PASS (both graph modes' mean submit time <= 75% of the naive stream mode's mean -- see the [info] line above for the actual measured means)
+GATE gpu-work-consistency: PASS (mean device-timeline time per tick agrees across all three modes within 2.0x -- same kernels, same data, so it should -- see [info] above)
+GATE pacing-accuracy: PASS (every mode's achieved p50 tick period is within +-600 us of the 250 Hz target -- see [info] above for the actual measured periods)
+ARTIFACT: wrote demo/out/latency_histogram.csv (6000 rows)
+ARTIFACT: wrote demo/out/jitter_summary.csv (12 rows)
+RESULT: PASS (tick correctness verified, all three modes bit-identical, submit/consistency/pacing gates satisfied)

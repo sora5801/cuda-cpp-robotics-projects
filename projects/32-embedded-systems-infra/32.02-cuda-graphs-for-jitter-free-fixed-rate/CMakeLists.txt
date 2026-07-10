@@ -67,12 +67,16 @@ target_compile_options(cuda-graphs-for-jitter-free-fixed-rate PRIVATE
   $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-lineinfo>
 )
 
-# No target_link_libraries needed: with CUDA as an enabled language, CMake
-# links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
-# Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(cuda-graphs-for-jitter-free-fixed-rate PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# No target_link_libraries needed for CUDA itself: with CUDA as an enabled
+# language, CMake links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY
+# defaults to Static — matching the .vcxproj's cudart_static.lib choice: the
+# exe runs with only a driver installed).
+#
+# winmm: Windows-only. main.cu's PacingClock calls timeBeginPeriod/
+# timeEndPeriod (see the .vcxproj's AdditionalDependencies comment for the
+# full reasoning) to get 1 ms Sleep() resolution for the 250 Hz pacing loop.
+# Linux/macOS builds use the portable std::this_thread::sleep_for fallback
+# in the same struct and need no extra library.
+if(WIN32)
+  target_link_libraries(cuda-graphs-for-jitter-free-fixed-rate PRIVATE winmm)
+endif()

@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — flagship 32.02 CUDA Graphs control loop done (33/505); submit time −47%, WDDM tail-jitter honesty measured and explained — [push-note](push-notes/2026-07-10-17-flagship-32-02-cuda-graphs.md)
 - 2026-07-10 — flagship 30.01 agriculture milestone 1 done (32/505) — batch 1g complete; near-surface depth bias derived, 1.8 mm localization — [push-note](push-notes/2026-07-10-16-flagship-30-01-agriculture-batch-1g-complete.md)
 - 2026-07-10 — flagship 29.05 ultrasound DAS beamforming done (31/505); wires localized ≤0.18 mm, resolution physics derived then measured — [push-note](push-notes/2026-07-10-15-flagship-29-05-ultrasound-beamforming.md)
 - 2026-07-10 — flagship 28.01 real-time FEM soft arm done (30/505); EB 0.5%, f1 1.4%, real-time factor 1.69×, four setpoints tracked — [push-note](push-notes/2026-07-10-14-flagship-28-01-soft-arm-fem.md)

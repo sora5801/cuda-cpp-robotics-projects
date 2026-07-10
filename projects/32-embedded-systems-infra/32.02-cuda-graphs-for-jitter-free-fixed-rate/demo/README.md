@@ -12,23 +12,37 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+One "tick" of a small, realistic perception-control DAG (8 kernels + 2 device-to-device copies,
+`../src/kernels.cu`) run **2000 times at a fixed 250 Hz**, three different ways — naive per-kernel
+stream launches, a captured CUDA Graph replayed every tick, and the same graph updated every tick
+via `cudaGraphExecKernelNodeSetParams` — while measuring host submission time, end-to-end latency,
+and pacing accuracy for each. It verifies two independent things (the GPU tick matches a plain-C++
+CPU twin, AND all three orchestration modes produce bit-identical outputs over the whole run), then
+reports the honest, measured answer to "do CUDA Graphs actually help here" — including where they do
+not (see the root [`README.md`](../README.md) "Expected output" section for the full, numbers-
+included story). Total runtime is ~24 s.
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+**Artifacts** (written to `out/`, git-ignored, regenerated every run):
+
+- `out/latency_histogram.csv` — one row per tick per mode (6000 rows): `submit_us`, `latency_us`,
+  `gpu_exec_ms`, `period_us`. The plotting payload — Exercise 1 in the root README asks you to
+  histogram `latency_us` per mode and see the tail visually.
+- `out/jitter_summary.csv` — one row per (mode, metric) pair (12 rows): `mean, p50, p95, p99, max`.
+  The numbers behind every `[time]`/`[info]` line the program prints.
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, scenario path, Sleep(1) calibration, per-mode progress, and the ACTUAL measured numbers behind each `GATE` verdict — varies by machine and run. | No. |
+| `PROBLEM:` / `SCENARIO:` | The exact tick shape and scenario loaded from `data/sample/tick_scenario.csv`. | Yes — stable (demo runs with no args). |
+| `[time]`    | Per-mode submit/latency/gpu-exec means and percentiles — **teaching artifacts, never a benchmark claim** (single-shot, one machine, one run). | No. |
+| `VERIFY:`   | GPU tick 0 vs. the CPU tick twin (`../src/reference_cpu.cpp`), within documented tolerance. | Yes — stable. |
+| `CROSSMODE:`| Modes B/C's full-run outputs bit-identical to mode A's. | Yes — stable. |
+| `GATE ...:` | Three measurement sanity gates (submit-reduction, gpu-work-consistency, pacing-accuracy) — the verdict text states the threshold POLICY only; the measured numbers are on the preceding `[info]` line. | Yes — stable (numbers deliberately excluded). |
+| `ARTIFACT:` | Confirms the two CSVs were written, with their row counts. | Yes — stable. |
+| `RESULT:`   | Overall `PASS`/`FAIL` — requires VERIFY, CROSSMODE, and all three gates to pass. The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines

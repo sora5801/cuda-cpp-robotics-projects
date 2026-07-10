@@ -9,9 +9,10 @@
   path edits, everything flows from $(CUDA_PATH) via the CUDA MSBuild
   integration (CLAUDE.md paragraph 5).
 
-  Library policy: this template links ONLY the CUDA runtime. If the real
-  project adds cuBLAS/cuFFT/cuRAND/..., add each .lib to AdditionalDependencies
-  below WITH an XML comment explaining why it is linked (CLAUDE.md paragraph 5).
+  Library policy: this project links the CUDA runtime plus ONE Win32
+  library, winmm.lib (see the AdditionalDependencies comments below for
+  why). If a future change adds cuBLAS/cuFFT/cuRAND/..., add each .lib here
+  WITH an XML comment explaining why it is linked (CLAUDE.md paragraph 5).
 ======================================================================== -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
@@ -110,8 +111,16 @@
       <!-- cudart_static.lib: the CUDA runtime linked STATICALLY, so the built
            .exe runs on a machine with just a driver — no cudart64_*.dll to
            ship or lose. The static runtime is the CUDA-sample default and
-           costs little for a single-exe project. -->
-      <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+           costs little for a single-exe project.
+           winmm.lib: this project's ONLY non-CUDA library. main.cu's
+           PacingClock calls timeBeginPeriod(1)/timeEndPeriod(1) (declared in
+           <mmsystem.h>) to request 1 ms Windows scheduler resolution before
+           the fixed-250 Hz pacing loop runs — without it, Sleep(1) can take
+           up to the default ~15.6 ms system tick, which would blow the whole
+           4 ms tick budget in one call (see main.cu's PacingClock comment
+           and THEORY.md "measurement methodology"). Both symbols live in
+           winmm.lib, the standard Win32 multimedia-timer import library. -->
+      <AdditionalDependencies>cudart_static.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -150,8 +159,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>      <!-- /OPT:ICF -->
       <OptimizeReferences>true</OptimizeReferences>        <!-- /OPT:REF: drop unreferenced code/data -->
       <AdditionalLibraryDirectories>$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <!-- See the Debug comment: static CUDA runtime => self-contained exe. -->
-      <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- See the Debug comment: static CUDA runtime => self-contained exe;
+           winmm.lib => PacingClock's timeBeginPeriod/timeEndPeriod. -->
+      <AdditionalDependencies>cudart_static.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>

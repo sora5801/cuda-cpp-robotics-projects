@@ -3,10 +3,9 @@
 # download_data.sh — public-dataset fetcher for 32.02 (CUDA Graphs for jitter-free fixed-rate perception-control loops)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# STATUS: honest no-op, by design. This project's "data" (data/README.md)
+# is a synthetic tick-pipeline/pacing configuration, not sensor recordings —
+# no public dataset applies, so there is nothing this script should fetch.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

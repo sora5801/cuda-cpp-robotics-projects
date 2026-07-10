@@ -1,107 +1,103 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 32.02 (CUDA Graphs for jitter-free fixed-rate perception-control loops).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample-data generator for 32.02
+(CUDA Graphs for jitter-free fixed-rate perception-control loops).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
-
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+This project's "data" is not sensor recordings — it is the TICK-PIPELINE
+and PACING configuration the study runs against: the initial state estimate,
+the two RNG seeds that make every one of the 2000x3 ticks' synthetic sensor
+readings and MPPI exploration noise reproducible byte-for-byte, and the
+pacing/warmup/tick-count parameters. src/main.cu's tick_inputs() function
+regenerates the actual per-tick sensor/noise ARRAYS in memory from these
+seeds every run (nothing bulky needs to be committed) — this script's job is
+to write the tiny, human-readable CONFIGURATION that seeds that process, so
+the whole study is reproducible from one committed file plus this script.
 
 Usage
 -----
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    python make_synthetic.py                          # defaults, matches the committed sample
+    python make_synthetic.py --measured-ticks 500 --hz 500 --out /tmp/scenario.csv
 """
 
 import argparse
-import csv
-import random
+import hashlib
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
-DEFAULT_SEED = 42
+# Defaults mirror the constants documented in ../src/kernels.cuh (tick shape)
+# and this project's README "The 250 Hz choice" (pacing). Changing these and
+# regenerating the file changes the demo's PROBLEM: line — the same
+# documented contract 08.01's scenario generator uses for its own K.
+DEFAULT_X0 = (0.0, 0.0, 0.3, 0.0)     # p, pdot, theta, thdot (kernels.cuh state layout)
+DEFAULT_SEED_EPS = 1234567
+DEFAULT_SEED_SENSOR = 7654321
+DEFAULT_MEASURED_TICKS = 2000
+DEFAULT_WARMUP_TICKS = 50
+DEFAULT_PACING_HZ = 250.0
 
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
 
+def make_scenario_csv(x0, seed_eps: int, seed_sensor: int, measured_ticks: int,
+                      warmup_ticks: int, pacing_hz: float, out_path: Path) -> None:
+    """Write the tick-pipeline + pacing scenario as a small labeled CSV.
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
-
-    Parameters
-    ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
-
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+    Row shape mirrors 08.01's cartpole_scenario.csv loader style (label,
+    value(s)) — src/main.cu's load_scenario() parses exactly these six
+    labels and rejects anything else, so a stray edit fails loudly rather
+    than silently changing the study.
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
     with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 32.02\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+        f.write("# SYNTHETIC configuration -- generated by scripts/make_synthetic.py for project 32.02\n")
+        f.write(f"# regenerate: python make_synthetic.py --measured-ticks {measured_ticks} "
+                f"--warmup-ticks {warmup_ticks} --hz {pacing_hz} "
+                f"--seed-eps {seed_eps} --seed-sensor {seed_sensor}\n")
+        f.write("# X0: initial state estimate [p_m, pdot_ms, theta_rad, thdot_rads] "
+                "(kernels.cuh's 08.01-derived cart-pole layout, reused as a representative state vector)\n")
+        f.write("# SEED_EPS / SEED_SENSOR: independent xorshift32 seeds for the MPPI exploration\n")
+        f.write("#   noise stream and the synthetic sensor-reading stream (src/main.cu tick_inputs())\n")
+        f.write("# MEASURED_TICKS / WARMUP_TICKS: ticks run per mode, measured vs. discarded-for-JIT\n")
+        f.write("# PACING_HZ: the fixed software pacing rate every mode targets\n")
+        f.write(f"X0,{x0[0]:.6f},{x0[1]:.6f},{x0[2]:.6f},{x0[3]:.6f}\n")
+        f.write(f"SEED_EPS,{seed_eps}\n")
+        f.write(f"SEED_SENSOR,{seed_sensor}\n")
+        f.write(f"MEASURED_TICKS,{measured_ticks}\n")
+        f.write(f"WARMUP_TICKS,{warmup_ticks}\n")
+        f.write(f"PACING_HZ,{pacing_hz:.6f}\n")
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    sha256 = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    print(f"[make_synthetic] wrote {out_path} (labeled SYNTHETIC)")
+    print(f"[make_synthetic] SHA-256: {sha256}")
 
 
 def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
     script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+    default_out = script_dir.parent / "data" / "sample" / "tick_scenario.csv"
 
     parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 32.02 (CUDA Graphs for jitter-free fixed-rate perception-control loops).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
+        description="Generate the tick-pipeline + pacing scenario for project 32.02 "
+                    "(CUDA Graphs for jitter-free fixed-rate perception-control loops).")
+    parser.add_argument("--x0", type=float, nargs=4, default=DEFAULT_X0,
+                        metavar=("P", "PDOT", "THETA", "THDOT"),
+                        help="initial state estimate (default: 0 0 0.3 0)")
+    parser.add_argument("--seed-eps", type=int, default=DEFAULT_SEED_EPS,
+                        help=f"RNG seed for MPPI exploration noise (default {DEFAULT_SEED_EPS})")
+    parser.add_argument("--seed-sensor", type=int, default=DEFAULT_SEED_SENSOR,
+                        help=f"RNG seed for the synthetic sensor stream (default {DEFAULT_SEED_SENSOR})")
+    parser.add_argument("--measured-ticks", type=int, default=DEFAULT_MEASURED_TICKS,
+                        help=f"ticks measured per mode (default {DEFAULT_MEASURED_TICKS})")
+    parser.add_argument("--warmup-ticks", type=int, default=DEFAULT_WARMUP_TICKS,
+                        help=f"unpaced warmup ticks per mode, discarded (default {DEFAULT_WARMUP_TICKS})")
+    parser.add_argument("--hz", type=float, default=DEFAULT_PACING_HZ,
+                        help=f"fixed pacing rate in Hz (default {DEFAULT_PACING_HZ})")
     parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
+                        help="output CSV path (default: ../data/sample/tick_scenario.csv)")
     args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
+    if args.measured_ticks <= 0 or args.warmup_ticks < 0 or args.hz <= 0:
+        parser.error("--measured-ticks and --hz must be > 0, --warmup-ticks must be >= 0")
 
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    make_scenario_csv(args.x0, args.seed_eps, args.seed_sensor, args.measured_ticks,
+                      args.warmup_ticks, args.hz, args.out)
 
 
 if __name__ == "__main__":

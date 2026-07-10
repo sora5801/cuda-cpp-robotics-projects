@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 32/505 done** (6.3%)
+**Overall: 33/505 done** (6.5%)
 
 | Status | Count |
 |--------|-------|
-| todo | 473 |
+| todo | 472 |
 | in-progress | 0 |
-| done | 32 |
+| done | 33 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -61,7 +61,7 @@
 | 29 Medical & Bio-Robotics | 1/13 |
 | 30 Field & Industry-Specific Robotics | 1/12 |
 | 31 Safety, Verification & Testing | 1/12 |
-| 32 Embedded, Jetson & Systems Infrastructure | 0/17 |
+| 32 Embedded, Jetson & Systems Infrastructure | 1/17 |
 | 33 Foundational GPU Libraries (Build-Your-Own) | 1/15 |
 | 34 Theoretical & Research Frontier | 0/17 |
 | 35 Micro & Nano Robotics | 0/9 |
@@ -664,12 +664,12 @@
 | 31.11 | Conformal prediction batches for perception uncertainty bounds | [R&D] research |  | todo |  |  |
 | 31.12 | Defensive network anomaly detection for robot fleets | intermediate |  | todo |  |  |
 
-## 32. Embedded, Jetson & Systems Infrastructure (`32-embedded-systems-infra`) — 0/17 done
+## 32. Embedded, Jetson & Systems Infrastructure (`32-embedded-systems-infra`) — 1/17 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 32.01 | Zero-copy Jetson pipeline: camera → CUDA → TensorRT → control, no CPU touches | ★ beginner |  | todo |  |  |
-| 32.02 | CUDA Graphs for jitter-free fixed-rate perception-control loops | intermediate | ⭐ | todo |  |  |
+| 32.02 | CUDA Graphs for jitter-free fixed-rate perception-control loops | intermediate | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); submit -47%, WDDM tail honesty |
 | 32.03 | Persistent kernels for microsecond-latency control | [R&D] research |  | todo |  |  |
 | 32.04 | GPUDirect RDMA: NIC → GPU LiDAR/camera ingest at 100 GbE | intermediate |  | todo |  |  |
 | 32.05 | Deterministic memory: pool/arena allocators for robotics pipelines | intermediate |  | todo |  |  |
