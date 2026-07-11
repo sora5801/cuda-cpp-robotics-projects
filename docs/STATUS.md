@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 54/505 done** (10.7%)
+**Overall: 55/505 done** (10.9%)
 
 | Status | Count |
 |--------|-------|
-| todo | 451 |
+| todo | 450 |
 | in-progress | 0 |
-| done | 54 |
+| done | 55 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 19/24 |
+| 01 Perception — Cameras & Vision | 20/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,7 +67,7 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 19/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 20/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -90,7 +90,7 @@
 | 01.17 | Camera-LiDAR / camera-camera extrinsic calibration (batched reprojection-error optimization) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); analytic Jacobian gated vs numeric, basin 77.3% at 2.4rad/1.2m, coplanar degeneracy 110x conditioning lesson, zero-noise machine-precision anchors |
 | 01.18 | Depth completion: sparse LiDAR + RGB → dense depth | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Perona-Malik diffusion w/ CFL static_assert, texture-trap bounded 1.35x, camo-edge honesty 3.63x, atomicMin float-encode z-buffer |
 | 01.19 | Structured-light decoding (Gray code, phase shift) for 3D scanners | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); hybrid sub-pixel 3.76x over Gray-only, Gray-vs-binary 30.8x, ambient cancellation exact, 3 analytic surface gates |
-| 01.20 | Time-of-flight raw processing: phase unwrapping, flying-pixel removal | intermediate |  | todo |  |  |
+| 01.20 | Time-of-flight raw processing: phase unwrapping, flying-pixel removal | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); phasor-mixing flying pixels precision 100%/recall 62%, aliasing 100% demonstrated, unwrap 12.9mm/98.06% |
 | 01.21 | Scene flow from RGB-D pairs | intermediate |  | todo |  |  |
 | 01.22 | Motion deblurring and super-resolution for inspection zoom | intermediate |  | todo |  |  |
 | 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | todo |  |  |

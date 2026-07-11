@@ -1,8 +1,35 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.20 (time-of-flight-raw-processing)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run. Every
+# stable line's measured float value has already been checked in an "[info]" line above it; the
+# lines here carry only fixed tolerances/floors and verdicts, so they are identical on any machine
+# whose GPU-vs-CPU agreement and gate measurements pass (CLAUDE.md §12 determinism discipline).
+# Captured from an actual local run on an NVIDIA GeForce RTX 2080 SUPER (sm_75), CUDA 13.3.
+[demo] Time-of-flight raw processing: phase unwrapping, flying-pixel removal (project 01.20)
+PROBLEM: continuous-wave iToF, camera 160x120 px, freq1=60 MHz (ambig 2.498 m), freq2=20 MHz (ambig 7.495 m), 4 taps/frequency, FP32
+SCENARIO: synthetic room-scale scene (tilted background wall + sphere + box step-edge), low-reflectivity dark cohort, seed 42 [synthetic]
+VERIFY: extract_phase_amplitude PASS (GPU vs CPU within tol 1.0e-03 rad / 5.0e-02 counts, both frequencies)
+VERIFY: single_freq_depth PASS (GPU vs CPU within tol 1.0e-03 m)
+VERIFY: dual_freq_unwrap PASS (wrap-count near-exact, depth within tol 2.0e-03 m on agreeing pixels)
+VERIFY: confidence_mask PASS (flag mismatches <= allowance 30)
+VERIFY: flying_pixel_detect PASS (flag mismatches <= allowance 30)
+VERIFY: backproject PASS (final-valid near-exact, xyz within tol 4.0e-03 m)
+GATE: phase_extraction PASS (mean |dphi| vs analytic truth <= bound 0.05 rad, clean pixels)
+GATE: offset_invariance PASS (max |dphi| <= tol 1.0e-04 rad)
+GATE: aliasing_demo PASS (gross-wrap-error fraction >= floor 90%, far-background pixels)
+GATE: unwrap_recovery PASS (mean |err| <= bound 25 mm AND wrap-count correct rate >= floor 95%)
+GATE: flying_pixel PASS (precision >= floor 85% AND recall >= floor 50%, vs independent truth_flying)
+GATE: reconstruction_plane PASS (RMS residual <= bound 30 mm)
+GATE: reconstruction_sphere PASS (radius error <= bound 8%)
+GATE: reconstruction_step PASS (step-height error <= bound 2%)
+GATE: dark_cohort PASS (cohort rejection rate >= floor 95% AND zero survivor depth-sanity violations)
+ARTIFACT: wrote demo/out/tap_sample_f1.pgm (freq1 60 MHz, tap 0 / 0 deg)
+ARTIFACT: wrote demo/out/tap_sample_f2.pgm (freq2 20 MHz, tap 0 / 0 deg)
+ARTIFACT: wrote demo/out/wrapped_depth_f1.pgm (single-frequency depth, freq1 -- the aliasing visual: repeating bands on the far wall)
+ARTIFACT: wrote demo/out/unwrapped_depth.pgm (dual-frequency unwrapped depth, full scene range)
+ARTIFACT: wrote demo/out/flying_pixel_mask.pgm (white = flagged flying pixel)
+ARTIFACT: wrote demo/out/point_cloud.csv (17933 points, after flying-pixel removal)
+ARTIFACT: wrote demo/out/profile_view_before.ppm (X-Z profile BEFORE flying-pixel removal -- look for points hanging between the objects and the wall)
+ARTIFACT: wrote demo/out/profile_view_after.ppm (X-Z profile AFTER flying-pixel removal -- the same scene, cleaned up)
+ARTIFACT: wrote demo/out/gates_metrics.csv (11 rows)
+RESULT: PASS (all 6 GPU-vs-CPU verifications and 9 independent gates passed)

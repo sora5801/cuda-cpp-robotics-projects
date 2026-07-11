@@ -1,12 +1,14 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.20 (Time-of-flight raw processing: phase unwrapping, flying-pixel removal)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# STATUS: intentional no-op. This project is 100% synthetic (scripts/
+# make_synthetic.py) — no public iToF raw-tap dataset with the exact 4-tap,
+# dual-frequency, ground-truth-labeled-flying-pixel shape this project needs
+# is known to exist with a redistributable license, so there is nothing to
+# fetch here (README "Limitations" states this honestly).
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) were a future maintainer to add a real
+# fetch here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

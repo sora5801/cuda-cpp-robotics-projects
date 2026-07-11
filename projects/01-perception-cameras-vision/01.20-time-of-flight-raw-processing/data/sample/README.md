@@ -16,7 +16,7 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** 8 raw correlation-tap PGMs (`tof_f{1,2}_tap{0..3}.pgm`, 2 modulation
+frequencies x 4 taps each), 3 ground-truth binaries (`truth_depth.bin`, `truth_surface.bin`,
+`truth_flying.bin`), and `params.csv`. Regenerate with `python ../../scripts/make_synthetic.py`.
+Full field documentation, provenance, and checksums: [`../README.md`](../README.md).
