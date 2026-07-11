@@ -16,7 +16,10 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds `truth.pgm` / `blurred.pgm` (milestone 1: deblurring), `psf_truth.csv` /
+`psf_mismatch.csv` (the known-good and deliberately-wrong motion-blur kernels), `lr_frame_0.pgm`
+through `lr_frame_7.pgm` / `shifts_truth.csv` (milestone 2: 8 low-res frames + their known sub-pixel
+registration), and `params.csv` (every generation parameter in one place). Full field-by-field
+documentation, units, checksums, and the exact generation method live in
+[`../README.md`](../README.md). Regenerate everything with `python ../../scripts/make_synthetic.py`
+(fixed seed 42 — byte-identical output every run).

@@ -1,0 +1,16 @@
+# SYNTHETIC data generation parameters — project 01.22 (regenerate: python make_synthetic.py)
+parameter,value
+seed,42
+truth_w_px,128
+truth_h_px,128
+blur_length_px,9.0
+blur_angle_deg,20.0
+blur_mismatch_angle_deg,45.0
+blur_noise_std_dn,3.0
+psf_size,15
+lr_scale,2
+lr_w_px,64
+lr_h_px,64
+num_frames,8
+lr_noise_std_dn,2.0
+supersample_factor,4

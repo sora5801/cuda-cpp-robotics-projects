@@ -1,8 +1,26 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.22 (motion-deblurring-and-super-resolution)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# expected_output.txt — the STABLE lines project 01.22's demo must print.
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore
+# them when diffing. Every non-comment line below must appear VERBATIM in
+# the demo's stdout (a subset check — "[time]"/"[info]" lines carry the
+# actual measured numbers, vary by GPU/run, and are deliberately NOT
+# checked; see the "output contract" comment in ../src/main.cu).
+#
+# Captured from an ACTUAL run: build/x64/Release/motion-deblurring-and-super-resolution.exe
+# on an NVIDIA GeForce RTX 2080 SUPER (sm_75), CUDA 13.3, VS 2026 (v145), no arguments.
+[demo] motion deblurring (Wiener / naive-inverse / Richardson-Lucy) and multi-frame super-resolution (shift-and-add + IBP vs bicubic) for inspection zoom (project 01.22)
+PROBLEM: 128x128 inspection scene, line-motion-blur PSF length=9.0px angle=20.0deg, 8 low-res frames at 64x64 (scale 2x) with known quarter-LR-pixel shifts, FP32
+DATA: synthetic inspection scene (flat patch + step edge + 7 dot-matrix glyphs + hashed texture + 3 bar-chart frequency groups); truth.pgm + blurred.pgm (exact line-PSF convolution + Gaussian noise) + 8 low-res frames on a quarter-pixel shift lattice [synthetic, seed 42]
+VERIFY(naive_inverse): PASS (GPU cuFFT path matches independent CPU radix-2 FFT twin within tolerance)
+VERIFY(wiener): PASS (GPU cuFFT path matches independent CPU radix-2 FFT twin within tolerance)
+VERIFY(richardson_lucy): PASS (GPU spatial convolution matches independent CPU twin within tolerance)
+GATE wiener_recovery: PASS
+GATE naive_inverse_failure: PASS
+GATE rl_recovery: PASS
+GATE psf_mismatch: PASS
+VERIFY(bicubic): PASS (GPU gather kernel matches independent CPU twin within tolerance)
+VERIFY(shift_and_add): PASS (GPU atomic-scatter splat matches independent CPU twin within tolerance)
+VERIFY(ibp): PASS (GPU gather-based forward/back-projection matches independent CPU twin within tolerance)
+GATE sr_resolution: PASS
+GATE sr_consistency: PASS
+ARTIFACT: wrote demo/out/{truth.pgm, blurred.pgm, wiener.pgm, naive_inverse.pgm, rl.pgm, lr_frame_0.pgm, bicubic.pgm, sr.pgm, bar_chart_comparison.pgm, rl_convergence.csv, ibp_convergence.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY x6 + all 6 gates passed: wiener_recovery, naive_inverse_failure, rl_recovery, psf_mismatch, sr_resolution, sr_consistency)

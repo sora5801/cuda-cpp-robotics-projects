@@ -1,10 +1,12 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.22 (Motion deblurring and super-resolution for inspection zoom)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): synthetic-only. Every pixel this project studies
+# needs an EXACT known ground truth (the un-blurred scene, the exact PSF,
+# the exact sub-pixel registration of every low-res frame) that no public
+# photograph dataset can honestly provide — see ../data/README.md's "This
+# project's data" section for the full reasoning. This script is therefore
+# an intentional, permanent no-op, not an unfinished placeholder.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

@@ -9,9 +9,20 @@
   path edits, everything flows from $(CUDA_PATH) via the CUDA MSBuild
   integration (CLAUDE.md paragraph 5).
 
-  Library policy: this template links ONLY the CUDA runtime. If the real
-  project adds cuBLAS/cuFFT/cuRAND/..., add each .lib to AdditionalDependencies
-  below WITH an XML comment explaining why it is linked (CLAUDE.md paragraph 5).
+  Library policy: this project links the CUDA runtime AND cuFFT.
+  cuFFT (cufft.lib) is a CUDA TOOLKIT library (CLAUDE.md paragraph 5's
+  default-allowed set) — it computes the batched 2-D real-to-complex /
+  complex-to-real FFTs that milestone 1's Wiener and naive-inverse
+  deconvolution filters run in (see src/kernels.cu's file header and the
+  launch_fft_forward_r2c/launch_fft_inverse_c2r wrappers for what each call
+  computes, why a hand-rolled CUDA FFT would teach FFT internals at the
+  expense of teaching DECONVOLUTION — this project's actual subject — and
+  the 03.01 precedent this project follows verbatim). cufft.lib is
+  DLL-backed at runtime (cufft64_*.dll, unlike the statically-linked CUDA
+  runtime below) — a clean machine needs the CUDA Toolkit installed to run
+  this project's .exe, which the repo already requires for every project
+  (CLAUDE.md paragraph 5's toolchain standard), so this adds no new install
+  burden.
 ======================================================================== -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
@@ -135,8 +146,10 @@
       <!-- cudart_static.lib: the CUDA runtime linked STATICALLY, so the built
            .exe runs on a machine with just a driver — no cudart64_*.dll to
            ship or lose. The static runtime is the CUDA-sample default and
-           costs little for a single-exe project. -->
-      <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+           costs little for a single-exe project.
+           cufft.lib is this project's DLL-backed FFT library (see the
+           file-header comment above for what it computes and why). -->
+      <AdditionalDependencies>cudart_static.lib;cufft.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -175,8 +188,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>      <!-- /OPT:ICF -->
       <OptimizeReferences>true</OptimizeReferences>        <!-- /OPT:REF: drop unreferenced code/data -->
       <AdditionalLibraryDirectories>$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <!-- See the Debug comment: static CUDA runtime => self-contained exe. -->
-      <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- See the Debug comment: static CUDA runtime => self-contained exe;
+           cufft.lib is this project's DLL-backed FFT library. -->
+      <AdditionalDependencies>cudart_static.lib;cufft.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -202,6 +216,7 @@
     <ClInclude Include="..\src\kernels.cuh" />
     <ClInclude Include="..\src\util\cuda_check.cuh" />
     <ClInclude Include="..\src\util\timer.cuh" />
+    <ClInclude Include="..\src\util\paths.h" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

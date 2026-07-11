@@ -67,12 +67,15 @@ target_compile_options(motion-deblurring-and-super-resolution PRIVATE
   $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-lineinfo>
 )
 
-# No target_link_libraries needed: with CUDA as an enabled language, CMake
-# links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
-# Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(motion-deblurring-and-super-resolution PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# CUDA as an enabled language links the CUDA runtime automatically
+# (CUDA_RUNTIME_LIBRARY defaults to Static — matching the .vcxproj's
+# cudart_static.lib choice: the exe runs with only a driver installed).
+# cuFFT is NOT automatic — this project's milestone-1 Wiener/naive-inverse
+# deconvolution runs its FFTs through cuFFT (see src/kernels.cu's file
+# header and the .vcxproj's library-policy comment for what it computes and
+# why), so it is linked explicitly here via the standard CUDAToolkit
+# CMake package (CUDA::cufft) — the same library the .vcxproj links as
+# cufft.lib; if the two ever disagree, the .vcxproj wins (CLAUDE.md
+# paragraph 5).
+find_package(CUDAToolkit REQUIRED)
+target_link_libraries(motion-deblurring-and-super-resolution PRIVATE CUDA::cufft)
