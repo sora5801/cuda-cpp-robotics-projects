@@ -1,8 +1,32 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Stable-line contract for project 01.24 (transparent-reflective-object-detection).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.24 (transparent-reflective-object-detection)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines
+# belong here -- never "[time]"/"[info]" lines (timings, GPU name, and every measured number
+# live there and vary by machine/run; see main.cu's file header "Output contract").
+#
+# Captured from an ACTUAL run on the reference machine (RTX 2080 SUPER, sm_75, CUDA 13.3,
+# Release|x64, default args, no --data override). See README.md "Expected output" for the
+# full [info]/[time] numbers this same run printed (GPU=CPU agreement, gate margins, etc.).
+[demo] transparent/reflective object detection via polarization imaging (project 01.24)
+PROBLEM: 128x128 DoFP polarization mosaic (4 phases: 0/45/90/135 deg), matte background + glass pane + glass dome + brushed metal bar, FP32
+DATA: synthetic DoFP capture (flat/gradient matte background residual DoLP=0.018; glass pane at 35.0 deg incidence; curved glass dome (Fresnel per-pixel, Brewster ring); brushed metal bar (saturating DoLP curve)); negative-control (background-only) scene; per-pixel ground truth [synthetic, seed 42]
+VERIFY(demosaic): PASS (GPU phase-bilinear reconstruction matches independent CPU twin)
+VERIFY(stokes): PASS (GPU Stokes formulas match independent CPU twin)
+VERIFY(dolp): PASS (GPU DoLP formula matches independent CPU twin)
+VERIFY(aolp): PASS (GPU AoLP formula, half-angle wrap included, matches independent CPU twin)
+VERIFY(malus_residual): PASS (GPU self-consistency residual matches independent CPU twin)
+VERIFY(detection_dolp): PASS (GPU threshold+morph+CCL+filter bit-exact vs. independent CPU twin, same input)
+VERIFY(detection_intensity): PASS (GPU threshold+morph+CCL+filter bit-exact vs. independent CPU twin, same input)
+GATE stokes_accuracy: PASS
+GATE malus_consistency: PASS
+GATE fresnel_anchor: PASS
+GATE detection: PASS
+GATE brewster_sweep: PASS
+GATE negative_control: PASS
+ARTIFACT: demo/out/intensity_s0.pgm written (S0 -- plain intensity; the glass objects are INVISIBLE here by construction)
+ARTIFACT: demo/out/dolp.pgm written (DoLP scaled to [0,255] -- the glass objects GLOW here)
+ARTIFACT: demo/out/aolp_vis.ppm written (HSV: hue=2*AoLP deg, saturation=1, value=DoLP -- the dome's radial 'polarization donut' vs. the metal bar's constant hue)
+ARTIFACT: demo/out/detection_overlay.ppm written (left: intensity-only detection in red -- misses the glass; right: DoLP-based detection in green -- finds it)
+ARTIFACT: demo/out/brewster_curve.csv written (DoLP vs incidence angle, peak near Brewster's 56.3 deg)
+ARTIFACT: demo/out/gates_metrics.csv written
+RESULT: PASS (all VERIFY checks and all GATEs passed)

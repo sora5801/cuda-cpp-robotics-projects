@@ -70,9 +70,7 @@ target_compile_options(transparent-reflective-object-detection PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(transparent-reflective-object-detection PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). This project links NO extra CUDA libraries
+# (no cuBLAS/cuFFT/Thrust) — every stage (demosaic, Stokes, DoLP/AoLP,
+# detection) is a hand-rolled map or small stencil kernel; see THEORY.md
+# "The GPU mapping" for why no library call earns its place here.

@@ -1,0 +1,24 @@
+# SYNTHETIC data generation parameters — project 01.24 (regenerate: python make_synthetic.py)
+parameter,value
+seed,42
+canvas_w_px,128
+canvas_h_px,128
+n_glass,1.5
+brewster_angle_deg,56.3099
+pane_theta_deg,35.0
+pane_aolp_deg,90.0
+pane_dolp_closed_form,0.534647
+dome_cx_px,92.0
+dome_cy_px,40.0
+dome_radius_px,24.0
+metal_dolp_max,0.55
+metal_sat,0.15
+metal_s0_dn,195.0
+bg_s0_base_dn,130.0
+bg_s0_grad_amp_x_dn,12.0
+bg_dolp,0.018
+bg_aolp_deg,45.0
+noise_std_dn,2.2
+dolp_threshold,0.1
+intensity_threshold_dn,25.0
+min_component_size_px,40

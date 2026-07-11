@@ -3,12 +3,13 @@
 # download_data.sh — public-dataset fetcher for 01.24 (Transparent/reflective object detection via polarization imaging)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RATIFIED AS A NO-OP: no public polarization dataset feeds this project.
+# make_synthetic.py is the sole data source — a synthetic scene is what
+# makes the fresnel_anchor gate possible at all (data/README.md explains
+# why: a real photograph never comes with per-pixel TRUE DoLP/AoLP labeled
+# against a first-principles physics model; only a synthetic one can).
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any FUTURE real fetch here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

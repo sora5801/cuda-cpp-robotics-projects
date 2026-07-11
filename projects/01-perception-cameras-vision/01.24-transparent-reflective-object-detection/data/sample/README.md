@@ -16,7 +16,8 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds `mosaic.pgm` (the main DoFP scene), `mosaic_negctrl.pgm` (the negative-control
+scene), `truth_maps.csv` (per-pixel ground truth), and `params.csv` (generation parameters) — see
+[`../README.md`](../README.md) for the full field-by-field documentation, checksums, and size math.
+Regenerate at any time with `python ../../scripts/make_synthetic.py` (fixed seed 42, byte-identical
+output every run).
