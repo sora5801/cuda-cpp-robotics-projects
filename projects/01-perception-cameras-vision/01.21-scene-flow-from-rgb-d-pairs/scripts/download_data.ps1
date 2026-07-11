@@ -1,10 +1,14 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.21 (Scene flow from RGB-D pairs)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): synthetic-only. Scene flow needs an answer key no
+# public dataset provides — the EXACT decomposition of raw 3-D motion into
+# camera ego-motion vs. one independently moving object's own motion (see
+# scripts/make_synthetic.py's module docstring) — so this script is an
+# intentional, honest no-op; make_synthetic.py is the sole data source
+# (data/README.md). KITTI Scene Flow (THEORY.md "Where this sits in the real
+# world") is the closest real benchmark, but ships only combined ground
+# truth, not this decomposition, and is non-commercial-licensed besides.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

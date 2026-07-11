@@ -1,8 +1,25 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.21 (scene-flow-from-rgb-d-pairs)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract (CLAUDE.md paragraph 6.3 / src/main.cu's "Output contract" comment):
+# lines starting with '#' are comments, ignored by run_demo.ps1 / run_demo.sh. Every remaining
+# line must appear VERBATIM somewhere in the demo's stdout. "[time]"/"[info]" lines vary by GPU
+# and by measured floating-point results and are deliberately NOT checked here -- only "[demo]",
+# "PROBLEM:", "VERIFY:", "GATE:", "ARTIFACT:", and "RESULT:" lines are stable. Captured from an
+# actual run on the reference machine (RTX 2080 SUPER, CUDA 13.3, Release|x64).
+[demo] scene flow from RGB-D pairs: 2-D flow -> 3-D lift -> robust ego-motion -> residual segmentation (project 01.21)
+PROBLEM: 128x96 RGB-D pair, ego-motion 3.0 deg + 90 mm, object motion 300 mm, IRLS 8 rounds, seg threshold ~noise-derived
+VERIFY: flow_2d PASS (GPU pyramidal-LK flow matches CPU reference within tol 0.05 px)
+VERIFY: lifting PASS (GPU 3-D lift matches CPU reference within tol 1e-4 m, zero validity mismatches)
+VERIFY: robust_fit_reduce PASS (GPU block-reduced covariance matches CPU direct accumulation within relative tol 1e-4)
+VERIFY: residuals PASS (GPU residual magnitude matches CPU reference within tol 1e-4 m)
+VERIFY: threshold_mask PASS (GPU threshold mask bit-exact vs CPU reference)
+VERIFY: morphology PASS (GPU erode+dilate bit-exact vs CPU reference)
+VERIFY: connected_components PASS (GPU iterative label propagation bit-exact vs CPU union-find reference, after both canonicalize to min-pixel-index labels)
+VERIFY: component_size_filter PASS (GPU size-filtered mask bit-exact vs CPU reference)
+GATE: flow_2d PASS (mean endpoint error < 3.20 px over confident, valid pixels)
+GATE: scene_flow_3d PASS (mean 3-D endpoint error < 0.38 m over valid, confident pixels)
+GATE: ego_motion PASS (robust fit: rotation error < 0.30 deg AND translation error < 8.0 mm vs. known camera ego-motion, WITH the moving object present)
+GATE: ego_motion_robustness PASS (the naive unweighted fit is measurably worse than the robust fit by >= 1.5x on rotation or translation error — this is WHY robustness is needed)
+GATE: object_segmentation PASS (IoU of the residual-segmented mask vs. the known object mask > 0.15)
+GATE: static_negative_control PASS (segmented moving-pixel fraction < 5.0% under the SAME ego-motion challenge with no independently moving object)
+GATE: noise_derivation PASS (RAW threshold false-positive rate < 20.0%, consistent with the depth-noise-propagated bound it was derived from)
+ARTIFACT: wrote flow_2d.ppm, scene_flow_magnitude.pgm, residual_map.pgm, moving_mask_postmorph.pgm, moving_mask.pgm, truth_mask.pgm, overlay.ppm, gates_metrics.csv to demo/out/
+RESULT: PASS (all VERIFY twins agree and all evaluation gates pass — see GATE lines above)

@@ -16,7 +16,7 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** a synthetic RGB-D pair (two camera exposures, known ego-motion, one
+independently moving object) plus its exact dense ground truth — 9 files, ~528 KB total. Every
+field, format, and checksum is documented in [`../README.md`](../README.md). Regenerate with
+`python ../../scripts/make_synthetic.py --seed 42` (deterministic — byte-identical output).

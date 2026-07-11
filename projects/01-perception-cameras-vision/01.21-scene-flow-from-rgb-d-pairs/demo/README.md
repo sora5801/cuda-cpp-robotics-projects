@@ -12,13 +12,44 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The full scene-flow pipeline (README §"The algorithm in brief") on a synthetic 128×96 RGB-D pair:
+dense 2-level pyramidal Lucas-Kanade flow → 3-D lifting via back-projection (with a depth-
+consistency guard) → a robust (IRLS + Horn/Kabsch) fit of the dominant camera ego-motion → residual
+segmentation of the one independently moving object (threshold → 3×3 morphological open →
+connected-component size filter) → a robust (IRLS+Tukey), fixed-rotation fit of the object's own
+motion offset. It runs on **two** data pairs: the main dynamic pair (camera moves AND the box moves)
+and a static negative-control pair (camera moves, box does NOT) — the second pair exists purely to
+prove the pipeline does not hallucinate movers under camera motion alone.
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+Along the way it VERIFIES every GPU kernel against its independent CPU twin on the real loaded
+data (not synthetic toy inputs), then reports 7 EVALUATION GATES against the scene's known ground
+truth: `flow_2d`, `scene_flow_3d`, `ego_motion` (+ `ego_motion_robustness`, the designed
+naive-vs-robust comparison), `object_segmentation`, `static_negative_control`, and
+`noise_derivation`. `object_motion` is reported `[info]`-only (not gated — see README
+"Limitations & honesty" for why).
+
+**Artifacts** (written to `out/`, all from the main dynamic pair):
+
+| File | What it shows |
+|------|----------------|
+| `flow_2d.ppm` | dense 2-D flow, HSV color-wheel encoded (hue = direction, brightness = magnitude) |
+| `scene_flow_magnitude.pgm` | raw 3-D scene-flow magnitude `\|P2-P1\|` per pixel, grayscale |
+| `residual_map.pgm` | post-ego-motion residual magnitude `\|T(P1)-P2\|` per pixel — this is what gets thresholded |
+| `moving_mask_postmorph.pgm` | the segmented mask AFTER threshold + morphological open, BEFORE the connected-component size filter |
+| `moving_mask.pgm` | the FINAL mask — `moving_mask_postmorph.pgm` after the size filter; compare the two to see what it removed |
+| `truth_mask.pgm` | the known ground-truth object mask, for visual comparison |
+| `overlay.ppm` | the final segmented mask's outline drawn in green over the frame0 RGB image |
+| `gates_metrics.csv` | every gate's measured numeric value, machine-readable |
+
+**What to notice:** the moving box's outline in `overlay.ppm` roughly traces the real box, but a
+real, coherent block of false positives survives immediately ADJACENT to it even after the size
+filter — that is the demo's own honest evidence of a disocclusion-boundary artifact (background
+revealed/occluded by the moving box, `\|P2-P1\|` there is genuinely large but WRONG) that happens to
+be roughly the same size as the object's own largest surviving fragment. A pixel-count size floor
+alone cannot separate a coherent wrong-shaped blob from a coherent right-shaped one — see README
+"Limitations & honesty" and THEORY.md "Numerical considerations" for the full, measured story
+(before/after component filtering, and why `object_motion`'s direction recovers well while its
+magnitude still does not). It is why several gates carry generous, MEASURED-not-aspirational bounds.
 
 ## How to read the output
 
