@@ -1,8 +1,25 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.23 (full-rawrgb-isp-on-jetson)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# expected_output.txt — stable lines for project 01.23 (Full RAW->RGB ISP)
+#
+# Lines starting with '#' and blank lines are comments (ignored by the
+# runners). Every remaining line must appear VERBATIM somewhere in the
+# program's stdout (subset check — see the "output contract" comment at the
+# top of ../src/main.cu). "[info]"/"[time]" lines carry measured numbers
+# that vary by GPU architecture (FMA-contraction differences) and are
+# deliberately NOT listed here — see README.md "Expected output" for the
+# measured values from an actual run (RTX 2080 SUPER, sm_75, Release).
+[demo] full RAW->RGB ISP: black level -> lens shading -> defect correction -> white balance -> demosaic (MHC + bilinear) -> CCM -> gamma, staged vs fused, two illuminants (project 01.23)
+PROBLEM: 160x120 RAW10-in-uint16 RGGB mosaic, black=64 white=1023, shading V(r)=1-0.35r^2+0.10r^4, CCM derived from a 3x3 spectral crosstalk matrix, MHC 5x5 demosaic, D65 + tungsten illuminants
+DATA: 160x120 synthetic RGGB scene (24-patch chart + AWB card + hashed texture), 16 committed defects, two illuminants [synthetic, seed 42]
+VERIFY: PASS (GPU matches CPU reference within documented per-stage tolerance)
+GATE black_level_residual: PASS
+GATE shading_flatness: PASS
+GATE defect_recovery: PASS
+GATE demosaic_psnr: PASS
+GATE awb_accuracy: PASS
+GATE awb_red_crop_failure: PASS
+GATE ccm_color_chart: PASS
+GATE tungsten_wrong_awb_negative_control: PASS
+GATE end_to_end_psnr: PASS
+GATE fused_vs_staged: PASS
+ARTIFACT: wrote demo/out/{raw_vis_d65.pgm, shading_corrected_d65.pgm, demosaiced_mhc_d65.ppm, demosaiced_bilinear_d65.ppm, white_balanced_d65.ppm, final_d65.ppm, final_tungsten.ppm, final_tungsten_wrong_awb.ppm, chart_crop_d65.ppm, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 10 gates passed: black_level_residual, shading_flatness, defect_recovery, demosaic_psnr, awb_accuracy, awb_red_crop_failure, ccm_color_chart, tungsten_wrong_awb_negative_control, end_to_end_psnr, fused_vs_staged)

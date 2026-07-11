@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.23 (Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): no public dataset applies. A real RAW10 sensor
+# frame with the exact ground truth this project's gates need (per-stage
+# truth, a known illuminant, a known defect map) does not exist as a public
+# download — synthesizing it is the only way to get it, which is exactly
+# what ../scripts/make_synthetic.py does. This script is therefore an
+# honest no-op, kept only so every project in the repo exposes the same
+# script contract (CLAUDE.md section 8).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

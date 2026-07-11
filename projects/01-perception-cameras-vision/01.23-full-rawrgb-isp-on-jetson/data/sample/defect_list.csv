@@ -1,0 +1,17 @@
+x,y,kind
+97,111,stuck_high
+95,107,stuck_low
+125,91,stuck_mid
+116,91,stuck_high
+113,102,stuck_low
+128,110,stuck_mid
+108,97,stuck_high
+128,109,stuck_low
+122,99,stuck_mid
+121,113,stuck_high
+120,111,stuck_low
+97,104,stuck_mid
+116,100,stuck_high
+94,98,stuck_low
+97,94,stuck_mid
+103,94,stuck_high

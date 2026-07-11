@@ -12,23 +12,39 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The demo runs the complete RAW→RGB ISP — black level, lens-shading correction, defective-pixel
+correction, white balance (gray-world AND white-patch estimators), demosaic (Malvar-He-Cutler AND a
+bilinear baseline), the color-correction matrix, and gamma — on a synthetic 160×120 RAW10 sensor
+frame, twice (a D65-lit scene and a tungsten-lit scene), both staged (one kernel per stage) and
+fused (stages 1–4 in one kernel). It then runs **ten independent physical gates** (see
+[`../README.md`](../README.md) "Expected output" for the full list and measured numbers) that check
+things a plain GPU-vs-CPU comparison cannot: whether shading correction is actually flat across
+radius, whether the committed defect pixels are actually recovered, whether MHC actually beats
+bilinear demosaic (by a measured dB margin), whether gray-world AWB actually fails on a red-heavy
+crop (a designed negative control), and whether the whole pipeline actually reconstructs the
+original scene's colors.
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+**Visual artifacts** land in `demo/out/`: `raw_vis_d65.pgm` (the raw mosaic, viewable), `shading_corrected_d65.pgm`,
+`demosaiced_mhc_d65.ppm` / `demosaiced_bilinear_d65.ppm` (compare these two side by side — the MHC
+one should look visibly cleaner at the hashed-texture region's edges), `white_balanced_d65.ppm`,
+`final_d65.ppm` / `final_tungsten.ppm` / `final_tungsten_wrong_awb.ppm` (the last one shows the
+uncorrected color cast — compare against `final_tungsten.ppm`), `chart_crop_d65.ppm` (just the
+24-patch chart, cropped, for a close look at color accuracy), and `gates_metrics.csv` (every gate's
+measured value, tolerance, and verdict in one machine-readable table).
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, and every measured stat behind a gate (gains, residuals, dB, byte counts) — varies by machine/GPU. | No. |
+| `PROBLEM:`  | The exact problem instance (resolution, sensor constants). | Yes — stable (demo runs with no args). |
+| `DATA:`     | What sample was loaded. | Yes — stable. |
+| `[time]`    | Kernel and CPU-oracle timings — a **teaching artifact, never a benchmark claim** (single-shot, one machine). | No. |
+| `VERIFY:`   | GPU-vs-CPU agreement across every stage (tolerance documented in `../src/main.cu`). | Yes — stable. |
+| `GATE <name>:` | One of the ten physical gates (PASS/FAIL, no embedded numbers — the number lives on the paired `[info]` line). | Yes — stable. |
+| `ARTIFACT:` | Confirms the `demo/out/` files were written. | Yes — stable. |
+| `RESULT:`   | Overall `PASS`/`FAIL` verdict. The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines

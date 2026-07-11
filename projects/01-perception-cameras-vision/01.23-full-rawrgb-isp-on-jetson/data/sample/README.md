@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's files:** two RAW10-in-uint16 sensor mosaics (D65 and tungsten illuminant), one
+noiseless pre-shading sensor-domain ground truth (`true_sensor_rgb_d65.bin`), one illuminant-
+independent reference rendering (`true_scene_srgb.ppm`), the committed factory defect map
+(`defect_list.csv`), and a human-readable parameter dump (`params.txt`). All six are regenerated
+byte-identically by `python ../../scripts/make_synthetic.py` (fixed seed 42). Full field
+documentation, sizes, and SHA-256 checksums live in [`../README.md`](../README.md).

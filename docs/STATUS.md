@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 57/505 done** (11.3%)
+**Overall: 58/505 done** (11.5%)
 
 | Status | Count |
 |--------|-------|
-| todo | 448 |
+| todo | 447 |
 | in-progress | 0 |
-| done | 57 |
+| done | 58 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 22/24 |
+| 01 Perception — Cameras & Vision | 23/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,7 +67,7 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 22/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 23/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -93,7 +93,7 @@
 | 01.20 | Time-of-flight raw processing: phase unwrapping, flying-pixel removal | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); phasor-mixing flying pixels precision 100%/recall 62%, aliasing 100% demonstrated, unwrap 12.9mm/98.06% |
 | 01.21 | Scene flow from RGB-D pairs | intermediate |  | done | worker+finisher+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); robust ego-motion 0.017°/0.9mm vs naive 0.28°/36mm; disocclusion-blob limitation proven w/ size-floor sweep; object-motion conditioning root-caused |
 | 01.22 | Motion deblurring and super-resolution for inspection zoom | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Wiener +3.1dB, naive inverse -4.3dB designed failure, PSF mismatch -7.0dB, SR correlation 0.984 vs bicubic 0.215 after honest metric fix |
-| 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | todo |  |  |
+| 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); §5 desktop teaching core, 9 stages all bit-exact twins, MHC beats bilinear 1.52 dB, dual AWB + designed failures, Jetson path documented never faked |
 | 01.24 | Transparent/reflective object detection via polarization imaging | intermediate |  | todo |  |  |
 
 ## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 1/20 done

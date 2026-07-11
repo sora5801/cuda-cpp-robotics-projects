@@ -1,0 +1,29 @@
+# 01.23 synthetic sensor/scene parameters -- human-readable mirror of
+# ../src/kernels.cuh (source of truth) and this script's constants block.
+raw_w=160 raw_h=120
+black_level=64 white_level=1023 sat_range=959
+shading: cx=79.5000 cy=59.5000 rnorm=99.3001 a2=-0.350 a4=0.100 gain_floor=0.350
+crosstalk M = [[0.72, 0.22, 0.06], [0.1, 0.78, 0.12], [0.06, 0.2, 0.74]]
+illuminant D65 gain = (1.0, 1.0, 1.0)
+illuminant tungsten gain = (1.42, 1.0, 0.53)
+noise: read_sigma_dn=2.00 shot_k=0.020
+num_defects=16
+seed=42 (xorshift32, draw order: texture -> defects -> D65 noise -> tungsten noise)
+
+defects:
+  (97,111) stuck_high
+  (95,107) stuck_low
+  (125,91) stuck_mid
+  (116,91) stuck_high
+  (113,102) stuck_low
+  (128,110) stuck_mid
+  (108,97) stuck_high
+  (128,109) stuck_low
+  (122,99) stuck_mid
+  (121,113) stuck_high
+  (120,111) stuck_low
+  (97,104) stuck_mid
+  (116,100) stuck_high
+  (94,98) stuck_low
+  (97,94) stuck_mid
+  (103,94) stuck_high
