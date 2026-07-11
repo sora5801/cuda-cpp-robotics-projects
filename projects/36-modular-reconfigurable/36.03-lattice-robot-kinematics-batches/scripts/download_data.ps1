@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 36.03 (Lattice-robot kinematics batches)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 36.03 DECISION: no public dataset applies — this project's "data" is a
+# generator PARAMETER file (batch size, seed, corruption fraction, vignette
+# step budget), not recordings; the K=4096-configuration batch itself is
+# synthesized in-demo from a fixed seed and verified against a CPU oracle
+# (bit-exact — see ../THEORY.md "Numerical considerations"). This script
+# stays the honest no-op below; ../scripts/make_synthetic.py writes the
+# scenario file (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
@@ -34,7 +37,7 @@
 # Default body: this project uses SYNTHETIC data (the repository default —
 # CLAUDE.md paragraph 8), so there is nothing to download. Exit 0 so callers
 # and CI can invoke every project's script uniformly without special cases.
-Write-Host "[download_data] Project 36.03 uses synthetic sample data (repo default; CLAUDE.md paragraph 8)."
+Write-Host "[download_data] Project 36.03 uses synthetic sample data (generator parameters; repo default; CLAUDE.md paragraph 8)."
 Write-Host "[download_data] Nothing to download. Generate/regenerate the sample with:"
 Write-Host "[download_data]     python $PSScriptRoot\make_synthetic.py"
 exit 0

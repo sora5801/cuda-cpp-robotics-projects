@@ -1,8 +1,19 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected output — 36.03 Lattice-robot kinematics batches
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 36.03 (lattice-robot-kinematics-batches)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match).
+# "[info]" and "[time]" lines are NOT checked — they vary by machine/GPU and are omitted here.
+# These are the STABLE lines this project's all-integer pipeline prints with the committed
+# scenario (data/sample/lattice_scenario.csv: K=4096, SEED=42, CORRUPT_FRAC=0.10) and NO CLI
+# arguments — captured from an actual passing run on the reference machine (RTX 2080 SUPER).
+[demo] Lattice-robot kinematics batches (project 36.03): sliding-cube model batch pipeline
+PROBLEM: K=4096 configurations x M=24 modules, sliding-cube lattice model, all-integer
+SCENARIO: seeded accretion (seed=42) [synthetic]; corrupt_frac=0.10 -> 410 corrupted (205 duplicate + 205 disconnect), 3686 clean
+VERIFY: PASS (GPU matches CPU reference BIT-EXACT over all 4 stages, K=4096 configurations, all-integer)
+CORRUPTION-GATE: PASS (410/410 injected configs caught, 0/3686 false alarms on clean configs)
+ARTICULATION-BRUTEFORCE: PASS (128/128 subset configs cross-checked against the remove-and-recheck oracle, 0 module mismatches)
+MOVE-PRECONDITION-BRUTEFORCE: PASS (128/128 subset configs cross-checked against the independent oracle, 0 entry mismatches out of 55296)
+ARTIFACT: wrote demo/out/batch_stats.csv (4096 rows)
+VIGNETTE: PASS (127 legal moves executed, Phi 1156 -> 47, every intermediate state re-verified valid+connected)
+ARTIFACT: wrote demo/out/vignette_frames.csv (128 steps)
+ARTIFACT: wrote demo/out/config_render.pgm (configuration 0)
+RESULT: PASS (all gates passed: GPU-vs-CPU exact, corruption detection, brute-force cross-checks, vignette)

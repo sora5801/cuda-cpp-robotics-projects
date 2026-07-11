@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 35/505 done** (6.9%)
+**Overall: 36/505 done** (7.1%)
 
 | Status | Count |
 |--------|-------|
-| todo | 470 |
+| todo | 469 |
 | in-progress | 0 |
-| done | 35 |
+| done | 36 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -65,7 +65,7 @@
 | 33 Foundational GPU Libraries (Build-Your-Own) | 1/15 |
 | 34 Theoretical & Research Frontier | 1/17 |
 | 35 Micro & Nano Robotics | 1/9 |
-| 36 Modular & Self-Reconfigurable Robots | 0/5 |
+| 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
 ## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 1/24 done
 
@@ -742,12 +742,12 @@
 | 35.08 | Microfluidic transport simulation for lab-on-chip robots | [R&D] research |  | todo |  |  |
 | 35.09 | Electrostatic MEMS actuator FEM | [R&D] research |  | todo |  |  |
 
-## 36. Modular & Self-Reconfigurable Robots (`36-modular-reconfigurable`) — 0/5 done
+## 36. Modular & Self-Reconfigurable Robots (`36-modular-reconfigurable`) — 1/5 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 36.01 | Reconfiguration planning over enormous state spaces (GPU search) | [R&D] research |  | todo |  |  |
 | 36.02 | Stochastic self-assembly simulation | [R&D] research |  | todo |  |  |
-| 36.03 | Lattice-robot kinematics batches | [R&D] research | ⭐ | todo |  |  |
+| 36.03 | Lattice-robot kinematics batches | [R&D] research | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); [R&D] reduced scope per §2/§13; bit-exact all-integer 4-stage batch + 2 brute-force oracles + reconfiguration vignette |
 | 36.04 | Connector/latch contact mechanics simulation | intermediate |  | todo |  |  |
 | 36.05 | Emergent distributed control experiments at scale | [R&D] research |  | todo |  |  |

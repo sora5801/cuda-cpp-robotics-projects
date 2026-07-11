@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `lattice_scenario.csv` — four generator parameters (`K`, `SEED`,
+`CORRUPT_FRAC`, `VIGNETTE_MAX_STEPS`), not configurations. `../../src/main.cu`'s seeded-accretion
+generator regenerates the full K=4096-configuration batch **in memory**, deterministically from
+`SEED`, every time the demo runs — the same "scenario, not recordings" choice project 08.01 makes.
+Regenerate this file with `python ../../scripts/make_synthetic.py`; full field documentation and the
+committed file's SHA-256 checksum are in `../README.md`.

@@ -1,107 +1,123 @@
 #!/usr/bin/env python3
-"""make_synthetic.py — synthetic sample-data generator for 36.03 (Lattice-robot kinematics batches).
-
-TEMPLATE PLACEHOLDER — replace the generation logic with this project's real synthesizer.
-TODO(scaffold): generate this project's actual sample data (with full ground truth where
-applicable), document every output field in ../data/README.md, and keep the output TINY.
+"""make_synthetic.py — synthetic sample-data generator for 36.03 (Lattice-robot
+kinematics batches).
 
 Why this script exists (CLAUDE.md paragraph 8: synthetic-first)
 ---------------------------------------------------------------
-Robotics data can almost always be synthesized with full ground truth — poses, depth, flow,
-contacts — so synthetic generation is this repository's DEFAULT data source. Every project
-ships a generator like this one so the committed sample under ../data/sample/ is (a) tiny,
-(b) license-clean, and (c) reproducible bit-for-bit from a FIXED SEED. Synthetic data is
-labeled synthetic everywhere it appears.
+This project's "data" is not recordings of anything — it is a BATCH-
+GENERATION RECIPE: how many configurations to build, from what seed, what
+fraction to corrupt as negative controls, and how many greedy steps the
+reconfiguration vignette is allowed. That is exactly the same "scenario, not
+recordings" choice project 08.01 makes for its cart-pole start state: the
+committed sample is a handful of PARAMETERS, and ../src/main.cu regenerates
+the full K=4096-configuration batch deterministically from them every run
+(the seeded-accretion algorithm lives in main.cu's generate_config(), NOT
+here — this script's only job is to emit the tiny parameter file main.cu
+reads at startup).
 
-What the placeholder does
--------------------------
-Writes a small deterministic CSV of x/y float vectors (the same *kind* of data the SAXPY
-placeholder demo computes on) into ../data/sample/saxpy_sample.csv, so learners can see the
-pattern: argparse -> fixed seed -> deterministic bytes -> labeled synthetic output.
-Note: the placeholder demo itself generates its input IN MEMORY (see make_input() in
-../src/main.cu) and does not read this file — the CSV exists to demonstrate the workflow.
+What this script writes
+------------------------
+../data/sample/lattice_scenario.csv — four labelled rows:
+    K,<int>                    number of configurations in the batch
+    SEED,<uint32>               base RNG seed (xorshift32, repo-standard)
+    CORRUPT_FRAC,<float>        fraction of K corrupted as negative controls
+    VIGNETTE_MAX_STEPS,<int>    greedy reconfiguration step budget
 
 Usage
 -----
-    python make_synthetic.py                 # defaults: n=256, seed=42
-    python make_synthetic.py --n 1024 --seed 7 --out ../data/sample/saxpy_sample.csv
+    python make_synthetic.py                    # defaults: the repo's demo scenario
+    python make_synthetic.py --k 4096 --seed 42 --corrupt-frac 0.10 --vignette-steps 600
 """
 
 import argparse
-import csv
-import random
+import hashlib
 from pathlib import Path
 
-# The fixed default seed. Determinism is repo law (CLAUDE.md paragraph 12): the same
-# command must produce the same bytes on every machine, so samples are reproducible
-# and diffs are meaningful. 42 carries no significance beyond tradition.
+# The fixed default seed and scenario — CLAUDE.md paragraph 12: determinism
+# is repo law, so the exact same command produces the exact same bytes on
+# every machine. These are also main.cu's compile-time defaults (kDefaultK,
+# kDefaultCorruptFrac, kVignetteMaxSteps in kernels.cuh/main.cu) — kept in
+# sync deliberately so "the demo's default problem" and "the committed
+# sample" describe the same scenario.
+DEFAULT_K = 4096
 DEFAULT_SEED = 42
-
-# Keep the committed sample tiny (CLAUDE.md paragraph 8): 256 rows of two floats is
-# ~6 KB — more than enough to demonstrate the format.
-DEFAULT_N = 256
+DEFAULT_CORRUPT_FRAC = 0.10
+DEFAULT_VIGNETTE_STEPS = 600
 
 
-def make_saxpy_csv(n: int, seed: int, out_path: Path) -> None:
-    """Write n rows of synthetic (x, y) float pairs to out_path as CSV.
+def make_scenario_csv(k: int, seed: int, corrupt_frac: float, vignette_steps: int, out_path: Path) -> None:
+    """Write the four-row scenario CSV described in the module docstring.
 
     Parameters
     ----------
-    n        : number of rows (> 0). Unitless placeholder data.
-    seed     : RNG seed. Same seed + same n => byte-identical file, every run,
-               every platform (Python's Mersenne Twister is specified, so
-               random.Random(seed) is cross-platform deterministic).
-    out_path : destination CSV. Parent directories are created if missing.
+    k               : number of lattice configurations in the batch (> 0).
+    seed            : base xorshift32 seed (main.cu derives one per-config
+                      seed per configuration from this value — see
+                      ../src/main.cu's generate_config() header comment).
+    corrupt_frac    : fraction of k configurations main.cu corrupts as
+                      negative controls (half duplicate-position defects,
+                      half disconnection defects — ../src/main.cu §5).
+    vignette_steps  : greedy reconfiguration step budget for the single-
+                      configuration "line -> compact blob" vignette
+                      (../src/main.cu §8); a CAP, not a target the greedy
+                      heuristic is guaranteed to need or reach.
+    out_path        : destination CSV. Parent directories are created if
+                      missing.
 
-    The file starts with '#'-prefixed comment lines labeling it SYNTHETIC and
-    recording the exact regeneration command — provenance travels with the data.
-    TODO(scaffold): replace with the real project's synthesis (and real units/frames).
+    Nothing here is a measurement of anything physical — every field is a
+    GENERATOR PARAMETER, not a recorded value, so there is no "ground truth"
+    to falsify: the file's only job is to make the demo's problem instance
+    reproducible byte-for-byte, on any machine, forever.
     """
-    rng = random.Random(seed)  # local RNG: never touch the global seed (avoids spooky action between scripts)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # newline='' is the csv-module requirement on Windows (prevents doubled \r\n);
-    # utf-8 is the repo-wide encoding.
     with out_path.open("w", newline="", encoding="utf-8") as f:
-        # Comment header: label + provenance + regeneration command (CLAUDE.md paragraph 8).
-        f.write("# SYNTHETIC data — generated by scripts/make_synthetic.py for project 36.03\n")
-        f.write(f"# regenerate: python make_synthetic.py --n {n} --seed {seed}\n")
-        f.write("# columns: x (float, unitless placeholder), y (float, unitless placeholder)\n")
-        writer = csv.writer(f)
-        writer.writerow(["x", "y"])
-        for _ in range(n):
-            # uniform() draws are deterministic given the seeded local RNG above.
-            # Repr via format() with fixed precision keeps the file byte-stable.
-            x = rng.uniform(0.0, 1.0)   # matches the magnitude range main.cu uses
-            y = rng.uniform(1.0, 2.0)
-            writer.writerow([f"{x:.8f}", f"{y:.8f}"])
+        f.write("# SYNTHETIC scenario — generated by scripts/make_synthetic.py for project 36.03\n")
+        f.write(f"# regenerate: python make_synthetic.py --k {k} --seed {seed} "
+                f"--corrupt-frac {corrupt_frac} --vignette-steps {vignette_steps}\n")
+        f.write("# This file holds GENERATOR PARAMETERS, not recorded configurations — main.cu's\n")
+        f.write("# generate_config() (seeded accretion) regenerates the full K-configuration batch\n")
+        f.write("# deterministically from SEED every run (the same 'scenario, not recordings'\n")
+        f.write("# pattern project 08.01 uses for its cart-pole start state).\n")
+        f.write(f"K,{k}\n")
+        f.write(f"SEED,{seed}\n")
+        f.write(f"CORRUPT_FRAC,{corrupt_frac}\n")
+        f.write(f"VIGNETTE_MAX_STEPS,{vignette_steps}\n")
 
-    print(f"[make_synthetic] wrote {n} rows to {out_path} (seed={seed}, labeled SYNTHETIC)")
+    digest = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    print(f"[make_synthetic] wrote scenario to {out_path}")
+    print(f"[make_synthetic]   K={k} SEED={seed} CORRUPT_FRAC={corrupt_frac} VIGNETTE_MAX_STEPS={vignette_steps}")
+    print(f"[make_synthetic]   SHA-256: {digest}  (see ../data/README.md)")
 
 
 def main() -> None:
-    """Parse arguments and run the generator. Kept separate from the generation
-    function so the logic is importable/testable without argparse in the way."""
-    # Resolve the default output RELATIVE TO THIS SCRIPT, not the CWD, so the
-    # command works no matter where it is invoked from.
+    """Parse arguments and run the generator. Kept separate from the
+    generation function so the logic is importable/testable without
+    argparse in the way."""
     script_dir = Path(__file__).resolve().parent
-    default_out = script_dir.parent / "data" / "sample" / "saxpy_sample.csv"
+    default_out = script_dir.parent / "data" / "sample" / "lattice_scenario.csv"
 
     parser = argparse.ArgumentParser(
-        description="Generate the tiny synthetic sample for project 36.03 (Lattice-robot kinematics batches).")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help=f"number of rows to generate (default {DEFAULT_N}; keep the sample tiny)")
+        description="Generate the tiny synthetic scenario for project 36.03 (Lattice-robot kinematics batches).")
+    parser.add_argument("--k", type=int, default=DEFAULT_K,
+                        help=f"number of lattice configurations in the batch (default {DEFAULT_K})")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
-                        help=f"RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
+                        help=f"base RNG seed for byte-identical reproducibility (default {DEFAULT_SEED})")
+    parser.add_argument("--corrupt-frac", type=float, default=DEFAULT_CORRUPT_FRAC,
+                        help=f"fraction of configurations to corrupt as negative controls (default {DEFAULT_CORRUPT_FRAC})")
+    parser.add_argument("--vignette-steps", type=int, default=DEFAULT_VIGNETTE_STEPS,
+                        help=f"greedy reconfiguration step budget (default {DEFAULT_VIGNETTE_STEPS})")
     parser.add_argument("--out", type=Path, default=default_out,
-                        help="output CSV path (default: ../data/sample/saxpy_sample.csv)")
+                        help="output CSV path (default: ../data/sample/lattice_scenario.csv)")
     args = parser.parse_args()
 
-    if args.n <= 0:
-        parser.error("--n must be > 0")
+    if args.k <= 0:
+        parser.error("--k must be > 0")
+    if not (0.0 <= args.corrupt_frac < 1.0):
+        parser.error("--corrupt-frac must be in [0, 1)")
+    if args.vignette_steps <= 0:
+        parser.error("--vignette-steps must be > 0")
 
-    # TODO(scaffold): replace this call with the real project's synthesis pipeline.
-    make_saxpy_csv(args.n, args.seed, args.out)
+    make_scenario_csv(args.k, args.seed, args.corrupt_frac, args.vignette_steps, args.out)
 
 
 if __name__ == "__main__":
