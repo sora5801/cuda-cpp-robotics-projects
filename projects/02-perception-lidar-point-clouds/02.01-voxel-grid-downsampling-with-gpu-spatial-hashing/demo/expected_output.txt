@@ -1,8 +1,19 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.01 (voxel-grid-downsampling-with-gpu-spatial-hashing)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract for project 02.01 (Voxel-grid downsampling with GPU spatial hashing). Lines
+# starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing. Every non-comment
+# line below must appear VERBATIM in the demo's stdout (a SUBSET check -- extra "[info]"/"[time]" lines
+# are fine and expected; see ../src/main.cu's "Output contract" header comment). These are the ACTUAL
+# lines an unmodified `voxel-grid-downsampling-with-gpu-spatial-hashing.exe` (no arguments) printed on
+# the reference machine (RTX 2080 SUPER, sm_75, Release|x64) against the committed
+# data/sample/lidar_scan.bin (198,534 points; see ../data/README.md for provenance).
+[demo] voxel-grid downsampling: GPU spatial hashing (Method A, atomic) vs GPU sort-based reduction (Method B, deterministic) (project 02.01)
+PROBLEM: N=198534 points (16-beam spinning LiDAR scan = 195384, + 3000-point adversarial dense cluster + 150-point adversarial sparse region), voxel leaf L=0.20 m, hash table capacity=524288 slots
+DATA: data/sample/lidar_scan.bin [synthetic, seed 42, xorshift32, see scripts/make_synthetic.py]
+VERIFY(keys): PASS (GPU voxel keys bit-exact vs CPU reference for all points)
+VERIFY(method_b): PASS (GPU sort-based centroids/counts/keys bit-exact vs CPU fixed-order twin)
+VERIFY(method_a): PASS (GPU atomic-hash centroids within documented tolerance of independent CPU hash-map twin; occupancy exact; zero hash-table overflows)
+GATE cross_method_agreement: PASS (Method A vs Method B centroids agree within documented tolerance; occupancy exact)
+GATE partition_invariant: PASS (per-voxel counts sum to N for both methods)
+GATE centroid_containment: PASS (every centroid lies inside its voxel AABB, both methods)
+GATE determinism_method_b: PASS (3 runs bit-identical)
+ARTIFACT: wrote demo/out/{original_topview.ppm, downsampled_topview.ppm, probe_length_histogram.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY(keys/method_b/method_a) + all 4 gates passed: cross_method_agreement, partition_invariant, centroid_containment, determinism_method_b)

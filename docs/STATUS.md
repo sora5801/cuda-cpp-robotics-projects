@@ -19,19 +19,19 @@
 
 ## Summary
 
-**Overall: 59/505 done** (11.7%)
+**Overall: 60/505 done** (11.9%)
 
 | Status | Count |
 |--------|-------|
-| todo | 446 |
+| todo | 445 |
 | in-progress | 0 |
-| done | 59 |
+| done | 60 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
 | 01 Perception — Cameras & Vision | 24/24 |
-| 02 Perception — LiDAR & Point Clouds | 1/20 |
+| 02 Perception — LiDAR & Point Clouds | 2/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
@@ -96,11 +96,11 @@
 | 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); §5 desktop teaching core, 9 stages all bit-exact twins, MHC beats bilinear 1.52 dB, dual AWB + designed failures, Jetson path documented never faked |
 | 01.24 | Transparent/reflective object detection via polarization imaging | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Fresnel anchor\|diff\|=0.00034, Brewster peak 0.31° off true, glass: intensity recall 0% vs DoLP 97% — domain 01 COMPLETE (24/24) |
 
-## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 1/20 done
+## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 2/20 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 02.01 | Voxel-grid downsampling with GPU spatial hashing | ★ beginner |  | todo |  |  |
+| 02.01 | Voxel-grid downsampling with GPU spatial hashing | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); atomic hash vs sort-based determinism duality, Method B bit-identical x3 runs, first Thrust project (CCCL toolchain flags ratified) |
 | 02.02 | ROI crop, passthrough, organized↔unorganized conversion kernels | intermediate |  | todo |  |  |
 | 02.03 | Ground segmentation: RANSAC plane fit; Patchwork++-style GPU port | ★ beginner |  | todo |  |  |
 | 02.04 | Euclidean clustering via GPU union-find / connected components | intermediate |  | todo |  |  |

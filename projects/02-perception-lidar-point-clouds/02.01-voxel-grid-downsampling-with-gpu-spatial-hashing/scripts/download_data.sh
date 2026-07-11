@@ -3,10 +3,11 @@
 # download_data.sh — public-dataset fetcher for 02.01 (Voxel-grid downsampling with GPU spatial hashing)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 02.01 DECISION: no public dataset applies (mirrors download_data.ps1's
+# reasoning): this project's input is a synthesized scene + sensor spec
+# with two deliberately adversarial hash-stress regions, not a recording —
+# scripts/make_synthetic.py builds it deterministically; this stays the
+# honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
@@ -34,7 +35,7 @@ set -euo pipefail
 # Default body: this project uses SYNTHETIC data (the repository default —
 # CLAUDE.md paragraph 8), so there is nothing to download. Exit 0 so callers
 # can invoke every project's script uniformly.
-echo "[download_data] Project 02.01 uses synthetic sample data (repo default; CLAUDE.md paragraph 8)."
+echo "[download_data] Project 02.01 uses synthetic sample data (repo default; CLAUDE.md paragraph 8; no public dataset applies)."
 echo "[download_data] Nothing to download. Generate/regenerate the sample with:"
 echo "[download_data]     python $(dirname "$0")/make_synthetic.py"
 exit 0

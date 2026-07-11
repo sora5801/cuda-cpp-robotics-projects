@@ -6,6 +6,7 @@ Small, heavily-commented helpers that every project in this repository uses:
 |------|------------------|----------------|
 | [`cuda_check.cuh`](cuda_check.cuh) | `CUDA_CHECK(call)` and `CUDA_CHECK_LAST_ERROR(what)` — the mandatory, visible error checking around every CUDA API call and kernel launch (CLAUDE.md §6.1 rule 7) — plus `print_device_info()`. | …you meet your first `CUDA_CHECK` in `main.cu`. |
 | [`timer.cuh`](timer.cuh) | `GpuTimer` (cudaEvent-based — the *correct* way to time asynchronous GPU work) and `CpuTimer` (std::chrono, for synchronous host code). | …you reach the timing lines in `main.cu` and wonder why host clocks lie about kernels. |
+| [`paths.h`](paths.h) | `find_data_file()` (locates `data/sample/lidar_scan.bin` from any launch layout) and `resolve_out_dir()` (picks/creates `demo/out/` for the PPM/CSV artifacts). | …`main.cu` loads the committed sample or writes an artifact. |
 
 ## Why is this folder *copied* into every project instead of shared?
 
