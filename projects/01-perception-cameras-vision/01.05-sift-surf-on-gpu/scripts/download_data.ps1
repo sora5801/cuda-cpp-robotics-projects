@@ -1,10 +1,14 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.05 (SIFT/SURF on GPU (harder, warp-level reductions))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED (not a placeholder): no public dataset applies. Every shape in
+# this project's scenes (checkerboards, disks, the ground-truth similarity
+# transform including a REAL scale change) is analytically defined, so
+# synthetic generation gives EXACT ground truth a photograph never could —
+# see ../data/README.md and ../scripts/make_synthetic.py's module header.
+# This script is therefore an intentional, permanent no-op, kept only so
+# every project in the repo can be invoked uniformly by tooling that calls
+# download_data.* generically.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
