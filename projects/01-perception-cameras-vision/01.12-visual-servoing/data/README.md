@@ -17,23 +17,52 @@ Provenance, licensing, and field documentation for everything under `data/` (CLA
 
 ## This project's data
 
-TODO(scaffold): fill in the table and field documentation for the real sample data.
+Like project 08.01's MPPI controller, a CONTROLLER's "dataset" is a task SIZE, not recordings: how
+many independent closed IBVS loops to simulate. Everything else — the target geometry, the goal
+camera pose, the K loops' initial poses across the three designed cohorts, and the basin-map grid —
+is generated **inside the demo executable** from documented compile-time constants
+(`src/kernels.cuh`) and a fixed xorshift32 seed (`src/reference_cpu.cpp`
+`generate_batch_init_poses_cpu`), and verified against the independent CPU oracle (see
+`THEORY.md` "How we verify correctness"). No recordings, no camera captures, no fiducial images —
+this project studies the **control law**, not the perception front end that would feed it on a real
+robot (see README "System context": upstream 01.04/01.06 would produce these 4 image points from a
+real camera).
 
 | Property | Value |
 |----------|-------|
-| Kind | TODO(scaffold): synthetic (default) or public dataset (name it) |
-| Generator / source | TODO(scaffold): `../scripts/make_synthetic.py` invocation, or source URL |
-| License | TODO(scaffold): e.g. "synthetic — repo MIT license applies" or the dataset's license |
-| Size (committed) | TODO(scaffold): keep it tiny (well under 50 MB; prefer KB) |
-| Checksum | TODO(scaffold): SHA-256 of each committed sample file |
-| Regenerate with | TODO(scaffold): exact command, including the fixed seed |
+| Kind | **Synthetic** scenario (the task definition — no RNG involved; a scenario is constants) |
+| File | `sample/ibvs_scenario.csv` |
+| Generator / source | `python ../scripts/make_synthetic.py` (defaults: K=4096, BASIN_G=64) |
+| License | Synthetic — the repository's MIT license applies |
+| Size (committed) | ~0.7 KiB |
+| Checksum (SHA-256) | `4565db5c94a6853d6dea42a1acff2c939c71884619d400440a761d75a8ed6e3a` |
+| Regenerate with | `python ../scripts/make_synthetic.py` — byte-identical (no randomness) |
 
 ### Fields / format
 
-TODO(scaffold): document every column/field of every sample file — name, type, **units, frame**
-(SI, right-handed, `T_parent_child` conventions per CLAUDE.md §12), and valid range.
+Plain-text CSV; `#` lines are comments. Two row types (loader: `load_scenario()` in
+[`../src/main.cu`](../src/main.cu)):
 
-> **Placeholder status:** as scaffolded, the SAXPY placeholder demo generates its input **in memory**
-> (deterministically, no seed needed — see `make_input()` in `../src/main.cu`) and needs no files.
-> `../scripts/make_synthetic.py` writes a small demonstration CSV into `sample/` so the synthetic-data
-> pattern is visible from day one.
+| Field | Meaning |
+|-------|---------|
+| `K,n` | number of independent closed IBVS loops in the main batch (default 4096) |
+| `BASIN_G,g` | basin-map grid side; the grid has `g*g` translation-only loops (default 64, so 4096 grid points) |
+
+Everything else this project consumes is generated at run time from documented fixed constants and
+seeds (all in `src/kernels.cuh`, cross-referenced from `THEORY.md`):
+
+- **Target geometry & goal pose** — a 4-point coplanar square (`kTargetHalfSize` = 0.06 m half-side)
+  fixed in the world frame; the goal camera stands off `kGoalStandoff` = 0.5 m, fronto-parallel
+  (identity orientation). Closed-form, no RNG: `build_target_and_goal_cpu()`.
+- **Initial poses** — the K loops split across three designed cohorts (nominal / decay / retreat,
+  see `kernels.cuh` "COHORTS"), drawn from a **host-generated xorshift32** stream, base seed **42**,
+  one independent stream per loop index (the same per-index seed-mixing formula 08.01 uses for its
+  per-tick noise). `generate_batch_init_poses_cpu()` — SI units (m, rad) throughout, documented at
+  the point of use.
+- **Controller constants** (λ, damping μ, dt, step budget, convergence threshold) — compile-time
+  constants in `kernels.cuh`; part of the *taught, tuned* setup, not data (mirrors 08.01's MPPI
+  hyperparameters).
+
+The loader is strict: unknown labels, short rows, or a missing `K`/`BASIN_G` abort the demo.
+
+> `sample/` also carries its own [README](sample/README.md) stating the folder-wide rules.

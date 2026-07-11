@@ -75,4 +75,7 @@ target_compile_options(visual-servoing PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(visual-servoing PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+#
+# 01.12 needs none of the above: the 6x6 damped normal-equations solve is
+# hand-rolled Cholesky (kernels.cu chol6_inplace/chol6_solve, the same
+# teaching idiom as project 33.01) — no cuBLAS/cuSOLVER dependency.

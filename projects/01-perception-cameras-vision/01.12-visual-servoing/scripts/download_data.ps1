@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.12 (Visual servoing: image-Jacobian control loop entirely on GPU)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 01.12 DECISION: no public dataset applies — this project's "data" is a
+# batch SIZE (how many closed IBVS loops to simulate), not recordings; the
+# target geometry, goal pose, and every initial pose are generated in-demo
+# from documented constants and a fixed xorshift32 seed (kernels.cuh
+# "COHORTS"; reference_cpu.cpp generate_batch_init_poses_cpu). This script
+# stays the honest no-op below; ../scripts/make_synthetic.py writes the
+# scenario file (see ../data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

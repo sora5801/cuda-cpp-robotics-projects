@@ -1,8 +1,24 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 01.12.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.12 (visual-servoing)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (measured rates/percentages/correlations) and "[time]" lines
+# vary by machine and are deliberately unchecked; every gate threshold below is a compile-time
+# constant with a measured margin (see the [info] lines and THEORY.md "How we verify correctness"
+# for the actual numbers), so the verdict is stable even where FP low bits differ across platforms
+# (see the determinism note at the top of ../src/main.cu). Change the program's stable lines and
+# this file together.
+[demo] Visual servoing: image-Jacobian IBVS control loop entirely on GPU (project 01.12)
+PROBLEM: batched IBVS convergence-basin study, K=4096 loops x T<=400 steps @ dt=0.01 s, 4-point coplanar target, 3 controller variants, FP32
+SCENARIO: eye-in-hand IBVS, goal standoff 0.50 m, target half-size 0.06 m, cohorts nominal=3584/decay=256/retreat=256, basin grid 64x64 [synthetic]
+VERIFY: single-loop trajectory twin PASS (GPU matches CPU oracle within documented tolerance)
+VERIFY: jacobian/pseudoinverse twin PASS (GPU matches CPU oracle within tight tolerance)
+VERIFY: batch statistics twin PASS (128-loop subset matches CPU oracle within documented tolerance)
+GATE exponential_decay: PASS (decay-cohort fit rate within tolerance of lambda=2.00 /s, true-depth)
+GATE convergence_basin: PASS (nominal cohort convergence meets floors for true-depth and fixed-depth)
+GATE retreat_pathology: PASS (near-180 deg cohort exhibits camera retreat at/above floor, true-depth)
+ARTIFACT: wrote demo/out/image_plane_traces.ppm (8 loops traced)
+ARTIFACT: wrote demo/out/basin_map.ppm (64x64 grid; axes: x=dx, y=dy in [-0.30,+0.30] m, dz=0, no rotation)
+ARTIFACT: wrote demo/out/error_decay.csv
+ARTIFACT: wrote demo/out/batch_stats.csv (3 variants x 3 cohorts)
+ARTIFACT: wrote demo/out/gates_metrics.csv
+RESULT: PASS (all verification and gates passed: exponential_decay, convergence_basin, retreat_pathology)
