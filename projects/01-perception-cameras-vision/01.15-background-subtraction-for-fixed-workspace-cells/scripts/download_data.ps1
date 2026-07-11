@@ -1,10 +1,15 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.15 (Background subtraction for fixed-workspace cells)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project uses SYNTHETIC data only. A
+# real public "fixed workspace cell" background-subtraction dataset with
+# EXACT per-pixel ground truth for a designed illumination-drift-vs-
+# intrusion-vs-bimodal-background scenario does not exist to fetch — the
+# whole point of this project's five designed events (README "The
+# algorithm in brief") is that they are ANALYTIC, so main.cu can grade the
+# models against ground truth it recomputes in closed form (kernels.cuh
+# SECTION 2), never a human-drawn or heuristic label. This script is
+# therefore an intentional, permanent no-op, not an unfinished stub.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

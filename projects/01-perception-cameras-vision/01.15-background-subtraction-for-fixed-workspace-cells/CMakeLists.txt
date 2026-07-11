@@ -75,4 +75,8 @@ target_compile_options(background-subtraction-for-fixed-workspace-cells PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(background-subtraction-for-fixed-workspace-cells PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+#
+# This project links nothing beyond the CUDA runtime + C++17 standard
+# library (CLAUDE.md paragraph 5 default): three background models and a
+# 3x3 morphological filter are all hand-rolled kernels with no library
+# dependency to declare.

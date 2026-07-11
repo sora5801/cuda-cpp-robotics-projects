@@ -5,12 +5,11 @@
 # runs it on the sample data, prints the output, and checks the STABLE lines
 # of that output against expected_output.txt. Exit code 0 = demo passed.
 #
-# WORKS AS SCAFFOLDED: the template's SAXPY placeholder builds, runs, and
-# matches its committed expected_output.txt out of the box — so running this
-# script on a freshly scaffolded project is a full toolchain smoke test.
-# TODO(scaffold): once the real implementation lands, this script usually
-# needs NO changes — just keep expected_output.txt in sync with the stable
-# lines main.cu prints (see the "output contract" comment in ../src/main.cu).
+# This script needed NO changes once the real implementation replaced the
+# SAXPY placeholder — it is generic over any project's stable-line contract.
+# expected_output.txt is kept in sync with the stable lines main.cu prints
+# (see the "output contract" comment in ../src/main.cu) by hand, in the same
+# change as any output-format edit.
 #
 # Diffing rules (shared contract with expected_output.txt and main.cu):
 #   * Lines in expected_output.txt starting with '#' are COMMENTS — ignored.

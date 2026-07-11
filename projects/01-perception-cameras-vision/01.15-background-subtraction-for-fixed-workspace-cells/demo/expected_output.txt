@@ -1,8 +1,26 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected output — 01.15 Background subtraction for fixed-workspace cells
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.15 (background-subtraction-for-fixed-workspace-cells)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines are
+# listed here — never "[time]" (timings) or "[info]" (GPU name, measured numbers), which vary by
+# machine and are printed for a human to read, not for a byte-for-byte diff (see the "output
+# contract" comment in ../src/main.cu). Measured on the reference machine (RTX 2080 SUPER, sm_75,
+# Release build) — the numbers on the [info] lines are documented in main.cu's gate-tolerance
+# comment block and in README "Expected output" for a human-readable summary.
+[demo] 01.15 background subtraction for fixed-workspace cells: frame-diff vs running single Gaussian vs MOG-lite (K=3)
+PROBLEM: 160-frame 128x96 synthetic work-cell sequence, 3 background models, 3x3 morphological open, 5 independent gates
+DATA: loaded 160 frames (1966080 bytes) from data/sample/frames/
+VERIFY(frame-diff): PASS
+VERIFY(single-Gaussian): PASS
+VERIFY(MOG-lite): PASS
+GATE intrusion_detection: PASS
+GATE illumination_drift: PASS
+GATE absorption: PASS
+GATE bimodal_lesson: PASS
+GATE noise_floor: PASS
+ARTIFACT: demo/out/mask_strip_frame035.ppm (panels: original | truth | frame-diff | single-Gaussian | MOG-lite)
+ARTIFACT: demo/out/mask_strip_frame065.ppm (panels: original | truth | frame-diff | single-Gaussian | MOG-lite)
+ARTIFACT: demo/out/mask_strip_frame140.ppm (panels: original | truth | frame-diff | single-Gaussian | MOG-lite)
+ARTIFACT: demo/out/absorption_curve.csv
+ARTIFACT: demo/out/fp_rate_timeline.csv
+ARTIFACT: demo/out/gates_metrics.csv
+RESULT: PASS (GPU matches CPU reference on all three models; all 5 independent gates pass)

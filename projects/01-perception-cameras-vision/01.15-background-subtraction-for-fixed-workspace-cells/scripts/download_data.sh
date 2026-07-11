@@ -3,10 +3,11 @@
 # download_data.sh — public-dataset fetcher for 01.15 (Background subtraction for fixed-workspace cells)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project uses SYNTHETIC data only — see
+# download_data.ps1's header for why no public dataset applies (this
+# project's ground truth must be analytic/exact, which only a designed
+# synthetic sequence can give it). This script is an intentional, permanent
+# no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
