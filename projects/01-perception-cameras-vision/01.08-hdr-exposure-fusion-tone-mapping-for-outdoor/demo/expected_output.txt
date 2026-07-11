@@ -1,8 +1,20 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.08 (hdr-exposure-fusion-tone-mapping-for-outdoor)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 01.08 (HDR exposure fusion + tone mapping for outdoor robots), captured
+# from an ACTUAL run on the reference machine (RTX 2080 SUPER, sm_75, Release|x64, no CLI arguments).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing. Every
+# non-comment line below must appear VERBATIM in the demo's stdout. "[info]"/"[time]" lines are
+# deliberately NOT checked here — they carry measured numbers (timings, offsets, per-stage error
+# magnitudes) that are expected to vary slightly across GPU architectures and machines (FMA-contraction
+# differences, CRF-solve float rounding — see src/main.cu's output-contract comment and THEORY.md
+# "Numerical considerations").
+[demo] HDR exposure fusion + tone mapping: Debevec-Malik radiance + Reinhard/local tone mapping vs. Mertens multiscale fusion, both vs. a naive single-scale blend (project 01.08)
+PROBLEM: 160x120, 4-exposure bracket [1/1000,1/125,1/30,1/8]s, CRF gamma=0.85 S=3.0, 3-level pyramid
+DATA: synthetic outdoor HDR scene (sun disk, sky, open shade, sunlit concrete + painted line, deep shadow under a vehicle, monotonic calibration strip), hashed-noise texture everywhere, spans ~5 decades radiance [synthetic, seed 42]
+VERIFY: PASS (GPU matches CPU reference within documented per-stage tolerance: radiance_merge, reinhard_global, local_tonemap, naive_blend, mertens_fusion)
+GATE crf_recovery: PASS
+GATE radiance_reconstruction: PASS
+GATE tone_map_range: PASS
+GATE dynamic_range_coverage: PASS
+GATE detail_preservation: PASS
+GATE halo_check: PASS
+ARTIFACT: wrote demo/out/{exposure_0..3.pgm, reinhard_global.pgm, local_tonemap.pgm, mertens_fusion.pgm, naive_blend.pgm, crf_curve.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 6 gates passed: crf_recovery, radiance_reconstruction, tone_map_range, dynamic_range_coverage, detail_preservation, halo_check)

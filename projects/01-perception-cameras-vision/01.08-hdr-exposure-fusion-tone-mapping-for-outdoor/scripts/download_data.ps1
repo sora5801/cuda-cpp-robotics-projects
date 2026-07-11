@@ -1,10 +1,11 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.08 (HDR exposure fusion + tone mapping for outdoor robots)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): synthetic-only, no download. An HDR bracket with
+# an exactly-known ground-truth radiance and a KNOWN camera response
+# function cannot come from a public photograph dataset — the whole point of
+# every gate in src/main.cu is grading against ground truth no camera ever
+# gives you. This script is therefore an honest, permanent no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
