@@ -3,12 +3,14 @@
 # download_data.sh — public-dataset fetcher for 01.11 (Low-light denoising (bilateral, non-local means, fast BM3D variant))
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project uses synthetic data exclusively
+# — no public low-light dataset ships a matched clean/noisy pair with
+# pixel-exact ground truth at a documented electron count, which is exactly
+# what every gate in main.cu needs (data/README.md's "Kind" row states this
+# explicitly). This script is an intentional, permanent no-op.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any project that DOES need a real
+# implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

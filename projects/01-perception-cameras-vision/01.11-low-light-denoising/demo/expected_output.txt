@@ -1,8 +1,24 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.11 (low-light-denoising)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 01.11 (Low-light denoising: bilateral, non-local means, BM3D-lite),
+# captured from an ACTUAL run on the reference machine (RTX 2080 SUPER, sm_75, Release|x64, no CLI
+# arguments). Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when
+# diffing. Every non-comment line below must appear VERBATIM in the demo's stdout. "[info]"/"[time]"
+# lines are deliberately NOT checked here — they carry measured numbers (PSNR, edge-preservation
+# fractions, residual stds, kernel timings) that are expected to vary slightly across GPU
+# architectures and machines (float32 atomicAdd accumulation order in BM3D-lite's aggregation,
+# expf/std::exp ULP differences — see src/main.cu's output-contract comment and THEORY.md "Numerical
+# considerations").
+[demo] low-light denoising: bilateral / NLM / BM3D-lite vs a Gaussian-blur negative control (project 01.11)
+PROBLEM: 200x150 low-light frame, peak signal 40 e- at code value 255, Poisson shot + Gaussian read noise (sigma_read=2.0 e-), FP32
+DATA: synthetic hashed multi-scale texture + 3 flat patches + 1 high-contrast step edge + 1 fine-detail ruling; clean.pgm ground truth + noisy.pgm (exact Poisson + Gaussian read noise) [synthetic, seed 42]
+VERIFY(bilateral): PASS (GPU naive matches CPU reference within tolerance)
+VERIFY(bilateral_tiling): PASS (GPU naive and GPU tiled bit-identical)
+VERIFY(gaussian_baseline): PASS (GPU matches CPU reference within tolerance)
+VERIFY(nlm): PASS (GPU matches CPU reference within tolerance)
+VERIFY(bm3d_lite): PASS (GPU matches CPU reference within tolerance)
+GATE psnr_improvement: PASS
+GATE edge_preservation: PASS
+GATE flat_noise_floor: PASS
+GATE method_ordering: PASS
+GATE noise_model_sanity: PASS
+ARTIFACT: wrote demo/out/{clean.pgm, noisy.pgm, denoised_bilateral.pgm, denoised_nlm.pgm, denoised_bm3d_lite.pgm, gaussian_baseline.pgm, residual_bilateral.pgm, residual_gaussian_baseline.pgm, residual_nlm.pgm, residual_bm3d_lite.pgm, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 5 gates passed: psnr_improvement, edge_preservation, flat_noise_floor, method_ordering, noise_model_sanity)

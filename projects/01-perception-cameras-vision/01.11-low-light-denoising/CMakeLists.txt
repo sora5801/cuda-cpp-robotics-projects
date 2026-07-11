@@ -70,9 +70,8 @@ target_compile_options(low-light-denoising PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(low-light-denoising PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). This project links NO extra CUDA libraries
+# (CLAUDE.md paragraph 5's default dependency budget): the 8x8 DCT is a
+# hand-rolled fixed-basis matrix multiply (no cuFFT — THEORY.md "The GPU
+# mapping" explains why a transform this small gains nothing from a library
+# call), and every other kernel is plain arithmetic.
