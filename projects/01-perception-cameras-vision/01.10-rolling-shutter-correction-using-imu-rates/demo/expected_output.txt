@@ -1,8 +1,19 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected output for project 01.10 (Rolling-shutter correction using IMU rates).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.10 (rolling-shutter-correction-using-imu-rates)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset check — extra
+# "[time]"/"[info]" lines, which carry measured numbers and vary by GPU/run, are never checked).
+# Captured from an ACTUAL run on the reference machine (RTX 2080 SUPER, sm_75, Release|x64).
+[demo] rolling-shutter correction using IMU rates: gyro-integrated row-homography un-warping, GPU fixed-point search vs CPU twin, clean vs degraded gyro (project 01.10)
+PROBLEM: 384x288 RS frame, readout=25.0ms (t_line=86.81us), gyro=200Hz, fixed-point iters=3, GS reference row=143.5 (t_ref=12.46ms)
+DATA: 384x288 synthetic RS capture of a hashed multi-scale texture + known vertical marker line, plus 10 clean / 10 degraded gyro samples [synthetic, seed 42]
+GATE quat_integration_analytic: PASS
+VERIFY: PASS (GPU matches CPU reference within documented tolerance, both gyro variants: corrected image, row-time convergence, valid mask)
+GATE row_time_convergence: PASS
+GATE restoration: PASS
+GATE restoration_negative_control: PASS
+GATE straightness_corrected: PASS
+GATE straightness_negative_control: PASS
+GATE gyro_degradation: PASS
+GATE valid_coverage: PASS
+ARTIFACT: wrote demo/out/{rs_input.pgm, corrected.pgm, ground_truth_gs.pgm, uncorrected_diff.pgm, corrected_diff.pgm, rotation_profile.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 8 gates passed: quat_integration_analytic, restoration, restoration_negative_control, straightness_corrected, straightness_negative_control, row_time_convergence, gyro_degradation, valid_coverage)

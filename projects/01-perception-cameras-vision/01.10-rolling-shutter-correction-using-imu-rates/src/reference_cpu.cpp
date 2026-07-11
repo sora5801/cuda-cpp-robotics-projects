@@ -2,63 +2,99 @@
 // reference_cpu.cpp — plain-C++ CPU reference for project 01.10
 //                     (Rolling-shutter correction using IMU rates)
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real CPU reference.
-// TODO(scaffold): implement the real algorithm here in the simplest, most
-// readable C++ you can write — clarity beats speed in this file, always.
-//
 // WHY does a GPU repository ship a CPU implementation of everything?
 // ------------------------------------------------------------------
-// Two load-bearing reasons (CLAUDE.md §5):
+// Two load-bearing reasons (CLAUDE.md paragraph 5):
+//   1) It is the CORRECTNESS ORACLE — main.cu runs both rs_correct_kernel
+//      (GPU) and rs_correct_cpu (here) on the SAME row LUT and RS frame,
+//      and asserts element-wise agreement within a documented tolerance.
+//   2) It is the TEACHING BASELINE — read this file first, then
+//      kernels.cu's rs_correct_kernel: the per-pixel loop body is (by
+//      design, for a MAP-pattern kernel) nearly identical; what changed is
+//      "for each pixel" becoming "each thread owns one pixel".
 //
-//   1) It is the CORRECTNESS ORACLE. GPU code fails in ways CPU code cannot:
-//      wrong thread indexing, missed tail elements, race conditions, stale
-//      device memory, bad transfers. A dead-simple sequential version that a
-//      reader can verify BY EYE gives us ground truth; main.cu runs both and
-//      asserts element-wise agreement within a documented tolerance. If the
-//      two disagree, the bug hunt starts with certainty that a bug exists.
+// Independence ruling (see docs/PROJECT_TEMPLATE/src/reference_cpu.cpp's
+// file header for the full statement this repo adopted) — applied here:
+//   * The quaternion algebra and the row-homography formula
+//     (quat_normalize/quat_mul/quat_conj/quat_to_mat3/lerp_row_quat/
+//     apply_row_rotation/bilinear_sample_gray, all in kernels.cuh) ARE the
+//     camera/sensor model under test, and duplicating them here would be
+//     pure token-for-token transcription — the repo's documented exception,
+//     same one 01.01's compute_source_pixel()/distort_forward() and 09.01's
+//     forward-kinematics primitives use. They are shared, HD, inline.
+//   * The PER-PIXEL LOOP STRUCTURE — the fixed-point row-time search driving
+//     those primitives — is typed a SECOND time, independently, right here,
+//     rather than calling a shared "do_one_pixel()" function kernels.cu also
+//     calls. That is what makes the GPU-vs-CPU comparison in main.cu able to
+//     catch a genuine indexing/loop bug (a wrong iteration count, a stale
+//     v_guess, an off-by-one in idx) rather than just re-confirming the two
+//     sides share code.
+//   * This project ALSO carries verification that bypasses the shared
+//     primitives entirely (per the ruling's "at least one gate that does not
+//     route through the shared code" requirement): main.cu's restoration
+//     gate compares actual PIXEL CONTENT against an independently rendered
+//     ground-truth image (never re-deriving the homography), and its
+//     quaternion-integration self-check integrates a KNOWN constant angular
+//     velocity and compares the result to the CLOSED-FORM analytic answer
+//     (|omega|*dt), never calling lerp_row_quat/apply_row_rotation at all.
 //
-//   2) It is the TEACHING BASELINE. The GPU version only makes sense as a
-//      transformation OF something — this file is that something. Reading it
-//      first, then kernels.cu, shows exactly what parallelization changed
-//      (spoiler for SAXPY: the loop became threads; the body is identical).
-//      It also makes the printed speed-up legible: same machine, same data,
-//      same algorithm — one core vs. thousands of threads.
+// Rules for this file: plain C++17, no CUDA headers, no cleverness — clarity
+// beats speed here, always (this file is compiled by cl.exe, never nvcc; the
+// __CUDACC__ fence in kernels.cuh hides __global__ declarations from it).
 //
-// Rules for this file: plain C++17, no CUDA headers, no hand-vectorization,
-// no OpenMP, no cleverness. If the reference is clever, it can be wrong, and
-// then the oracle lies. (This file is compiled by the HOST compiler, cl.exe;
-// the __CUDACC__ fence in kernels.cuh hides device declarations from it.)
-//
-// Read this after: kernels.cu — then compare the two side by side.
+// Read this after: kernels.cu — then compare the two loop bodies side by side.
 // ===========================================================================
 
-#include "kernels.cuh"  // for the saxpy_cpu prototype: compiler-enforced
-                        // signature agreement with what main.cu calls.
+#include "kernels.cuh"   // Quat + the shared HD camera-model primitives + this file's own prototype
+
+#include <cmath>          // std::fabs
 
 // ---------------------------------------------------------------------------
-// saxpy_cpu — sequential y[i] = a * x[i] + y[i] for i = 0 .. n-1.
+// rs_correct_cpu — sequential twin of kernels.cu's rs_correct_kernel.
 //
-// Parameters:
-//   n — element count (> 0)
-//   a — the SAXPY scalar
-//   x — [n] host pointer, read-only input
-//   y — [n] host pointer, read AND written in place (input y, output a*x+y)
+// Parameters: see kernels.cuh's declaration for the full contract. All
+// pointers are HOST pointers here (row_lut/rs_frame in, corrected/
+// valid_mask/iter_delta out) — no device memory anywhere in this file.
 //
-// Complexity: O(n) time, O(1) extra space. Side effects: overwrites y.
-//
-// Numerical note (why GPU-vs-CPU comparison needs a tolerance): this line
-// may be compiled as a separate multiply and add (two rounding steps) or as
-// a fused multiply-add (one rounding step), depending on compiler flags; the
-// GPU almost always fuses. Both are correct; they may differ in the last bit
-// (~1 ULP). Hence main.cu's tolerance of 1e-6 rather than bit-equality —
-// the honest way to compare floating point across compilers and devices.
+// Complexity: O(W*H*kFixedPointIters) — a few hundred thousand quaternion-
+// to-matrix conversions and bilinear samples; main.cu's [time] line reports
+// the measured wall-clock cost, which is exactly the number the GPU kernel
+// is being compared against for the "why bother with a GPU" lesson.
 // ---------------------------------------------------------------------------
-void saxpy_cpu(int n, float a, const float* x, float* y)
+void rs_correct_cpu(const Quat* row_lut, int H,
+                    const unsigned char* rs_frame, int W,
+                    unsigned char* corrected, unsigned char* valid_mask, float* iter_delta)
 {
-    // One loop, one line — deliberately the simplest correct statement of
-    // the computation. This is the exact loop the GPU kernel parallelizes:
-    // in kernels.cu, "for each i" became "each thread owns some i".
-    for (int i = 0; i < n; ++i) {
-        y[i] = a * x[i] + y[i];
+    // Plain nested loops, row-major, matching the image layout documented
+    // in kernels.cuh — deliberately the simplest correct statement of the
+    // per-pixel search, no early-outs, no vectorization tricks.
+    for (int yo = 0; yo < H; ++yo) {
+        for (int xo = 0; xo < W; ++xo) {
+
+            // Identical fixed-point search to the kernel's, typed
+            // independently: seed the row guess at yo, refine it
+            // kFixedPointIters times against the row LUT.
+            float v_guess = static_cast<float>(yo);
+            float xs = 0.0f, ys = 0.0f;
+            float v_after_second_iter = 0.0f;
+
+            for (int it = 0; it < kFixedPointIters; ++it) {
+                const Quat q_rel = lerp_row_quat(row_lut, H, v_guess);
+                float R[9];
+                quat_to_mat3(q_rel, R);
+                apply_row_rotation(R, static_cast<float>(xo), static_cast<float>(yo), xs, ys);
+
+                if (it == kFixedPointIters - 2) v_after_second_iter = ys;
+                v_guess = ys;
+            }
+
+            const int idx = yo * W + xo;
+            iter_delta[idx] = std::fabs(ys - v_after_second_iter);
+
+            int valid = 0;
+            const float sample = bilinear_sample_gray(rs_frame, W, H, xs, ys, valid);
+            corrected[idx] = valid ? static_cast<unsigned char>(sample + 0.5f) : static_cast<unsigned char>(0);
+            valid_mask[idx] = static_cast<unsigned char>(valid);
+        }
     }
 }

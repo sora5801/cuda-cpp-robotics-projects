@@ -3,10 +3,11 @@
 # download_data.sh — public-dataset fetcher for 01.10 (Rolling-shutter correction using IMU rates)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (see ../data/README.md "Why no public dataset"): rolling-shutter
+# correction needs analytically-known ground truth — the exact image an
+# ideal global-shutter camera would have seen, plus the camera's exact
+# continuous rotation trajectory — that no real recording can provide after
+# the fact. No public dataset applies; this script is an honest no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

@@ -1,0 +1,28 @@
+# SYNTHETIC scene parameters for project 01.10 -- provenance record, not read by ../src/main.cu
+# (the C++ program uses its own baked kernels.cuh constants; this file documents that they MATCH)
+key,value
+img_w,384
+img_h,288
+fx,380.0
+fy,380.0
+cx,191.5
+cy,143.5
+readout_time_s,0.025
+line_time_s,8.680555555555556e-05
+frame_t0_s,0.0
+frame_tref_s,0.012456597222222223
+gyro_rate_hz,200.0
+gyro_window_t0_s,-0.01
+gyro_window_t1_s,0.035
+rotation_pitch_amp_deg,1.8
+rotation_pitch_freq_hz,3.2
+rotation_pitch_phase_rad,1.1
+rotation_yaw_amp_deg,2.5
+rotation_yaw_freq_hz,5.0
+rotation_yaw_phase_rad,0.3
+rotation_roll_amp_deg,1.2
+rotation_roll_freq_hz,7.0
+rotation_roll_phase_rad,2.0
+gyro_bias_dps,8.0
+gyro_noise_half_width_rad_s,0.18
+seed,42

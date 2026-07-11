@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 44/505 done** (8.7%)
+**Overall: 45/505 done** (8.9%)
 
 | Status | Count |
 |--------|-------|
-| todo | 461 |
+| todo | 460 |
 | in-progress | 0 |
-| done | 44 |
+| done | 45 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 9/24 |
+| 01 Perception — Cameras & Vision | 10/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,7 +67,7 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 9/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 10/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -80,7 +80,7 @@
 | 01.07 | Fisheye/omnidirectional unwarping and multi-camera surround-view stitching | intermediate |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); equidistant model + 4-cam BEV, flat-ground negative control 3.41x, coverage 100% |
 | 01.08 | HDR exposure fusion + tone mapping for outdoor robots | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Debevec CRF 0.058 ln-units, coverage 99.97% vs best-single 86.4%, halo ratio 1.52x vs naive |
 | 01.09 | Photometric/vignetting calibration kernels | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); cos^4+PRNU/DSNU recovery, 1/sqrt(N) law 2.000/4.005, corner disparity 26.2%->0.11% |
-| 01.10 | Rolling-shutter correction using IMU rates | intermediate |  | todo |  |  |
+| 01.10 | Rolling-shutter correction using IMU rates | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); row-time fixed point 0.0022 px, skew 4.85->0.52 px, MAE 3.99->0.83, gyro-bias study honest |
 | 01.11 | Low-light denoising (bilateral, non-local means, fast BM3D variant) | intermediate |  | todo |  |  |
 | 01.12 | Visual servoing: image-Jacobian control loop entirely on GPU | intermediate |  | todo |  |  |
 | 01.13 | Canny + Hough line/circle detection for industrial alignment | intermediate |  | todo |  |  |
