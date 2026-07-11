@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 52/505 done** (10.3%)
+**Overall: 53/505 done** (10.5%)
 
 | Status | Count |
 |--------|-------|
-| todo | 453 |
+| todo | 452 |
 | in-progress | 0 |
-| done | 52 |
+| done | 53 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 17/24 |
+| 01 Perception — Cameras & Vision | 18/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,7 +67,7 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 17/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 18/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -88,7 +88,7 @@
 | 01.15 | Background subtraction for fixed-workspace cells | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); 3 models 0-mismatch twins, absorption analytic gate 18 vs 19 predicted, bimodal MOG 0.00 vs SG 1.00 |
 | 01.16 | Checkerboard/ChArUco detection acceleration for auto-calibration rigs | intermediate |  | done | worker+finisher+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); lead held first delivery, finisher reworked to marker-first ordering — 6/8 views exact incl. 180° + occlusion, ambiguity lesson real |
 | 01.17 | Camera-LiDAR / camera-camera extrinsic calibration (batched reprojection-error optimization) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); analytic Jacobian gated vs numeric, basin 77.3% at 2.4rad/1.2m, coplanar degeneracy 110x conditioning lesson, zero-noise machine-precision anchors |
-| 01.18 | Depth completion: sparse LiDAR + RGB → dense depth | intermediate |  | todo |  |  |
+| 01.18 | Depth completion: sparse LiDAR + RGB → dense depth | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Perona-Malik diffusion w/ CFL static_assert, texture-trap bounded 1.35x, camo-edge honesty 3.63x, atomicMin float-encode z-buffer |
 | 01.19 | Structured-light decoding (Gray code, phase shift) for 3D scanners | intermediate |  | todo |  |  |
 | 01.20 | Time-of-flight raw processing: phase unwrapping, flying-pixel removal | intermediate |  | todo |  |  |
 | 01.21 | Scene flow from RGB-D pairs | intermediate |  | todo |  |  |

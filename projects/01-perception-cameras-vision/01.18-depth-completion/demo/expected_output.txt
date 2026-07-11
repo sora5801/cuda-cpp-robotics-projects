@@ -1,8 +1,21 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — stable lines for 01.18 (Depth completion: sparse LiDAR + RGB -> dense depth)
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.18 (depth-completion)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# here: "[demo]", "PROBLEM:", "VERIFY:", "STABILITY:", "GATE:", "ARTIFACT:", "RESULT:" — never
+# "[time]" or "[info]" lines, which carry GPU-measured numbers that can vary by machine/architecture
+# (see the "output contract" comment in ../src/main.cu for why those numbers are deliberately kept
+# off the stable lines). Captured from an actual run on an RTX 2080 SUPER (sm_75), Release|x64.
+[demo] depth completion: sparse LiDAR + RGB -> dense depth (project 01.18)
+PROBLEM: 160x120 image, 16 LiDAR beams x subsampled azimuths -> 945 returns (50.2% of pixels have scene truth), diffusion 1400 iters @ dt=0.20, IDW radius 16 px
+VERIFY: projection+z-buffer PASS (GPU z-buffer matches CPU reference within tol 1e-4 m, zero empty-pixel mismatches)
+VERIFY: conductance PASS (GPU conductance matches CPU reference within tol 1e-5)
+VERIFY: diffusion PASS (GPU diffusion matches CPU reference within tol 5e-2 m over the full iteration count)
+VERIFY: IDW baseline PASS (GPU IDW matches CPU reference within tol 1e-3 m)
+STABILITY: dt=0.20 <= CFL-style bound 1/4=0.25 (worst case 4 neighbors, conductance <= 1.0 each) -> PASS (enforced at compile time, kernels.cuh)
+GATE: overall_accuracy PASS (guided MAE < bound 1.3 m over all valid-truth pixels)
+GATE: edge_quality PASS (guided beats IDW by >= 1.1x at clean depth boundaries)
+GATE: texture_trap PASS (guided RMSE <= 1.8x the RGB-blind IDW baseline in the checkerboard patch)
+GATE: camo_edge_honesty PASS (camo-edge error >= 2.0x flat-interior error — the demo must SHOW the prior's failure mode, not hide it)
+GATE: input_fidelity PASS (both densified fields reproduce every Dirichlet-anchored pixel within tol 1e-3 m)
+ARTIFACT: wrote rgb.ppm, sparse_depth_vis.pgm, completed_guided.pgm, completed_idw.pgm, truth_depth.pgm, error_guided.pgm, error_idw.pgm, gates_metrics.csv to demo/out/
+RESULT: PASS (all VERIFY twins agree and all evaluation gates pass — see GATE lines above)
