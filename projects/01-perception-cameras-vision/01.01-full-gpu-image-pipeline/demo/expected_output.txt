@@ -1,8 +1,22 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.01 (full-gpu-image-pipeline)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 01.01 (Full GPU image pipeline), captured from an
+# ACTUAL run on the reference machine (RTX 2080 SUPER, sm_75, Release|x64,
+# no CLI arguments). Lines starting with '#' are comments; run_demo.ps1 /
+# run_demo.sh ignore them when diffing. Every non-comment line below must
+# appear VERBATIM in the demo's stdout. "[info]"/"[time]" lines are
+# deliberately NOT checked here — they carry measured numbers that are
+# expected to vary slightly across GPU architectures (FMA-contraction
+# differences — see src/main.cu's output-contract comment and THEORY.md
+# "Numerical considerations").
+[demo] full GPU image pipeline: debayer -> undistort+rectify -> resize -> normalize, staged vs fused (project 01.01)
+PROBLEM: 384x288 RGGB Bayer input, K=(fx=380,fy=380,cx=191.5,cy=143.5), k1=-0.22 k2=0.06 p1=0.0010 p2=-0.0008, rectify=2.0deg about Y, resize x2 area-average
+DATA: 384x288 synthetic RGGB Bayer scene (checkerboard + gradient + 3 disks), ground truth + smooth_mask [synthetic, seed 42]
+VERIFY: PASS (GPU matches CPU reference within documented per-stage tolerance: debayer, remap LUT, remap, resize, fused, normalize stats x2, normalize apply x2)
+GATE roundtrip: PASS
+GATE straightness_rectified: PASS
+GATE distortion_negative_control: PASS
+GATE color_fidelity: PASS
+GATE resize_conservation: PASS
+GATE normalize: PASS
+GATE fused_vs_staged: PASS
+ARTIFACT: wrote demo/out/{bayer_input.pgm, debayered.ppm, rectified.ppm, resized.ppm, fused_resized.ppm, normalized_vis.ppm, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 7 gates passed: roundtrip, straightness_rectified, distortion_negative_control, color_fidelity, resize_conservation, normalize, fused_vs_staged)

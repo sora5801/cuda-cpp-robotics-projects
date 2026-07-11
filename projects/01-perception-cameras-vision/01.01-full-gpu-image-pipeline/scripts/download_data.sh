@@ -3,10 +3,14 @@
 # download_data.sh — public-dataset fetcher for 01.01 (Full GPU image pipeline: debayer → undistort → rectify → resize → normalize, zero CPU copies)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project stays synthetic-only. No public
+# dataset teaches this project's lesson better than an authored scene with
+# EXACT, dense ground truth (the ideal rectified image AND the raw Bayer
+# input are both derivable in closed form from one camera model — see
+# ../scripts/make_synthetic.py's file header) — a real calibration dataset
+# would only add licensing friction for no didactic gain. This script is an
+# honest no-op, kept only so every project in the repo exposes the same
+# script uniformly (CLAUDE.md paragraph 8).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
