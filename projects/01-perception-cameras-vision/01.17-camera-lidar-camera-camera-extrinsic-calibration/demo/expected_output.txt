@@ -1,8 +1,34 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.17 (camera-lidar-camera-camera-extrinsic-calibration)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# expected_output.txt — project 01.17 (Camera-LiDAR / camera-camera extrinsic
+# calibration, batched reprojection-error minimization)
+#
+# Lines starting with '#' are comments; run_demo.ps1/.sh ignore them when
+# diffing. Every non-comment line below must appear VERBATIM in the demo's
+# stdout (subset check — extra lines, including every "[info]"/"[time]" line
+# with the actual measured numbers, are expected and NOT checked here; see
+# main.cu's "Output contract" comment for why numbers stay off stable lines).
+#
+# Captured from an actual run on the reference machine: NVIDIA GeForce RTX
+# 2080 SUPER (sm_75), Release|x64, CUDA 13.3. Measured numbers for every gate
+# (jacobian check 1.52e-3 vs tol 5e-2, assembly twin 1.65e-7 vs tol 1e-4,
+# trajectory/multistart twin ~3.96e-2 deg vs tol 0.2 deg, basin 792/1024 =
+# 77.3% vs tol >=40%, recovery/noise-scaling/degeneracy/zero-noise — see
+# demo/README.md) are documented, not repeated, here.
+[demo] camera-LiDAR / camera-camera extrinsic calibration (project 01.17): batched reprojection-error LM
+PROBLEM: batched Levenberg-Marquardt reprojection-error minimization, V=12 poses x 4 fiducials = 48 correspondences/scenario, image 160x120 px, intrinsics fx=154.0 fy=152.0 cx=80.0 cy=60.0, K=1024 multi-start restarts, max 20 LM iters/run
+SCENARIO: camera-LiDAR (diverse + coplanar cohorts) and camera-camera (diverse cohort) extrinsic recovery [synthetic]
+JACOBIAN_CHECK: PASS (analytic vs. central-difference numeric Jacobian agree within tolerance)
+ASSEMBLY_TWIN: PASS (GPU correspondence-parallel assembly matches CPU oracle)
+TRAJECTORY_TWIN: PASS (GPU-orchestrated LM trajectory matches CPU-only trajectory)
+ARTIFACT: wrote demo/out/convergence_curves.csv
+RECOVERY_CAM_LIDAR: PASS (best-of-multistart recovers T_camera_lidar within tolerance)
+BASIN: PASS (convergence-basin coverage over 1024 randomized multi-starts)
+ARTIFACT: wrote demo/out/basin_scatter.csv (1024 rows)
+MULTISTART_TWIN: PASS (GPU farm threads 0..63 reproduced exactly on the CPU)
+RECOVERY_CAM_CAM: PASS (best-of-multistart recovers T_camera2_camera1 within tolerance)
+NOISE_SCALING: PASS (recovery error scales sensibly, low <= med <= high within a documented slack)
+DEGENERACY: PASS (coplanar-pose cohort shows worse conditioning AND worse translation accuracy than the diverse cohort)
+ZERO_NOISE_CAM_LIDAR: PASS (noise-free correspondences recover T_camera_lidar to near machine precision)
+ZERO_NOISE_CAM_CAM: PASS (noise-free correspondences recover T_camera2_camera1 to near machine precision)
+ARTIFACT: wrote demo/out/gates_metrics.csv
+ARTIFACT: wrote demo/out/overlay.ppm (160x120, green=detected red=before-calibration blue=after-calibration)
+RESULT: PASS (all verification stages passed — jacobian, assembly/trajectory/multistart twins, basin, both recoveries, noise scaling, degeneracy, both zero-noise sanity checks)

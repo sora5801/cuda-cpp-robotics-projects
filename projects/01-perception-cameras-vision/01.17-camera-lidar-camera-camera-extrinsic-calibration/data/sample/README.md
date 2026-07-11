@@ -16,7 +16,14 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's four files** (all synthetic, all regenerable by
+`python ../../scripts/make_synthetic.py --seed 42`, full field documentation in
+[`../README.md`](../README.md)):
+
+- `cam_lidar_diverse.csv` / `cam_lidar_coplanar.csv` — the two camera-LiDAR correspondence cohorts
+  (the DEGENERACY gate's well-conditioned vs. ill-conditioned pose sets).
+- `cam_cam_diverse.csv` — the camera-camera correspondence cohort.
+- `cam_background.pgm` — the synthetic backdrop for the demo's `overlay.ppm` artifact.
+
+`main.cu` loads all four via `find_data_file()` (`src/util/paths.h`) and adds its own deterministic
+sensor noise at runtime — the committed files themselves are the EXACT, noise-free correspondences.

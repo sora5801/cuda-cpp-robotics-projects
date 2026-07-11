@@ -1,10 +1,14 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.17 (Camera-LiDAR / camera-camera extrinsic calibration (batched reprojection-error optimization))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project stays synthetic-only. A public
+# dataset would need ground-truth extrinsics AND raw LiDAR+camera detections
+# for a controlled calibration target — KITTI/nuScenes-class datasets ship
+# calibration FILES (the answer), not the raw correspondence data a learner
+# could re-derive them from, so "download a public calibration dataset"
+# would not actually teach the batched-LM solve this project is about.
+# Synthetic, with exact known ground truth, is strictly better here
+# (CLAUDE.md paragraph 8) — this script is an intentional, permanent no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

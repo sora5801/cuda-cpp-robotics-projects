@@ -40,5 +40,8 @@
     <ClInclude Include="..\src\util\timer.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\util\paths.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,64 +1,263 @@
 // ===========================================================================
 // reference_cpu.cpp — plain-C++ CPU reference for project 01.17
-//                     (Camera-LiDAR / camera-camera extrinsic calibration (batched reprojection-error optimization))
-//
-// TEMPLATE PLACEHOLDER — replace with this project's real CPU reference.
-// TODO(scaffold): implement the real algorithm here in the simplest, most
-// readable C++ you can write — clarity beats speed in this file, always.
+//                     (Camera-LiDAR / camera-camera extrinsic calibration —
+//                     batched reprojection-error minimization)
 //
 // WHY does a GPU repository ship a CPU implementation of everything?
-// ------------------------------------------------------------------
-// Two load-bearing reasons (CLAUDE.md §5):
+// (template's general answer, CLAUDE.md §5 — repeated in full in every
+// project; skim it once, it applies here unchanged):
+//   1) CORRECTNESS ORACLE — GPU indexing/race/stale-memory bugs are caught
+//      by comparing against a dead-simple sequential version.
+//   2) TEACHING BASELINE — reading this file first, then kernels.cu, shows
+//      exactly what the GPU mapping changed.
 //
-//   1) It is the CORRECTNESS ORACLE. GPU code fails in ways CPU code cannot:
-//      wrong thread indexing, missed tail elements, race conditions, stale
-//      device memory, bad transfers. A dead-simple sequential version that a
-//      reader can verify BY EYE gives us ground truth; main.cu runs both and
-//      asserts element-wise agreement within a documented tolerance. If the
-//      two disagree, the bug hunt starts with certainty that a bug exists.
+// THIS PROJECT'S INDEPENDENCE RULING (applying the template's general rule,
+// see docs/PROJECT_TEMPLATE/src/reference_cpu.cpp for the rule itself, to
+// the specific functions in this project):
 //
-//   2) It is the TEACHING BASELINE. The GPU version only makes sense as a
-//      transformation OF something — this file is that something. Reading it
-//      first, then kernels.cu, shows exactly what parallelization changed
-//      (spoiler for SAXPY: the loop became threads; the body is identical).
-//      It also makes the printed speed-up legible: same machine, same data,
-//      same algorithm — one core vs. thousands of threads.
+//   SHARED (kernels.cuh, CALIB_HD) — the camera model + SO(3) retraction:
+//     skew3, mat3_vec, mat3_mul, so3_exp, pinhole_project,
+//     residual_and_jacobian. This is "the dynamics model that IS the system
+//     under test" (the template rule's own example, restated for a
+//     calibration project): reimplementing the pinhole-projection-plus-
+//     chain-rule formula by hand a second time would be pure transcription
+//     of the same seven lines of algebra, and getting it SUBTLY wrong in a
+//     re-transcription is a realistic, well-documented bug class (the
+//     template rule's own 13.03 story). Also shared: cholesky6_solve — see
+//     ITS OWN header comment in kernels.cuh for why sharing a boring 6x6
+//     dense solve between HOST call sites (this file and main.cu) is not a
+//     twin-independence question at all (neither is "the GPU path").
 //
-// Rules for this file: plain C++17, no CUDA headers, no hand-vectorization,
-// no OpenMP, no cleverness. If the reference is clever, it can be wrong, and
-// then the oracle lies. (This file is compiled by the HOST compiler, cl.exe;
-// the __CUDACC__ fence in kernels.cuh hides device declarations from it.)
+//   INDEPENDENTLY WRITTEN (this file, by hand, from scratch):
+//     - assemble_normal_equations_cpu's ACCUMULATION LOOP — sequential
+//       accumulation into H21/g6/cost, with none of kernels.cu's shared-
+//       memory tree-reduction machinery. Twin-compared against the GPU
+//       kernel's block-reduced-then-host-summed output (main.cu's tight-
+//       tolerance assembly gate).
+//     - run_lm_cpu's iteration control flow — its own damping/accept-reject
+//       loop, written without reference to main.cu's run_lm_gpu (which
+//       calls the GPU assembly kernel each iteration). Twin-compared via
+//       the "one full LM trajectory" gate (measured-then-margined, 08.01's
+//       technique, cited).
+//     - multistart_lm_cpu's iteration control flow — likewise its own loop,
+//       independent of kernels.cu's multistart_lm_farm_kernel, which ALSO
+//       carries its own independently-written device-side Cholesky
+//       (cholesky6_solve_device in kernels.cu) rather than calling this
+//       file's or kernels.cuh's host solve. Twin-compared via the
+//       "multi-start batch subset" gate (64 of the 1024 GPU threads
+//       reproduced exactly, same seed formula, same perturbation draw).
+//
+// WHY THIS SHARING DOES NOT MAKE THE TWIN CHECKS VACUOUS — the two
+// INDEPENDENT gates this project also carries specifically to catch a bug
+// hiding INSIDE the shared code (the template rule's explicit requirement
+// when any code is shared):
+//   (a) jacobian_check (main.cu) — compares the ANALYTIC Jacobian half of
+//       residual_and_jacobian against a CENTRAL-DIFFERENCE NUMERIC Jacobian
+//       computed by calling ONLY the RESIDUAL half repeatedly at perturbed
+//       states. A bug in the analytic Jacobian formula specifically (the
+//       calculus, not the projection) is caught here even though both
+//       "sides" of the comparison ultimately call shared code, because
+//       central differencing never touches the analytic-Jacobian lines at
+//       all — it only re-derives what they SHOULD be.
+//   (b) zero-noise sanity (main.cu) — recovers the extrinsic from
+//       correspondences generated by scripts/make_synthetic.py, an
+//       INDEPENDENT PURE-PYTHON reimplementation of the same pinhole
+//       projection formula (no C++ code shared, obviously — it is a
+//       different language). If residual_and_jacobian's shared PROJECTION
+//       formula itself were wrong, the recovered extrinsic would not match
+//       the ground truth the Python generator used to build the file, and
+//       this gate would fail regardless of GPU/CPU agreement. This is the
+//       "closed-form/analytic solution... a negative control" the template
+//       rule asks for, concretely: the closed form is "this exact pose
+//       produced this exact data," known because Python wrote it down.
+//
+// Rules for the INDEPENDENTLY-WRITTEN parts of this file: plain C++17, no
+// CUDA headers (kernels.cuh's CALIB_HD macro expands to nothing here — see
+// its own comment), no hand-vectorization, no OpenMP.
 //
 // Read this after: kernels.cu — then compare the two side by side.
 // ===========================================================================
 
-#include "kernels.cuh"  // for the saxpy_cpu prototype: compiler-enforced
-                        // signature agreement with what main.cu calls.
+#include "kernels.cuh"
+#include <cmath>
 
 // ---------------------------------------------------------------------------
-// saxpy_cpu — sequential y[i] = a * x[i] + y[i] for i = 0 .. n-1.
-//
-// Parameters:
-//   n — element count (> 0)
-//   a — the SAXPY scalar
-//   x — [n] host pointer, read-only input
-//   y — [n] host pointer, read AND written in place (input y, output a*x+y)
-//
-// Complexity: O(n) time, O(1) extra space. Side effects: overwrites y.
-//
-// Numerical note (why GPU-vs-CPU comparison needs a tolerance): this line
-// may be compiled as a separate multiply and add (two rounding steps) or as
-// a fused multiply-add (one rounding step), depending on compiler flags; the
-// GPU almost always fuses. Both are correct; they may differ in the last bit
-// (~1 ULP). Hence main.cu's tolerance of 1e-6 rather than bit-equality —
-// the honest way to compare floating point across compilers and devices.
+// assemble_normal_equations_cpu — see file header: independently-written
+// sequential accumulation loop, sharing only residual_and_jacobian.
 // ---------------------------------------------------------------------------
-void saxpy_cpu(int n, float a, const float* x, float* y)
+void assemble_normal_equations_cpu(const float* p_obs, const float* uv_obs, int n,
+                                   const Rigid3& T, PinholeIntrinsics K,
+                                   double H21[21], double g6[6], double* cost_out)
 {
-    // One loop, one line — deliberately the simplest correct statement of
-    // the computation. This is the exact loop the GPU kernel parallelizes:
-    // in kernels.cu, "for each i" became "each thread owns some i".
+    for (int a = 0; a < 21; ++a) H21[a] = 0.0;
+    for (int a = 0; a < 6; ++a) g6[a] = 0.0;
+    double cost = 0.0;
+
+    // One correspondence at a time, in FILE order — the simplest possible
+    // statement of "sum every correspondence's contribution", exactly the
+    // loop the GPU kernel's block-reduction tree parallelizes (kernels.cu's
+    // header comment walks through why a tree instead of this).
     for (int i = 0; i < n; ++i) {
-        y[i] = a * x[i] + y[i];
+        const float p_src[3] = { p_obs[i * 3 + 0], p_obs[i * 3 + 1], p_obs[i * 3 + 2] };
+        const float uv_o[2]  = { uv_obs[i * 2 + 0], uv_obs[i * 2 + 1] };
+        float r[2], J[12];
+        residual_and_jacobian(T, K, p_src, uv_o, r, J);
+
+        for (int a = 0; a < 6; ++a)
+            for (int b = a; b < 6; ++b)
+                H21[hidx(a, b)] += static_cast<double>(J[a] * J[b] + J[6 + a] * J[6 + b]);
+        for (int a = 0; a < 6; ++a)
+            g6[a] += static_cast<double>(J[a] * r[0] + J[6 + a] * r[1]);
+        cost += static_cast<double>(r[0] * r[0] + r[1] * r[1]);
     }
+
+    if (cost_out) *cost_out = cost;
+}
+
+// ---------------------------------------------------------------------------
+// run_lm_cpu — see file header: independently-written LM control flow. Same
+// Marquardt damping RULE as kernels.cu's two device paths (kLambdaInit,
+// kLambdaUp, kLambdaDown, the convergence thresholds — all single-sourced
+// constants from kernels.cuh, so "how damping adapts" cannot silently drift
+// between the three implementations even though "how the loop is WRITTEN"
+// does), but the loop body below was written from scratch, independently of
+// main.cu's run_lm_gpu and of the farm kernel's per-thread loop.
+// ---------------------------------------------------------------------------
+void run_lm_cpu(const float* p_obs, const float* uv_obs, int n, PinholeIntrinsics K,
+                Rigid3 T_init, int max_iters,
+                Rigid3& out_T, double* loss_history, int& out_num_iters)
+{
+    Rigid3 T = T_init;
+    double lambda = kLambdaInit;
+
+    double H21[21], g6[6], cost;
+    assemble_normal_equations_cpu(p_obs, uv_obs, n, T, K, H21, g6, &cost);
+
+    int hist_count = 0;
+    loss_history[hist_count++] = cost;   // entry 0: the STARTING cost, before any step
+
+    for (int it = 0; it < max_iters; ++it) {
+        double delta[6];
+        bool ok = false;
+        for (int attempt = 0; attempt < 5 && !ok; ++attempt) {
+            ok = cholesky6_solve(H21, g6, lambda, delta);
+            if (!ok) lambda *= kLambdaUp;
+        }
+        if (!ok) break;   // numerically stuck (see kernels.cu's farm kernel for the same guard)
+
+        Rigid3 T_candidate;
+        retract(T, delta, T_candidate);
+
+        double H21_new[21], g6_new[6], cost_new;
+        assemble_normal_equations_cpu(p_obs, uv_obs, n, T_candidate, K, H21_new, g6_new, &cost_new);
+
+        const double delta_norm = std::sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2] +
+                                            delta[3] * delta[3] + delta[4] * delta[4] + delta[5] * delta[5]);
+
+        if (cost_new < cost) {
+            const double rel_change = std::fabs(cost - cost_new) / (cost_new + 1.0e-12);
+            T = T_candidate;
+            cost = cost_new;
+            for (int a = 0; a < 21; ++a) H21[a] = H21_new[a];
+            for (int a = 0; a < 6; ++a) g6[a] = g6_new[a];
+            lambda *= kLambdaDown;
+            if (lambda < kLambdaMin) lambda = kLambdaMin;
+            loss_history[hist_count++] = cost;
+            if (delta_norm < kConvergeDeltaNorm || rel_change < kConvergeCostRel) break;
+        } else {
+            lambda *= kLambdaUp;
+            loss_history[hist_count++] = cost;   // report the UNCHANGED cost for a rejected step
+        }
+    }
+
+    out_T = T;
+    out_num_iters = hist_count;
+}
+
+// ---------------------------------------------------------------------------
+// multistart_lm_cpu — see file header: reproduces GPU thread k's initial
+// guess EXACTLY (same seed formula, same xorshift32/gaussian draw ORDER as
+// multistart_lm_farm_kernel in kernels.cu — this part must match bit-for-
+// bit, since it is data generation, not "the algorithm under test"), then
+// runs its OWN independently-written LM loop against it.
+// ---------------------------------------------------------------------------
+void multistart_lm_cpu(const float* p_obs, const float* uv_obs, int n,
+                       PinholeIntrinsics K, Rigid3 T_seed,
+                       float max_rot_perturb_rad, float max_trans_perturb_m,
+                       uint32_t base_seed, int k, int max_iters,
+                       Rigid3& out_T, double& out_loss,
+                       float& out_init_rot, float& out_init_trans)
+{
+    // Identical draw sequence to kernels.cu's multistart_lm_farm_kernel —
+    // see that function's comment for why each step is shaped this way.
+    uint32_t seed = base_seed ^ (0x9E3779B9u * static_cast<uint32_t>(k + 1));
+    if (seed == 0u) seed = 1u;
+
+    float ax[3] = { gaussian(seed, 1.0f), gaussian(seed, 1.0f), gaussian(seed, 1.0f) };
+    float axn = std::sqrt(ax[0] * ax[0] + ax[1] * ax[1] + ax[2] * ax[2]);
+    if (axn < 1.0e-6f) axn = 1.0e-6f;
+    const float rot_mag = uniform01(seed) * max_rot_perturb_rad;
+    const float omega0[3] = { ax[0] / axn * rot_mag, ax[1] / axn * rot_mag, ax[2] / axn * rot_mag };
+
+    float tx[3] = { gaussian(seed, 1.0f), gaussian(seed, 1.0f), gaussian(seed, 1.0f) };
+    float txn = std::sqrt(tx[0] * tx[0] + tx[1] * tx[1] + tx[2] * tx[2]);
+    if (txn < 1.0e-6f) txn = 1.0e-6f;
+    const float trans_mag = uniform01(seed) * max_trans_perturb_m;
+    const float v0[3] = { tx[0] / txn * trans_mag, tx[1] / txn * trans_mag, tx[2] / txn * trans_mag };
+
+    out_init_rot   = rot_mag;
+    out_init_trans = trans_mag;
+
+    Rigid3 T;
+    float dR[9];
+    so3_exp(omega0, dR);
+    mat3_mul(dR, T_seed.R, T.R);
+    T.t[0] = T_seed.t[0] + v0[0];
+    T.t[1] = T_seed.t[1] + v0[1];
+    T.t[2] = T_seed.t[2] + v0[2];
+
+    // Own LM loop (independent of run_lm_cpu above on purpose — that
+    // function's loop is twin-compared against main.cu's GPU-orchestrated
+    // single trajectory; THIS loop is twin-compared against the farm
+    // kernel's per-thread loop. Two separate CPU implementations of "the
+    // same idea" is deliberate: it means a bug that happens to live in
+    // run_lm_cpu's specific control-flow phrasing would not automatically
+    // also live here, and vice versa).
+    double lambda = kLambdaInit;
+    double H21[21], g6[6], cost;
+    assemble_normal_equations_cpu(p_obs, uv_obs, n, T, K, H21, g6, &cost);
+
+    for (int it = 0; it < max_iters; ++it) {
+        double delta[6];
+        bool ok = false;
+        for (int attempt = 0; attempt < 5 && !ok; ++attempt) {
+            ok = cholesky6_solve(H21, g6, lambda, delta);
+            if (!ok) lambda *= kLambdaUp;
+        }
+        if (!ok) break;
+
+        Rigid3 T_new;
+        retract(T, delta, T_new);
+        double H21_new[21], g6_new[6], cost_new;
+        assemble_normal_equations_cpu(p_obs, uv_obs, n, T_new, K, H21_new, g6_new, &cost_new);
+
+        const double delta_norm = std::sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2] +
+                                            delta[3] * delta[3] + delta[4] * delta[4] + delta[5] * delta[5]);
+
+        if (cost_new < cost) {
+            const double rel_change = std::fabs(cost - cost_new) / (cost_new + 1.0e-12);
+            T = T_new;
+            cost = cost_new;
+            for (int a = 0; a < 21; ++a) H21[a] = H21_new[a];
+            for (int a = 0; a < 6; ++a) g6[a] = g6_new[a];
+            lambda *= kLambdaDown;
+            if (lambda < kLambdaMin) lambda = kLambdaMin;
+            if (delta_norm < kConvergeDeltaNorm || rel_change < kConvergeCostRel) break;
+        } else {
+            lambda *= kLambdaUp;
+        }
+    }
+
+    out_T = T;
+    out_loss = cost;
 }
