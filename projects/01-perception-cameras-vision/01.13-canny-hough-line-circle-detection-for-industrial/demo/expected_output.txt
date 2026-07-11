@@ -1,8 +1,21 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected output — project 01.13 (Canny + Hough line/circle detection for industrial alignment)
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.13 (canny-hough-line-circle-detection-for-industrial)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# here — never timings ("[time]") or device/sweep-count/measured-value lines ("[info]"), which vary
+# by machine/GPU and are deliberately not diffed (see the output contract in ../src/main.cu).
+# These lines are copied from an ACTUAL run on the committed data/sample/ (RTX 2080 SUPER, CUDA 13.3).
+[demo] Canny + Hough line/circle detection for industrial alignment (project 01.13)
+PROBLEM: 320x240 synthetic machined plate, Canny (Gaussian 5-tap -> Sobel -> NMS -> double-threshold hysteresis) -> Hough lines (180 theta bins x 801 rho bins) + Hough circles (3 known radii) -> rigid alignment LS, FP32/int32
+DATA: loaded synthetic scene.pgm + negative_control.pgm + truth.csv (4 edges, 3 holes, 1 hysteresis-lesson scratch mark, applied transform known) [synthetic]
+VERIFY: gaussian+sobel+nms GPU vs CPU within float tolerance PASS
+VERIFY: hysteresis edge map (double- and single-threshold) GPU vs CPU EXACT PASS
+VERIFY: hough line accumulator (144180 cells, integer atomics) GPU vs CPU BIT-EXACT PASS
+VERIFY: hough circle accumulator GPU vs CPU peak-level tolerance PASS
+GATE line_recovery: PASS
+GATE circle_recovery: PASS
+GATE alignment: PASS
+GATE edge_quality: PASS
+GATE hysteresis_lesson: PASS
+GATE negative_control: PASS
+ARTIFACT: wrote demo/out/{edges.pgm, hough_lines_accum.pgm, overlay.ppm, gates_metrics.csv}
+RESULT: PASS (GPU/CPU verified, all gates passed)

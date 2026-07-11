@@ -1,10 +1,12 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.13 (Canny + Hough line/circle detection for industrial alignment)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION FOR THIS PROJECT: no public dataset applies. Industrial fixture-
+# alignment ground truth (exact applied dx/dy/dtheta, exact line/hole
+# geometry) is exactly the kind of thing synthetic-with-full-ground-truth
+# is BETTER at than any photograph could be (CLAUDE.md paragraph 8) — a real
+# photo would need a calibrated rig just to know the "true" answer this
+# script needs for free. This script is therefore an honest no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

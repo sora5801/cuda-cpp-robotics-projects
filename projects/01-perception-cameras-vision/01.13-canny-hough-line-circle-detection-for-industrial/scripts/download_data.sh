@@ -3,10 +3,8 @@
 # download_data.sh — public-dataset fetcher for 01.13 (Canny + Hough line/circle detection for industrial alignment)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION FOR THIS PROJECT: no public dataset applies — see download_data.ps1
+# for why (synthetic ground truth beats a photograph here). Honest no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

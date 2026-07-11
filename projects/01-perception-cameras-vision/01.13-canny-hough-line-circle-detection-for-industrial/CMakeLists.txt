@@ -75,4 +75,9 @@ target_compile_options(canny-hough-line-circle-detection-for-industrial PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(canny-hough-line-circle-detection-for-industrial PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+#
+# This project links nothing beyond the CUDA runtime: every stage (Gaussian
+# blur, Sobel, NMS, hysteresis, both Hough transforms, the small alignment
+# solve) is hand-rolled in kernels.cu/reference_cpu.cpp/main.cu on purpose —
+# see README "Prior art" for the production libraries (OpenCV CUDA, NPP)
+# these teach toward.

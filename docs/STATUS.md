@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 47/505 done** (9.3%)
+**Overall: 48/505 done** (9.5%)
 
 | Status | Count |
 |--------|-------|
-| todo | 458 |
+| todo | 457 |
 | in-progress | 0 |
-| done | 47 |
+| done | 48 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 12/24 |
+| 01 Perception — Cameras & Vision | 13/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,7 +67,7 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 12/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 13/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -83,7 +83,7 @@
 | 01.10 | Rolling-shutter correction using IMU rates | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); row-time fixed point 0.0022 px, skew 4.85->0.52 px, MAE 3.99->0.83, gyro-bias study honest |
 | 01.11 | Low-light denoising (bilateral, non-local means, fast BM3D variant) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); all 3 methods incl. BM3D-lite; NLM +12.7 dB, Gaussian control fails edges as designed, tiling 16x bit-identical |
 | 01.12 | Visual servoing: image-Jacobian control loop entirely on GPU | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); 4096-loop basin study, decay fit 0.4% of lambda, retreat pathology 100% detected |
-| 01.13 | Canny + Hough line/circle detection for industrial alignment | intermediate |  | todo |  |  |
+| 01.13 | Canny + Hough line/circle detection for industrial alignment | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Q16 fixed-point trig makes the line accumulator BIT-EXACT; alignment 7.99/-4.90/6.72 vs 8/-5/7; hysteresis lesson 1.00 vs 0.20 |
 | 01.14 | Template matching (NCC) at scale for pick verification | intermediate |  | todo |  |  |
 | 01.15 | Background subtraction for fixed-workspace cells | intermediate |  | todo |  |  |
 | 01.16 | Checkerboard/ChArUco detection acceleration for auto-calibration rigs | intermediate |  | todo |  |  |
