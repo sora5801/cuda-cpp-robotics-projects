@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-11 — batch 2d: industrial-vision quartet 01.13–01.16 done (51/505); bit-exact Hough + NCC determinism designs, absorption gate within 1 frame, 01.16 held at lead gate and reworked marker-first — [push-note](push-notes/2026-07-11-02-phase-2-batch-2d-domain-01-industrial-vision.md)
 - 2026-07-11 — batch 2c: 01.09/01.10/01.11/01.12 done (47/505); 1/√N law at 2.000/4.005, RS skew 4.85→0.52 px, BM3D-lite landed, IBVS retreat pathology gated at 100% — [push-note](push-notes/2026-07-11-01-phase-2-batch-2c-domain-01-calibration-and-control.md)
 - 2026-07-11 — batch 2b: domain-01 intermediates 01.03/01.05/01.07/01.08 done (43/505); ×32 gradient bug caught by analytic gate (twin-blind save #3), flat-ground BEV control 3.41×, halo ratio 1.52× — [push-note](push-notes/2026-07-11-00-phase-2-batch-2b-domain-01-intermediates.md)
 - 2026-07-10 — **Phase 2 opens** — batch 2a: domain-01 ★ trio done (39/505) — 01.01 staged-vs-fused ISP, 01.04 FAST/Harris+ORB+Hamming, 01.06 fiducial decoder with self-designed dictionary gated both ways — [push-note](push-notes/2026-07-10-22-phase-2-batch-2a-domain-01-stars.md)
