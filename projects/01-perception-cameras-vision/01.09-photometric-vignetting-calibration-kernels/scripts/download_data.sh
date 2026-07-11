@@ -3,10 +3,14 @@
 # download_data.sh — public-dataset fetcher for 01.09 (Photometric/vignetting calibration kernels)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): synthetic-only, no download. A vignette/PRNU/DSNU
+# calibration rig with EXACTLY-known ground-truth fields (gain_true.bin,
+# dsnu_true.bin) cannot come from a public photograph — no camera vendor
+# publishes the per-pixel gain/offset fields their own factory calibration
+# recovered. Every gate in src/main.cu grades against ground truth no real
+# camera dataset could supply. This script is therefore an honest, permanent
+# no-op (the same call 01.08's download_data.sh makes for its own
+# ground-truth-radiance-dependent gates).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

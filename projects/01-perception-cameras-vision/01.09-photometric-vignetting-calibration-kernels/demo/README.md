@@ -12,23 +12,36 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+Loads 16 dark frames + 16 flat frames + one natural test scene (`../data/sample/`), runs the GPU
+calibration pipeline (dark-stack mean -> flat-stack mean -> dark-subtract -> center-normalize -> radial
+histogram -> parametric least-squares fit -> per-pixel correction), cross-checks every GPU stage against
+an independent CPU reference, and grades the result against six gates tied to the scene's known ground
+truth: how well the additive DSNU field was recovered, how well the multiplicative gain field was
+recovered, whether the fitted radial curve matches the true cos^4 vignette (and whether its residual is
+consistent with being PRNU, not fit error), whether averaging N=1/4/16 frames reduces noise like the
+textbook `1/sqrt(N)` law, whether five identical-radiance swatches (one center, four corners) read as
+equal AFTER correction (they read up to ~26% apart before it), and whether a corrected flat frame reads
+uniform.
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+**What to look at:** open `out/scene_uncorrected.pgm` next to `out/scene_corrected.pgm` — the corners are
+visibly darker before correction and visually uniform after. `out/radial_profile.csv` plots the true
+cos^4 curve, the raw (nonparametric) binned gain profile, and the fitted parametric curve together — they
+should overlay almost exactly. `out/gates_metrics.csv` has every measured number behind every `GATE` line
+below.
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, and every measured number (per-stage diffs, the fitted radial coefficients, per-gate metrics) — varies by machine/run. | No. |
+| `PROBLEM:`  | The exact problem instance (image size, sensor model, stack sizes). | Yes — stable (demo runs with no args). |
+| `DATA:`     | A one-line description of the loaded calibration rig + test scene. | Yes — stable. |
+| `[time]`    | GPU-pipeline and CPU-oracle timings — a **teaching artifact, never a benchmark claim** (these images are tiny; both paths finish in well under a millisecond of kernel time). | No. |
+| `VERIFY:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU cross-check across all pipeline stages (tolerances documented in `../src/main.cu` and `THEORY.md`). | Yes — stable. |
+| `GATE ...:` | `PASS`/`FAIL` for each of the six independent ground-truth gates (`dsnu_recovery`, `gain_recovery`, `radial_fit`, `noise_averaging`, `correction_efficacy`, `flatness`). | Yes — stable (six lines). |
+| `ARTIFACT:` | Confirms every file in `out/` was written. | Yes — stable. |
+| `RESULT:`   | `PASS`/`FAIL` verdict of the WHOLE demo (VERIFY + all six gates). The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines
@@ -38,8 +51,11 @@ The runner scripts do a **subset diff**: every non-comment line of
 
 - **Build fails:** see [`../../../docs/BUILD_GUIDE.md`](../../../docs/BUILD_GUIDE.md) (toolchain
   install, CUDA/VS integration, GPU architecture list).
-- **`RESULT: FAIL`:** the GPU result disagreed with the CPU oracle — a real bug. Start in
-  `../src/kernels.cu` and compare against `../src/reference_cpu.cpp`.
+- **`VERIFY: FAIL`:** the GPU result disagreed with the CPU oracle on at least one stage — a real bug.
+  Start in `../src/kernels.cu` and compare the failing stage against its twin in `../src/reference_cpu.cpp`.
+- **A `GATE ...: FAIL`:** VERIFY passed (GPU and CPU agree with each other) but the AGREED result
+  disagrees with ground truth — read that gate's `[info]` line and its section in `../src/main.cu` and
+  `../THEORY.md` "How we verify correctness" for what it measures and why.
 - **Expected-line mismatch only:** the program passed its own check but printed different stable
   lines — someone changed the output without updating `expected_output.txt` (or vice versa). The two
   are a contract; fix them together.

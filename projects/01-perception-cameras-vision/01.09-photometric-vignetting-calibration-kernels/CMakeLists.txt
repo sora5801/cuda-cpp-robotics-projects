@@ -75,4 +75,6 @@ target_compile_options(photometric-vignetting-calibration-kernels PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(photometric-vignetting-calibration-kernels PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# This project links no extra library: every kernel (stack_mean, elementwise_sub, affine,
+# roi_mean_reduce, radial_bin, correction) and the shared radial least-squares fit are hand-rolled
+# (CLAUDE.md paragraph 5's "prefer hand-rolled teaching versions" default).

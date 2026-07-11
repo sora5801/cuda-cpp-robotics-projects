@@ -16,7 +16,7 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds 33 committed 160x120 PGM frames (16 dark + 16 flat + 1 test scene) plus two raw
+float32 ground-truth dumps (`gain_true.bin`, `dsnu_true.bin`) and `params.csv`, all written by
+`python ../../scripts/make_synthetic.py` (fixed seed 42). See [`../README.md`](../README.md) for the
+full field-by-field documentation, checksums, and size accounting.

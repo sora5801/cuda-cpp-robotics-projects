@@ -1,8 +1,20 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.09 (photometric-vignetting-calibration-kernels)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 01.09 (Photometric/vignetting calibration kernels), captured from an
+# ACTUAL run on the reference machine (RTX 2080 SUPER, sm_75, Release|x64, no CLI arguments).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing. Every
+# non-comment line below must appear VERBATIM in the demo's stdout. "[info]"/"[time]" lines are
+# deliberately NOT checked here — they carry measured numbers (per-stage error magnitudes, the fitted
+# radial coefficients, recovered gain ranges) that are expected to vary slightly across GPU
+# architectures and machines (float32 atomicAdd accumulation order, FMA-contraction differences — see
+# src/main.cu's output-contract comment and THEORY.md "Numerical considerations").
+[demo] photometric/vignetting calibration: dark/flat-stack calibration + parametric radial fit vs ground truth (project 01.09)
+PROBLEM: 160x120 sensor model I=g*L+o, g=V(cos^4 vignette)*PRNU, o=DSNU, dark-stack N=16, flat-stack N=16, FP32
+DATA: synthetic camera-calibration rig (16 dark + 16 flat frames + 1 natural test scene with 5 identical-radiance gray-card swatches), decentered cos^4 vignette x hashed PRNU/DSNU ground truth [synthetic, seed 42]
+VERIFY: PASS (GPU matches CPU reference within documented per-stage tolerance: stack_mean, dark_subtract, center_normalize, radial_bin, correction)
+GATE dsnu_recovery: PASS
+GATE gain_recovery: PASS
+GATE radial_fit: PASS
+GATE noise_averaging: PASS
+GATE correction_efficacy: PASS
+GATE flatness: PASS
+ARTIFACT: wrote demo/out/{vignette_true.pgm, gain_recovered.pgm, dsnu_recovered.pgm, scene_uncorrected.pgm, scene_corrected.pgm, radial_profile.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 6 gates passed: dsnu_recovery, gain_recovery, radial_fit, noise_averaging, correction_efficacy, flatness)
