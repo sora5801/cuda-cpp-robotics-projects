@@ -1,8 +1,19 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.04 (feature-pipeline)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract for project 01.04 (Feature pipeline). Lines starting with '#' are comments;
+# run_demo.ps1 / run_demo.sh ignore them when diffing. Every non-comment line below must appear
+# VERBATIM in the demo's stdout (a SUBSET check — extra "[info]"/"[time]" lines are fine and expected;
+# see ../src/main.cu's "Output contract" header comment). These are the ACTUAL lines an unmodified
+# `feature-pipeline.exe` (no arguments) printed on the reference machine (RTX 2080 SUPER, sm_75,
+# Release|x64) against the committed data/sample/{scene_a,scene_b,neg_scene_c}.pgm.
+[demo] feature pipeline: FAST/Harris detect -> ORB describe -> brute-force Hamming match (project 01.04)
+PROBLEM: 256x256 grayscale scene pair (scene_a.pgm, scene_b.pgm = ground-truth similarity transform theta=12.0deg tx=7.0px ty=-5.0px + brightness offset), plus an unrelated negative-control scene (neg_scene_c.pgm); FAST-9 t=20, Harris k=0.04, ORB 256 pairs / 30 orientation bins, brute-force Hamming matching
+DATA: 256x256 synthetic scene pair + negative-control scene (checkerboards at multiple scales/orientations + disks + gradient background) [synthetic, seed 42 / seed 999]
+VERIFY(fast): PASS (score maps bit-exact and final sorted keypoint lists bit-exact for A and B)
+VERIFY(harris): PASS (Sobel gradients + Harris response match CPU reference within tolerance)
+VERIFY(describe): PASS (orientation within tolerance and lands in the same discrete bin; ORB descriptors bit-exact, for A and B)
+VERIFY(hamming): PASS
+GATE ground_truth_transform: PASS
+GATE rotation_recovery: PASS
+GATE repeatability: PASS
+GATE negative_control: PASS
+ARTIFACT: wrote demo/out/{keypoints_A.ppm, keypoints_B.ppm, matches.ppm, matches.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY(fast/harris/describe/hamming) + all 4 gates passed: ground_truth_transform, rotation_recovery, repeatability, negative_control)

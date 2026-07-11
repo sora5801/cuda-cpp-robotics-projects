@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** two 256x256 analytically-rendered grayscale views of the SAME scene under a
+KNOWN similarity transform (`scene_a.pgm`, `scene_b.pgm`), plus one UNRELATED scene used only as a
+matching negative control (`neg_scene_c.pgm`) — three binary PGM files plus the ground-truth transform
+in human-readable form (`transform.csv`), ~197 KiB total. See `../README.md` for the full field
+documentation, checksums, and rendering notes (anti-aliasing, per-cell hashed checkerboard colors), and
+`python ../../scripts/make_synthetic.py` to regenerate byte-identically.

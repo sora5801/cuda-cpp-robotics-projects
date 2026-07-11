@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 37/505 done** (7.3%)
+**Overall: 38/505 done** (7.5%)
 
 | Status | Count |
 |--------|-------|
-| todo | 468 |
+| todo | 467 |
 | in-progress | 0 |
-| done | 37 |
+| done | 38 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 2/24 |
+| 01 Perception — Cameras & Vision | 3/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,14 +67,14 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 2/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 3/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 01.01 | Full GPU image pipeline: debayer → undistort → rectify → resize → normalize, zero CPU copies | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); staged-vs-fused ISP, 7 physics gates incl. distortion negative control |
 | 01.02 | Stereo depth: block matching, then Semi-Global Matching (SGM) kernels | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); BM 63% vs SGM 98% good pixels, exact GPU/CPU |
 | 01.03 | Optical flow: pyramidal Lucas-Kanade, Farneback, census-transform flow | intermediate |  | todo |  |  |
-| 01.04 | Feature pipeline: FAST/Harris detection, ORB descriptors, brute-force Hamming matcher | ★ beginner |  | todo |  |  |
+| 01.04 | Feature pipeline: FAST/Harris detection, ORB descriptors, brute-force Hamming matcher | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); FAST/Harris+ORB+Hamming, bit-exact integer stages, 4 gates incl. unrelated-scene negative control |
 | 01.05 | SIFT/SURF on GPU (harder, warp-level reductions) | intermediate |  | todo |  |  |
 | 01.06 | AprilTag / ArUco GPU detector-decoder for high-rate fiducial localization | ★ beginner |  | todo |  |  |
 | 01.07 | Fisheye/omnidirectional unwarping and multi-camera surround-view stitching | intermediate |  | todo |  |  |
