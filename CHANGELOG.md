@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — **Phase 2 opens** — batch 2a: domain-01 ★ trio done (39/505) — 01.01 staged-vs-fused ISP, 01.04 FAST/Harris+ORB+Hamming, 01.06 fiducial decoder with self-designed dictionary gated both ways — [push-note](push-notes/2026-07-10-22-phase-2-batch-2a-domain-01-stars.md)
 - 2026-07-10 — §11 standards retrospective: LNK4099 fix template-wide (469 skeletons patched), util/paths.h ratified from 12.01, twin-vs-shared verification ruling from the 13.03 case study — [push-note](push-notes/2026-07-10-21-standards-retrospective-phase-1.md)
 - 2026-07-10 — flagship 36.03 lattice-robot kinematics done (36/505) — **batch 1h & all 36 Phase-1 flagships complete**; bit-exact all-integer pipeline, 2 brute-force oracles, 410/410 corruptions caught, 127-move vignette — [push-note](push-notes/2026-07-10-20-flagship-36-03-lattice-robots-phase-1-flagships-complete.md)
 - 2026-07-10 — flagship 35.01 magnetic microswarms done (35/505); on-axis gate 2.5e-4, Helmholtz flatness 0.18%, waypoints hit at 13 µm — [push-note](push-notes/2026-07-10-19-flagship-35-01-microswarm.md)
