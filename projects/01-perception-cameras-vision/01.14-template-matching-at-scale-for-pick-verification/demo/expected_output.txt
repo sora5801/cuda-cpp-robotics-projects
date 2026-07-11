@@ -1,8 +1,18 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected stable output for project 01.14 (Template matching (NCC) at scale for pick verification).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
 # here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.14 (template-matching-at-scale-for-pick-verification)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Captured from an ACTUAL run on an RTX 2080 SUPER (sm_75), CUDA 13.3, Release|x64, no CLI args.
+[demo] Template matching (NCC) at scale for pick verification (project 01.14)
+PROBLEM: NCC pick verification, tray 6x4=24 slots, 3 types x 5 rotations = 15 templates, search +-8 px (17x17), score volume 104040 evals, int64 sum-table + FP32 sqrt/divide
+DATA: loaded synthetic tray.pgm + templates.pgm + truth.csv (24 slots, 6 designed cohorts: plain/offset/rotated/wrong_part/empty/shadow) [synthetic]
+VERIFY: integral images (sum + sumSq, 71825 cells) GPU vs CPU BIT-EXACT PASS
+VERIFY: window statistics (S_w, S_ww; 6936 cells) GPU vs CPU BIT-EXACT PASS
+VERIFY: NCC scores (naive/sum-table/shared vs CPU oracle) within float tolerance PASS
+GATE variant_consistency: PASS
+GATE classification: PASS
+GATE localization: PASS
+GATE rotation_lesson: PASS
+GATE illumination_robustness: PASS
+ARTIFACT: wrote demo/out/{tray_overlay.ppm, score_map_rotated_slot.pgm, score_vs_angle.csv, per_slot_scores.csv, gates_metrics.csv}
+RESULT: PASS (GPU/CPU verified, all gates passed)

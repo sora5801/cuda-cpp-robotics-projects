@@ -70,9 +70,8 @@ target_compile_options(template-matching-at-scale-for-pick-verification PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(template-matching-at-scale-for-pick-verification PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). This project links only the CUDA runtime and
+# the C++17 standard library — the integral-image scan, all three NCC
+# kernels, and the classification/gate logic are hand-rolled on purpose (see
+# README "Prior art & further reading" for what a production stack would use
+# instead of a hand-rolled matcher).
