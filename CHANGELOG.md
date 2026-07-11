@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-11 — batch 2f: **domain 01 complete (24/24)** — 01.21–01.24 done (59/505); disocclusion limitation proven, SR metric lesson, 9 bit-exact ISP twins, Fresnel anchor 3.4e-4 with glass at 0% intensity / 97% DoLP recall — [push-note](push-notes/2026-07-11-04-phase-2-batch-2f-domain-01-complete.md)
 - 2026-07-11 — batch 2e: 3-D sensing quartet 01.17–01.20 done (55/505); calibration degeneracy 110×, Gray-vs-binary 30.8×, phasor-mixed flying pixels at 100% precision, one math/two sensors pairing — [push-note](push-notes/2026-07-11-03-phase-2-batch-2e-domain-01-3d-sensing.md)
 - 2026-07-11 — batch 2d: industrial-vision quartet 01.13–01.16 done (51/505); bit-exact Hough + NCC determinism designs, absorption gate within 1 frame, 01.16 held at lead gate and reworked marker-first — [push-note](push-notes/2026-07-11-02-phase-2-batch-2d-domain-01-industrial-vision.md)
 - 2026-07-11 — batch 2c: 01.09/01.10/01.11/01.12 done (47/505); 1/√N law at 2.000/4.005, RS skew 4.85→0.52 px, BM3D-lite landed, IBVS retreat pathology gated at 100% — [push-note](push-notes/2026-07-11-01-phase-2-batch-2c-domain-01-calibration-and-control.md)
