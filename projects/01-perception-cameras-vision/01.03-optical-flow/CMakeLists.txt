@@ -70,9 +70,11 @@ target_compile_options(optical-flow PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
+# with only a driver installed). This project links NO extra CUDA libraries
+# (no cuBLAS/cuFFT/Thrust/CUB) — every kernel (pyramid, Scharr gradients,
+# structure tensor, LK iteration, census transform/match/consistency) is
+# hand-rolled, per README "Build"'s dependency list. A project that DID
+# need one would add it here explicitly, with a comment on why
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(optical-flow PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.

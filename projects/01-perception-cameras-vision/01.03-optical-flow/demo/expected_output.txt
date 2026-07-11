@@ -1,8 +1,24 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.03 (optical-flow)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract for project 01.03 (Optical flow). Lines starting with '#' are comments;
+# run_demo.ps1 / run_demo.sh ignore them when diffing. Every non-comment line below must appear
+# VERBATIM in the demo's stdout (a SUBSET check — extra "[info]"/"[time]" lines are fine and expected;
+# see ../src/main.cu's "Output contract" header comment). These are the ACTUAL lines an unmodified
+# `optical-flow.exe` (no arguments) printed on the reference machine (RTX 2080 SUPER, sm_75,
+# Release|x64) against the committed data/sample/scene_*.pgm frames.
+[demo] optical flow: dense pyramidal Lucas-Kanade + census-transform block matching (project 01.03)
+PROBLEM: 160x120 grayscale frame pairs, 3-level LK pyramid (3 iters/level, 5x5 window), 5x5 census (radius 6 search, 24-bit signature); Farneback documented-only (see THEORY.md, README S13)
+DATA: 160x120 hashed multi-scale-texture scene, 4 paired frames (translation, rotation+zoom, translation+brightness-ramp up to +51 intensity units, zero-motion) [synthetic, seed 42]
+VERIFY(gradient): PASS (Scharr gradients bit-exact between GPU and CPU)
+VERIFY(lk_flow): PASS (final pyramidal-LK flow field matches CPU reference within tolerance)
+VERIFY(census_transform): PASS (24-bit census signatures bit-exact between GPU and CPU)
+VERIFY(census_match): PASS (WTA Hamming cost bit-exact; sub-pixel refinement within tolerance)
+VERIFY(census_flow): PASS (final census flow + validity mask match CPU reference)
+GATE translation_lk: PASS
+GATE translation_census: PASS
+GATE rotation_zoom_lk: PASS
+GATE pyramid_advantage: PASS
+GATE brightness_robustness_census: PASS
+GATE zero_motion_lk: PASS
+GATE zero_motion_census: PASS
+GATE confidence_mask_sanity: PASS
+ARTIFACT: wrote demo/out/{flow_lk_rotzoom.ppm, flow_census_translation.ppm, flow_color_wheel.ppm, epe_heatmap_lk_rotzoom.pgm, confidence_lk_rotzoom.pgm, validity_census_translation.pgm, gates_metrics.csv}
+RESULT: PASS (VERIFY(gradient/lk_flow/census_transform/census_match/census_flow) + all 8 gates passed)

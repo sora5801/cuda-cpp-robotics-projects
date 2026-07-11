@@ -16,7 +16,13 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+## What's here
+
+Six files: `scene_a.pgm` (the shared reference frame) plus four paired "frame B" variants
+(`scene_b_translation.pgm`, `scene_b_rotzoom.pgm`, `scene_b_translation_bright.pgm`,
+`scene_b_zero.pgm`) and `ground_truth.csv` (human-readable provenance for the transform parameters).
+See [`../README.md`](../README.md) for the full table — what each file is, its checksum, and the
+ground-truth flow it implies.
+
+Regenerate with `python ../../scripts/make_synthetic.py` — deterministic (seed 42), byte-identical
+output every run.

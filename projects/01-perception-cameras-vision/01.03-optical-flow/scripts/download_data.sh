@@ -3,10 +3,11 @@
 # download_data.sh — public-dataset fetcher for 01.03 (Optical flow: pyramidal Lucas-Kanade, Farneback, census-transform flow)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED (not a placeholder): no public optical-flow dataset with
+# redistribution-friendly licensing and PIXEL-DENSE ground truth applies
+# here (Middlebury/Sintel/KITTI-flow are all research/non-commercial or
+# registration-gated — see ../data/README.md) — this script is an honest,
+# permanent no-op, per CLAUDE.md's synthetic-first default.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
