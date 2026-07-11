@@ -75,4 +75,4 @@ target_compile_options(apriltag-aruco-gpu-detector-decoder-for-high PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(apriltag-aruco-gpu-detector-decoder-for-high PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# This project links nothing beyond the CUDA runtime — see README "Build".

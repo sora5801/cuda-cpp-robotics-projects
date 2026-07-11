@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 38/505 done** (7.5%)
+**Overall: 39/505 done** (7.7%)
 
 | Status | Count |
 |--------|-------|
-| todo | 467 |
+| todo | 466 |
 | in-progress | 0 |
-| done | 38 |
+| done | 39 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 3/24 |
+| 01 Perception — Cameras & Vision | 4/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,7 +67,7 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 3/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 4/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -76,7 +76,7 @@
 | 01.03 | Optical flow: pyramidal Lucas-Kanade, Farneback, census-transform flow | intermediate |  | todo |  |  |
 | 01.04 | Feature pipeline: FAST/Harris detection, ORB descriptors, brute-force Hamming matcher | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); FAST/Harris+ORB+Hamming, bit-exact integer stages, 4 gates incl. unrelated-scene negative control |
 | 01.05 | SIFT/SURF on GPU (harder, warp-level reductions) | intermediate |  | todo |  |  |
-| 01.06 | AprilTag / ArUco GPU detector-decoder for high-rate fiducial localization | ★ beginner |  | todo |  |  |
+| 01.06 | AprilTag / ArUco GPU detector-decoder for high-rate fiducial localization | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); self-designed 32-code dictionary d_min=5, decode robustness gated both directions, 0 false positives |
 | 01.07 | Fisheye/omnidirectional unwarping and multi-camera surround-view stitching | intermediate |  | todo |  |  |
 | 01.08 | HDR exposure fusion + tone mapping for outdoor robots | intermediate |  | todo |  |  |
 | 01.09 | Photometric/vignetting calibration kernels | intermediate |  | todo |  |  |

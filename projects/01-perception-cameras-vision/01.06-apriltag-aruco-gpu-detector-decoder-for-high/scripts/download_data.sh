@@ -3,10 +3,12 @@
 # download_data.sh — public-dataset fetcher for 01.06 (AprilTag / ArUco GPU detector-decoder for high-rate fiducial localization)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION FOR THIS PROJECT: synthetic-only (CLAUDE.md paragraph 8) — no
+# public dataset teaches this pipeline better than a fully-controlled,
+# ground-truth-labeled synthetic scene (real AprilTag/ArUco datasets exist,
+# but this project studies the ALGORITHM, and synthetic scenes let every
+# gate in main.cu compare against EXACT, analytic ground truth no photographed
+# dataset could provide). This script is therefore an honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

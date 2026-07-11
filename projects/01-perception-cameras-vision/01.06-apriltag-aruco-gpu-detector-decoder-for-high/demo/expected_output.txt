@@ -1,8 +1,22 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.06 (apriltag-aruco-gpu-detector-decoder-for-high)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 01.06 (AprilTag / ArUco GPU detector-decoder for
+# high-rate fiducial localization), captured from an ACTUAL run on the
+# reference machine (RTX 2080 SUPER, sm_75, Release|x64, no CLI arguments).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore
+# them when diffing. Every non-comment line below must appear VERBATIM in
+# the demo's stdout. "[info]"/"[time]" lines are deliberately NOT checked
+# here — they carry measured numbers (GPU-vs-CPU max-diffs, timings,
+# per-tag corner/pose errors) that are expected to vary slightly across GPU
+# architectures (FMA-contraction differences in the corner-refinement
+# search — see src/main.cu's output-contract comment and THEORY.md
+# "Numerical considerations" for the full amplification story).
+[demo] AprilTag/ArUco GPU fiducial detector-decoder: adaptive threshold -> CCL -> quad extraction -> DLT homography -> grid decode -> pose (project 01.06)
+PROBLEM: 480x360 scenes, 32-code dictionary (bits=16, grid=6x6, min_dist=5, correction_capacity=2), 3 scenes (main: 6 tags, distractor: 0 tags, robustness: 4 tags)
+DATA: 3 synthetic PGM scenes + dictionary.bin + 2 ground-truth CSVs [synthetic, seed 42, xorshift32] loaded from data/sample/
+VERIFY: PASS (GPU matches CPU reference within documented per-stage tolerance across all 3 scenes: local_mean, mask, ccl_label, candidate_count, centroid, corner, homography, decode, pose)
+GATE detection: PASS
+GATE corner_accuracy: PASS
+GATE pose: PASS
+GATE decode_robustness: PASS
+GATE false_positive: PASS
+ARTIFACT: wrote demo/out/{detections_overlay.ppm, decoded_grid_debug.ppm, detections.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 5 gates passed: detection, corner_accuracy, decode_robustness, false_positive, pose)

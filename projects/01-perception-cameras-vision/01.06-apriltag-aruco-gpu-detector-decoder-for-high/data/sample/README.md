@@ -16,7 +16,9 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds 7 files: `dictionary.bin` / `dictionary.csv` (the 32-code fiducial dictionary and
+its metadata) and three scenes — `scene_main.pgm` (+ ground truth CSV), `scene_distractor.pgm` (no
+tags, no ground truth needed), `scene_robustness.pgm` (+ ground truth CSV). Full field-by-field
+documentation, checksums, and the camera/dictionary geometry these files assume all live in
+[`../README.md`](../README.md). Regenerate with `python ../../scripts/make_synthetic.py` from
+`scripts/` (seed 42, xorshift32 — byte-identical output on any machine).
