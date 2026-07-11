@@ -70,9 +70,7 @@ target_compile_options(fisheye-omnidirectional-unwarping-and-multi PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(fisheye-omnidirectional-unwarping-and-multi PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). This project links no additional CUDA
+# libraries (no cuBLAS/cuFFT/... — every kernel here is hand-rolled
+# trigonometry and bilinear sampling, CLAUDE.md paragraph 5's default
+# dependency budget).

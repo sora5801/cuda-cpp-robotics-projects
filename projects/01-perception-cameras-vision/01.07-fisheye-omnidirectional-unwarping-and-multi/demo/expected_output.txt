@@ -1,8 +1,22 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.07 (fisheye-omnidirectional-unwarping-and-multi)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 01.07 (fisheye unwarp + 4-camera BEV surround
+# view), captured from an ACTUAL run on the reference machine (RTX 2080
+# SUPER, sm_75, Release|x64, no CLI arguments). Lines starting with '#' are
+# comments; run_demo.ps1 / run_demo.sh ignore them when diffing. Every
+# non-comment line below must appear VERBATIM in the demo's stdout.
+# "[info]"/"[time]" lines are deliberately NOT checked here — they carry
+# measured numbers that vary slightly across GPU architectures (bilinear
+# FMA-contraction differences — see src/main.cu's output-contract comment
+# and THEORY.md "Numerical considerations").
+[demo] fisheye unwarp (rectilinear + cylindrical) and 4-camera BEV surround-view stitching (project 01.07)
+PROBLEM: 320x240 fisheye (equidistant, fx=74.0, 185deg-class FOV) -> rectilinear 200x150 (45deg half-FOV) + cylindrical 280x120, and a 4-camera rig -> 320x320 BEV over +-4.0m
+DATA: 4 synthetic 320x240 fisheye camera renders (front/left/right/rear, ray-cast, 2x2 supersampled) + 320x320 ground-truth BEV crop [synthetic, seed 42]
+VERIFY: PASS (GPU matches CPU reference within documented per-stage tolerance: rect LUT, cyl LUT, rectilinear remap, cylindrical remap, BEV compose, BEV coverage)
+GATE model_roundtrip: PASS
+GATE straightness_rectilinear: PASS
+GATE distortion_negative_control: PASS
+GATE bev_ground_truth: PASS
+GATE flat_ground_assumption: PASS
+GATE seam_consistency: PASS
+GATE coverage: PASS
+ARTIFACT: wrote demo/out/{fisheye_front.ppm, rectilinear.ppm, cylindrical.ppm, bev.ppm, coverage_map.pgm, error_heatmap.pgm, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 7 gates passed: model_roundtrip, straightness_rectilinear, distortion_negative_control, bev_ground_truth, flat_ground_assumption, seam_consistency, coverage)

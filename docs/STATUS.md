@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 41/505 done** (8.1%)
+**Overall: 42/505 done** (8.3%)
 
 | Status | Count |
 |--------|-------|
-| todo | 464 |
+| todo | 463 |
 | in-progress | 0 |
-| done | 41 |
+| done | 42 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 6/24 |
+| 01 Perception — Cameras & Vision | 7/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,7 +67,7 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 6/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 7/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -77,7 +77,7 @@
 | 01.04 | Feature pipeline: FAST/Harris detection, ORB descriptors, brute-force Hamming matcher | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); FAST/Harris+ORB+Hamming, bit-exact integer stages, 4 gates incl. unrelated-scene negative control |
 | 01.05 | SIFT/SURF on GPU (harder, warp-level reductions) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); SIFT full + SURF documented per §2; warp-shuffle reductions at float-noise vs CPU; scale recovered 4.8%, rotation 0.25°; synthetic descriptor-collapse finding documented |
 | 01.06 | AprilTag / ArUco GPU detector-decoder for high-rate fiducial localization | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); self-designed 32-code dictionary d_min=5, decode robustness gated both directions, 0 false positives |
-| 01.07 | Fisheye/omnidirectional unwarping and multi-camera surround-view stitching | intermediate |  | todo |  |  |
+| 01.07 | Fisheye/omnidirectional unwarping and multi-camera surround-view stitching | intermediate |  | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); equidistant model + 4-cam BEV, flat-ground negative control 3.41x, coverage 100% |
 | 01.08 | HDR exposure fusion + tone mapping for outdoor robots | intermediate |  | todo |  |  |
 | 01.09 | Photometric/vignetting calibration kernels | intermediate |  | todo |  |  |
 | 01.10 | Rolling-shutter correction using IMU rates | intermediate |  | todo |  |  |

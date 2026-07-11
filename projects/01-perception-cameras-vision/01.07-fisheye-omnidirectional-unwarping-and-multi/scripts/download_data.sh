@@ -3,10 +3,12 @@
 # download_data.sh — public-dataset fetcher for 01.07 (Fisheye/omnidirectional unwarping and multi-camera surround-view stitching)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# N/A because this project is entirely synthetic: an automotive/AMR fisheye
+# rig with known extrinsics does not exist on the owner's desk, and public
+# fisheye-BEV datasets either lack calibrated extrinsics for an arbitrary
+# rig or carry a non-redistributable license (PRACTICE.md §4). This script
+# is kept as the honest no-op every project in this repo ships (CLAUDE.md
+# §8), so tooling can invoke it uniformly across all ~420 projects.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
