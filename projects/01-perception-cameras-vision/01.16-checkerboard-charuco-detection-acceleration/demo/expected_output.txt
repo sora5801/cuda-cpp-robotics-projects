@@ -1,8 +1,22 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.16 (checkerboard-charuco-detection-acceleration)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable lines for project 01.16 (Checkerboard/ChArUco detection
+# acceleration for auto-calibration rigs), captured from an ACTUAL run on
+# the reference machine (RTX 2080 SUPER, sm_75, Release|x64, no CLI
+# arguments). Lines starting with '#' are comments; run_demo.ps1/.sh ignore
+# them when diffing. Every non-comment line below must appear VERBATIM in
+# the demo's stdout. "[info]"/"[time]" lines are deliberately NOT checked
+# here -- they carry measured numbers (per-view corner/marker/calibration
+# results) that are expected to vary slightly across GPU architectures
+# (sub-pixel refinement's FMA-contraction differences -- see src/main.cu's
+# output-contract comment and THEORY.md "Numerical considerations").
+[demo] Checkerboard/ChArUco GPU detection: saddle response -> NMS -> sub-pixel refine -> homography-guided marker decode -> Zhang mini-calibration (project 01.16)
+PROBLEM: 320x240, 8x6-square ChArUco board (7x5 inner corners), 24-code marker dictionary (bits=9, grid=5x5, min_dist=3, correction_capacity=1), 8 rig views + 1 negative control
+DATA: 8 synthetic PGM views + negative control + marker_dictionary.bin + ground-truth CSVs [synthetic, seed 42, xorshift32] loaded from data/sample/
+VERIFY: PASS (GPU matches CPU reference within documented per-stage tolerance: response, nms_view_counts, nms_peak_set, refine -- rig batch and negative control)
+GATE corner_accuracy: PASS
+GATE grid_ordering: PASS
+GATE ambiguity_lesson: PASS
+GATE occlusion: PASS
+GATE mini_calibration: PASS
+GATE negative_control: PASS
+ARTIFACT: wrote demo/out/{corners_overlay.ppm, refinement_error.csv, zhang_results.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY + marker_decode twin + all 6 gates passed: corner_accuracy, grid_ordering, ambiguity_lesson, occlusion, mini_calibration, negative_control)

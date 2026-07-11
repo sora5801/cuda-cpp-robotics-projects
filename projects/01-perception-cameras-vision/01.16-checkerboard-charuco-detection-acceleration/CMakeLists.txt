@@ -75,4 +75,6 @@ target_compile_options(checkerboard-charuco-detection-acceleration PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(checkerboard-charuco-detection-acceleration PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# This project links no extra CUDA libraries (CLAUDE.md §5 default: CUDA
+# runtime + C++17 standard library only -- the DLT/Zhang/Jacobi solves are
+# hand-rolled host code, not cuBLAS/cuSOLVER calls, on purpose; see THEORY.md).

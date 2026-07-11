@@ -1,10 +1,11 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 01.16 (Checkerboard/ChArUco detection acceleration for auto-calibration rigs)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# This project uses 100% synthetic data (a rendered ChArUco board -- there is
+# no public dataset that would teach the underlying geometry any better than
+# a Python renderer with known ground truth). This script is therefore an
+# honest, documented no-op, kept for uniformity with every other project's
+# scripts/ folder.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

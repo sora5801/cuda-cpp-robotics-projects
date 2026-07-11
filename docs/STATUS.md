@@ -19,18 +19,18 @@
 
 ## Summary
 
-**Overall: 50/505 done** (9.9%)
+**Overall: 51/505 done** (10.1%)
 
 | Status | Count |
 |--------|-------|
-| todo | 455 |
+| todo | 454 |
 | in-progress | 0 |
-| done | 50 |
+| done | 51 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
-| 01 Perception — Cameras & Vision | 15/24 |
+| 01 Perception — Cameras & Vision | 16/24 |
 | 02 Perception — LiDAR & Point Clouds | 1/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
@@ -67,7 +67,7 @@
 | 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 1/5 |
 
-## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 15/24 done
+## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 16/24 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -86,7 +86,7 @@
 | 01.13 | Canny + Hough line/circle detection for industrial alignment | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Q16 fixed-point trig makes the line accumulator BIT-EXACT; alignment 7.99/-4.90/6.72 vs 8/-5/7; hysteresis lesson 1.00 vs 0.20 |
 | 01.14 | Template matching (NCC) at scale for pick verification | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); int64 sum tables bit-exact, 3 variants identical, 24/24 slots, SSD-vs-NCC shadow lesson, uint32 overflow analysis real |
 | 01.15 | Background subtraction for fixed-workspace cells | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); 3 models 0-mismatch twins, absorption analytic gate 18 vs 19 predicted, bimodal MOG 0.00 vs SG 1.00 |
-| 01.16 | Checkerboard/ChArUco detection acceleration for auto-calibration rigs | intermediate |  | todo |  |  |
+| 01.16 | Checkerboard/ChArUco detection acceleration for auto-calibration rigs | intermediate |  | done | worker+finisher+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); lead held first delivery, finisher reworked to marker-first ordering — 6/8 views exact incl. 180° + occlusion, ambiguity lesson real |
 | 01.17 | Camera-LiDAR / camera-camera extrinsic calibration (batched reprojection-error optimization) | intermediate |  | todo |  |  |
 | 01.18 | Depth completion: sparse LiDAR + RGB → dense depth | intermediate |  | todo |  |  |
 | 01.19 | Structured-light decoding (Gray code, phase shift) for 3D scanners | intermediate |  | todo |  |  |
