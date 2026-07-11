@@ -16,7 +16,7 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**Contents.** `python ../../scripts/make_synthetic.py` (fixed seed 42) writes the full 20-pattern
+structured-light capture stack plus ground truth into this folder — see
+[`../README.md`](../README.md) for the complete field-by-field documentation, provenance, and
+checksums. `../../src/main.cu` reads every file here at startup; nothing is generated in memory.

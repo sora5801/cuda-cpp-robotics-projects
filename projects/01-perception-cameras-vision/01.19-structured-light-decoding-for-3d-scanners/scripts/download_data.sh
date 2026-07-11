@@ -3,12 +3,15 @@
 # download_data.sh — public-dataset fetcher for 01.19 (Structured-light decoding (Gray code, phase shift) for 3D scanners)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): no public dataset applies. Real structured-light
+# capture sets are calibrated for THEIR OWN specific rigs, not this project's
+# synthetic camera/projector geometry (kernels.cuh) — mixing them in would
+# silently violate the single-sourced scanner contract every stage of this
+# pipeline assumes. Every fact this demo needs (patterns, ground truth) is
+# instead exactly reproducible from scripts/make_synthetic.py — the honest
+# no-op below.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any FUTURE real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

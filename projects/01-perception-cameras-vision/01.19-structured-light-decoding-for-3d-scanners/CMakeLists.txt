@@ -75,4 +75,6 @@ target_compile_options(structured-light-decoding-for-3d-scanners PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(structured-light-decoding-for-3d-scanners PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# This project links nothing beyond the CUDA runtime (default dependency
+# budget, CLAUDE.md paragraph 5) — five per-pixel/per-sample map kernels and
+# a handful of host-side normal-equations solves need no cuBLAS/cuFFT/Thrust.

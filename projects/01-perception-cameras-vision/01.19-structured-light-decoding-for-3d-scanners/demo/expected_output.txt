@@ -1,8 +1,31 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 01.19 (structured-light-decoding-for-3d-scanners)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run. Every
+# stable line's measured float value has already been checked in an "[info]" line above it; the
+# lines here carry only fixed tolerances/floors and verdicts, so they are identical on any machine
+# whose GPU-vs-CPU agreement and gate measurements pass (CLAUDE.md §12 determinism discipline).
+# Captured from an actual local run on an NVIDIA GeForce RTX 2080 SUPER (sm_75), CUDA 13.3.
+[demo] Structured-light decoding: Gray code + phase shift hybrid scanner (project 01.19)
+PROBLEM: structured-light scan, camera 200x150 px, projector 128 cols (Gray N=7 + 4-step phase, period 8 cols), baseline 0.120 m, FP32
+SCENARIO: synthetic scene (tilted background plane + sphere + box step-edge), dark-albedo stripe cohort, seed 42 [synthetic]
+VERIFY: gray_decode PASS (GPU vs CPU exact integer match)
+VERIFY: phase_decode PASS (GPU vs CPU within tol 1.0e-03 rad / 5.0e-02 counts)
+VERIFY: hybrid_combine PASS (valid-flag exact match, column within tol 2.0e-03 cols)
+VERIFY: triangulate PASS (point-valid near-exact, xyz within tol 2.0e-03 m)
+VERIFY: boundary_stress PASS (GPU vs CPU exact integer match)
+GATE: gray_decode PASS (exact-match rate >= floor 90%, confident pixels)
+GATE: hybrid_subpixel PASS (mean |err| <= bound 0.15 cols AND improvement over Gray-only >= floor 2.5x)
+GATE: gray_vs_binary PASS (binary error rate >= floor 5x gray's, and >= 3% absolute)
+GATE: phase_ambient_invariance PASS (max |dphi| <= tol 1.0e-04 rad)
+GATE: reconstruction_plane PASS (RMS residual <= bound 10 mm)
+GATE: reconstruction_sphere PASS (radius error <= bound 4%)
+GATE: reconstruction_step PASS (step-height error <= bound 3%)
+GATE: dark_stripe_honesty PASS (cohort rejection rate >= floor 95% AND zero survivor depth-sanity violations)
+ARTIFACT: wrote demo/out/gray_pattern_sample.pgm (Gray bit 3, direct illumination)
+ARTIFACT: wrote demo/out/phase_pattern_sample.pgm (phase step 0/4)
+ARTIFACT: wrote demo/out/decoded_column_map.pgm (normalized hybrid column, 0=invalid)
+ARTIFACT: wrote demo/out/confidence_map.pgm (modulation amplitude, intensity counts)
+ARTIFACT: wrote demo/out/point_cloud.csv (18775 points)
+ARTIFACT: wrote demo/out/profile_view.ppm (orthographic X-Z profile: sphere bump + box step)
+ARTIFACT: wrote demo/out/gates_metrics.csv (10 rows)
+RESULT: PASS (all 5 GPU-vs-CPU verifications and 8 independent gates passed)
