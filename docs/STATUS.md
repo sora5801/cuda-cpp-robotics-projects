@@ -19,13 +19,13 @@
 
 ## Summary
 
-**Overall: 34/505 done** (6.7%)
+**Overall: 35/505 done** (6.9%)
 
 | Status | Count |
 |--------|-------|
-| todo | 471 |
+| todo | 470 |
 | in-progress | 0 |
-| done | 34 |
+| done | 35 |
 | blocked | 0 |
 
 | Domain | Done / Total |
@@ -64,7 +64,7 @@
 | 32 Embedded, Jetson & Systems Infrastructure | 1/17 |
 | 33 Foundational GPU Libraries (Build-Your-Own) | 1/15 |
 | 34 Theoretical & Research Frontier | 1/17 |
-| 35 Micro & Nano Robotics | 0/9 |
+| 35 Micro & Nano Robotics | 1/9 |
 | 36 Modular & Self-Reconfigurable Robots | 0/5 |
 
 ## 1. Perception — Cameras & Vision (`01-perception-cameras-vision`) — 1/24 done
@@ -728,11 +728,11 @@
 | 34.16 | Information-theoretic exploration: mutual information over maps at scale | intermediate |  | todo |  |  |
 | 34.17 | LLM-grounded robotics: GPU semantic-map queries, affordance fields, foundation world-model serving | [R&D] research |  | todo |  |  |
 
-## 35. Micro & Nano Robotics (`35-micro-nano-robotics`) — 0/9 done
+## 35. Micro & Nano Robotics (`35-micro-nano-robotics`) — 1/9 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
-| 35.01 | Magnetic microrobot swarms: Biot-Savart field computation + swarm dynamics | [R&D] research | ⭐ | todo |  |  |
+| 35.01 | Magnetic microrobot swarms: Biot-Savart field computation + swarm dynamics | [R&D] research | ⭐ | done | worker+lead | all §9 gates green 2026-07-10 (RTX 2080 SUPER); [R&D]; on-axis 2.5e-4, waypoints 13 um |
 | 35.02 | Low-Reynolds-number swimming: Stokes-flow boundary element solvers | [R&D] research |  | todo |  |  |
 | 35.03 | Brownian dynamics of nanorobots | [R&D] research |  | todo |  |  |
 | 35.04 | DNA-origami mechanics (oxDNA-style GPU) | [R&D] research |  | todo |  |  |

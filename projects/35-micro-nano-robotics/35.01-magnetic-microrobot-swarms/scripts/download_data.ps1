@@ -1,12 +1,14 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 35.01 (Magnetic microrobot swarms: Biot-Savart field computation + swarm dynamics)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED (not a placeholder): no public dataset applies. This project's
+# sample is a from-scratch coil-geometry + swarm-parameter DESIGN (like
+# 24.01's motor cross-section), not a recording of anything measurable —
+# there is no "magnetic microrobot swarm" dataset to fetch. This script is
+# an honest, permanent no-op; see ../data/README.md for the full reasoning.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any project that DOES need a real
+# fetch here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

@@ -1,8 +1,25 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 35.01.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 35.01 (magnetic-microrobot-swarms)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (measured numbers: tolerances achieved, planned waypoints,
+# Reynolds number, GATE_ATTRACT displacements) and "[time]" lines vary by machine/build config and
+# are deliberately unchecked (24.01's precedent: this project chains hundreds of sequential FP32
+# Euler steps and thousands of Biot-Savart segment sums, and compiler FMA-contraction differences
+# across platforms/optimization levels can shift the LAST bits of such a chain without changing any
+# PASS/FAIL verdict — so only verdicts are checked here; every measured number lives on an
+# unchecked line in the program's actual output, see main.cu's "Output contract" header comment).
+[demo] Magnetic microrobot swarms: Biot-Savart coil field + low-Re swarm dynamics (project 35.01)
+PROBLEM: 4-coil Biot-Savart field solver, R=20 mm coils at 10 mm offset (Helmholtz separation), 180 segments/coil (720 total), 256x256 grid over 8x8 mm workspace, FP32
+SCENARIO: N=1000 superparamagnetic microrobots (bead radius 5.0 um) in water, open-loop 3-phase gradient-pull schedule (N,E,S coils) @ 500 A-turns, 300 steps x dt=0.50 s per phase [synthetic]
+VERIFY_FIELD: PASS (GPU basis-map field vs CPU reference, coil 0, agrees within tolerance)
+GATE_ONAXIS: PASS (single-loop on-axis field matches B=mu0*I*R^2/(2*(R^2+z^2)^1.5) within tolerance)
+GATE_HELMHOLTZ: PASS (East+West Helmholtz pair stays flat across the workspace within tolerance)
+GATE_DIVERGENCE: PASS (numerical div B ~ 0 at interior workspace points within tolerance)
+ARTIFACT: wrote demo/out/field_magnitude.pgm (256x256, illustrative East+0.6*North configuration)
+GATE_ATTRACT: PASS (single-coil energization pulls the swarm centroid toward that coil, all 4 coils)
+VERIFY_DYNAMICS: PASS (GPU vs independent CPU reference, phase 0, agrees within tolerance)
+GATE_WAYPOINTS: PASS (centroid within tolerance radius of all 3 scheduled waypoints)
+GATE_BOUNDS: PASS (swarm stayed within the mapped workspace and finite for the entire run)
+ARTIFACT: wrote demo/out/swarm_trajectory.csv (91 rows)
+ARTIFACT: wrote demo/out/swarm_final.pgm (256x256 density snapshot)
+RESULT: PASS (all verification stages and physics gates passed)

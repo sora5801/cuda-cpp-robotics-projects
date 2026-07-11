@@ -75,4 +75,11 @@ target_compile_options(magnetic-microrobot-swarms PRIVATE
 # (CLAUDE.md paragraph 5) — e.g.:
 #   find_package(CUDAToolkit REQUIRED)
 #   target_link_libraries(magnetic-microrobot-swarms PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+#
+# Resolved for this project: no extra CUDA library is needed. The Biot-Savart
+# segment sum, the linear field combination, the gradient stencil, and the
+# swarm's Euler integration are all hand-written kernels (CLAUDE.md §5's
+# "no black boxes" preference — this project's whole point is that the field
+# solve is small and simple enough to write by hand, unlike, say, 24.01's
+# sparse-linear-algebra-adjacent SOR solve). The sources above (main.cu,
+# kernels.cu, reference_cpu.cpp) are the project's real, final sources.

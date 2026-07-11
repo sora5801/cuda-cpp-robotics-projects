@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-10 — flagship 35.01 magnetic microswarms done (35/505); on-axis gate 2.5e-4, Helmholtz flatness 0.18%, waypoints hit at 13 µm — [push-note](push-notes/2026-07-10-19-flagship-35-01-microswarm.md)
 - 2026-07-10 — flagship 34.03 ergodic control done (34/505); first [R&D] flagship — metric ↓116×, coverage fractions match target masses, lawnmower 4.7× worse — [push-note](push-notes/2026-07-10-18-flagship-34-03-ergodic-control.md)
 - 2026-07-10 — flagship 32.02 CUDA Graphs control loop done (33/505); submit time −47%, WDDM tail-jitter honesty measured and explained — [push-note](push-notes/2026-07-10-17-flagship-32-02-cuda-graphs.md)
 - 2026-07-10 — flagship 30.01 agriculture milestone 1 done (32/505) — batch 1g complete; near-surface depth bias derived, 1.8 mm localization — [push-note](push-notes/2026-07-10-16-flagship-30-01-agriculture-batch-1g-complete.md)

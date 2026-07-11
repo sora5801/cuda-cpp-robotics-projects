@@ -16,7 +16,10 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds exactly one file: `microswarm_scenario.csv` (470 bytes) — the coil geometry, fluid/
+bead material constants, and open-loop current-schedule magnitude this project's demo loads at
+startup (`../src/main.cu`'s `load_scenario`). Every field is a fixed engineering constant (a
+*design*, not a measurement or recording — see `../README.md` for the full field-by-field
+documentation, provenance, and SHA-256). Regenerate with `python ../../scripts/make_synthetic.py`
+from the project root; the command is deterministic (no `--seed` needed — the scenario itself has no
+randomness) and reproduces this file byte-for-byte.

@@ -1,0 +1,13 @@
+# SYNTHETIC scenario for project 35.01 — coil geometry + fluid/bead parameters
+# + the open-loop current schedule's drive magnitude, not a recording.
+# regenerate: python make_synthetic.py
+# All lengths are METERS, currents are AMPERE-TURNS, viscosity is Pa*s.
+# Row grammar documented in ../src/main.cu (load_scenario) and ../data/README.md.
+GRID,256
+COIL,0.02,0.01,180
+WORKSPACE,0.004
+FLUID,0.001
+BEAD,5e-06,0.4
+CURRENT,500.0
+DYNAMICS,0.5,300
+SWARM,1000,0.0003,1234

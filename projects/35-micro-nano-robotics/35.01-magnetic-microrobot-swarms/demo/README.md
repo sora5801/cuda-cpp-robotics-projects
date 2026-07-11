@@ -12,23 +12,40 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+Two things, in sequence:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+1. **A GPU Biot-Savart field solver.** The 4-coil arrangement's per-unit-current field maps are
+   computed on the GPU (`biot_savart_basis_kernel`, one thread per grid cell, 720 segments summed per
+   thread), then checked FIVE independent ways: a GPU-vs-CPU agreement check (`VERIFY_FIELD`), and
+   three ANALYTIC PHYSICS gates against textbook closed forms / symmetry arguments that never touch the
+   grid at all — a single loop's on-axis field (`GATE_ONAXIS`), a Helmholtz pair's central flatness
+   (`GATE_HELMHOLTZ`), and a full-3D divergence sanity check (`GATE_DIVERGENCE`). `demo/out/
+   field_magnitude.pgm` visualizes one illustrative combined-current field map.
+2. **A low-Reynolds-number microrobot swarm steered by that field.** 1000 simulated superparamagnetic
+   microrobots are pulled through an OPEN-LOOP, offline-designed 3-waypoint schedule (energize North,
+   then East, then South) by the field's gradient. `GATE_ATTRACT` confirms single-coil energization
+   pulls the swarm toward that coil (all 4 coils individually); `GATE_WAYPOINTS` confirms the real,
+   dispersed 1000-robot swarm's centroid tracks the schedule's single-particle offline plan; `GATE_BOUNDS`
+   confirms the swarm never left the mapped workspace or produced a non-finite position.
+   `demo/out/swarm_trajectory.csv` (centroid + 5 sample robots over time) and `demo/out/swarm_final.pgm`
+   (a density snapshot of where the swarm ended up) are the artifacts to inspect.
+
+This is an **[R&D] catalog bullet's reduced-scope teaching version** — see `../README.md`
+"Limitations & honesty" for exactly what is scoped in vs. documented-only.
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name; measured tolerances/distances/Reynolds number/planned waypoints/GATE_ATTRACT displacements — varies by machine and build config. | No. |
+| `PROBLEM:` / `SCENARIO:` | The exact coil/field and swarm/schedule problem instance. | Yes — stable (demo runs with no args, reading `data/sample/microswarm_scenario.csv`). |
+| `VERIFY_FIELD:` / `VERIFY_DYNAMICS:` | GPU-vs-independent-CPU-reference agreement verdicts. | Yes — stable (PASS/FAIL only; the achieved tolerance is on the paired `[info]` line). |
+| `GATE_ONAXIS:` / `GATE_HELMHOLTZ:` / `GATE_DIVERGENCE:` | The three analytic physics gates (§ above). | Yes — stable. |
+| `GATE_ATTRACT:` / `GATE_WAYPOINTS:` / `GATE_BOUNDS:` | The three swarm-dynamics physics gates. | Yes — stable. |
+| `ARTIFACT:`  | Confirms a file was written under `demo/out/`. | Yes — stable. |
+| `[time]`    | Kernel/CPU timings — a **teaching artifact, never a benchmark claim** (single-shot, one machine; first launches pay one-time init costs). | No. |
+| `RESULT:`   | Overall `PASS`/`FAIL` verdict (the AND of every gate above). The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines
