@@ -104,6 +104,31 @@
     <Link>
       <SubSystem>Console</SubSystem>                       <!-- plain console app: demos print to stdout -->
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <!-- Suppress LNK4099 specifically ("PDB ... was not found with
+           '(main|kernels).cu.obj' ... linking as if no debug info").
+           Root-caused during project 01.02's build verification and adopted
+           template-wide in the Phase-1 standards retrospective: the CUDA
+           13.3 MSBuild integration derives the HOST-side flags for its
+           CudaCompile items — including which .pdb to target — from a
+           synthetic placeholder ClCompile item it creates internally
+           (CUDA 13.3.targets, InitializeCudaHostProperties). MSBuild's own
+           toolset injects its computed ProgramDataBaseFileName default onto
+           REAL ClCompile items, but empirically NOT reliably onto that
+           synthetic placeholder, and setting the property explicitly in the
+           project does not close the gap — the race lives inside the CUDA
+           MSBuild integration, not in this build file. Reproduced
+           environment-wide (01.02 and 08.01, clean Debug|x64 -m:2 rebuilds,
+           intermittent). DEBUG-ONLY (Release's different PDB/LTCG handling
+           avoids the shared-PDB path) and cosmetic: on runs where it fires,
+           the affected .cu.obj files link without embedded debug symbols;
+           Debug still builds and runs correctly, and Release — the config
+           the demo and VERIFY gate run — is untouched. Suppressing the one
+           specific code (not warnings in general) keeps CLAUDE.md
+           paragraph 9's "explain or fix" bar: explained here, and fixed in
+           the only sense available — preventing a false-negative on the
+           zero-warnings gate from a toolchain race a project's own settings
+           cannot close. -->
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
       <!-- $(CudaToolkitLibDir) is defined by the CUDA 13.3.props import above
            (resolves under $(CUDA_PATH)\lib\x64) — never hardcode CUDA paths. -->
       <AdditionalLibraryDirectories>$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -177,6 +202,7 @@
     <ClInclude Include="..\src\kernels.cuh" />
     <ClInclude Include="..\src\util\cuda_check.cuh" />
     <ClInclude Include="..\src\util\timer.cuh" />
+    <ClInclude Include="..\src\util\paths.h" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

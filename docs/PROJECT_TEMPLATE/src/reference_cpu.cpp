@@ -29,6 +29,33 @@
 // then the oracle lies. (This file is compiled by the HOST compiler, cl.exe;
 // the __CUDACC__ fence in kernels.cuh hides device declarations from it.)
 //
+// Independence ruling (Phase-1 standards retrospective — load-bearing)
+// --------------------------------------------------------------------
+// How much code may this file SHARE with the GPU path? The flagships split
+// both ways, and one of them settled the question the hard way:
+//
+//   * Data-layout contracts (structs, constants, indexing formulas) MUST be
+//     single-sourced in kernels.cuh and shared. Divergent layouts between
+//     the twins are a bug class of their own, not "independence".
+//   * The ALGORITHMIC CORE should be written twice — independently, in the
+//     simplest possible C++ here. That is the default, because the twin
+//     comparison only catches bugs the two paths DON'T share.
+//   * A shared __host__ __device__ helper is permitted when duplicating it
+//     would be pure token-for-token transcription (e.g., the dynamics model
+//     that IS the system under test in both paths) — but then the twin
+//     comparison is BLIND to bugs inside that helper, so the project MUST
+//     also carry at least one verification gate that does not route through
+//     the shared code: a closed-form/analytic solution, a physical
+//     invariant, or a negative control.
+//
+// Why this is not paranoia: in flagship 13.03 an identical variable-
+// shadowing bug lived in BOTH the GPU path and this file's counterpart —
+// the element-wise twin comparison passed perfectly, and only the analytic
+// ramp-angle gate (15.00° known answer) exposed it. Twin agreement proves
+// the parallelization is faithful to the reference; only an INDEPENDENT
+// gate proves the reference itself is right. Every project needs both
+// tiers (document yours in THEORY.md "How we verify correctness").
+//
 // Read this after: kernels.cu — then compare the two side by side.
 // ===========================================================================
 

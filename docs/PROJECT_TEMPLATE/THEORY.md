@@ -49,11 +49,22 @@ TODO(scaffold): write the numerical-considerations section.
 
 ## How we verify correctness
 
-The CPU reference (`src/reference_cpu.cpp`), the comparison tolerance and why that tolerance, the edge
-cases exercised, and — for stochastic algorithms — the fixed-seed / statistical-comparison strategy
-(CLAUDE.md §5).
+Two tiers, both required (Phase-1 standards retrospective ruling — see the header of
+`src/reference_cpu.cpp` for the full statement):
 
-TODO(scaffold): document the verification strategy and tolerance.
+1. **The CPU twin** (`src/reference_cpu.cpp`): element-wise agreement within a documented tolerance,
+   and why that tolerance — for stochastic algorithms, the fixed-seed / statistical-comparison
+   strategy (CLAUDE.md §5). The twin catches *parallelization* bugs: indexing, races, tails, stale
+   memory. It is blind to any bug the two paths share.
+2. **Independent gates that do not route through shared code**: a closed-form/analytic known answer,
+   a physical invariant (conservation, symmetry, a limit case), and/or a negative control that must
+   *fail*. These catch *algorithmic* bugs the twin cannot see — proven necessary in flagship 13.03,
+   where an identical bug in both twins passed the twin comparison and was caught only by the
+   analytic gate.
+
+Also list the edge cases exercised.
+
+TODO(scaffold): document both tiers — the twin tolerance and the independent gates.
 
 ## Where this sits in the real world
 

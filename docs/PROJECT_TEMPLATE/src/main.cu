@@ -92,7 +92,10 @@ static const float TOLERANCE = 1e-6f;    // max |gpu-cpu| accepted as agreement
 // small (~0..1) so FP32 rounding stays uniform across the vector.
 // Side effects: none beyond writing x and y. Complexity: O(n).
 // TODO(scaffold): replace with real data loading from ../data/sample/ (or a
-// call into this project's synthetic generator).
+// call into this project's synthetic generator). Use util/paths.h
+// (find_data_file / resolve_out_dir) for the path resolution — it handles
+// the VS, run_demo, and CMake launch layouts, and it exists because getting
+// this wrong shipped as a real bug once (see its file header).
 // ---------------------------------------------------------------------------
 static void make_input(int n, std::vector<float>& x, std::vector<float>& y)
 {
