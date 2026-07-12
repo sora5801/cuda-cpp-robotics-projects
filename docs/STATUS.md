@@ -19,19 +19,19 @@
 
 ## Summary
 
-**Overall: 73/505 done** (14.5%)
+**Overall: 74/505 done** (14.7%)
 
 | Status | Count |
 |--------|-------|
-| todo | 432 |
+| todo | 431 |
 | in-progress | 0 |
-| done | 73 |
+| done | 74 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
 | 01 Perception — Cameras & Vision | 24/24 |
-| 02 Perception — LiDAR & Point Clouds | 15/20 |
+| 02 Perception — LiDAR & Point Clouds | 16/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
@@ -96,7 +96,7 @@
 | 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); §5 desktop teaching core, 9 stages all bit-exact twins, MHC beats bilinear 1.52 dB, dual AWB + designed failures, Jetson path documented never faked |
 | 01.24 | Transparent/reflective object detection via polarization imaging | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Fresnel anchor\|diff\|=0.00034, Brewster peak 0.31° off true, glass: intensity recall 0% vs DoLP 97% — domain 01 COMPLETE (24/24) |
 
-## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 15/20 done
+## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 16/20 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -115,7 +115,7 @@
 | 02.13 | Dynamic point removal (raycast free-space carving) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-12 (RTX 2080 SUPER); DDA bit-exact, ghosts 97.7% removed, late-leaver 3.8%->94.2%, thin-pole erosion taught as the carving failure mode |
 | 02.14 | Moving-object segmentation from sequential scans | intermediate |  | done | worker+lead | all §9 gates green 2026-07-12 (RTX 2080 SUPER); two-sided sign semantics derived+asserted, disocclusion mitigation 50x, window study P 44.6%->100%, MIN-fusion blind spot derived |
 | 02.15 | Point cloud compression (octree/entropy) for fleet uplink | intermediate |  | done | worker+lead | all §9 gates green 2026-07-12 (RTX 2080 SUPER); distortion bound tight 0.9962, Huffman in [H,H+1) all rows, 12.2x vs 6.2x manifold argument, honest entropy-payoff metric redesign |
-| 02.16 | Multi-LiDAR merging + extrinsic refinement | intermediate |  | todo |  |  |
+| 02.16 | Multi-LiDAR merging + extrinsic refinement | intermediate |  | done | worker+lead | all §9 gates green 2026-07-12 (RTX 2080 SUPER); drift detect->refine->validate closed loop, recovery 0.11/0.31 mm, observability contrast 9.8e9x, zero-drift control clean |
 | 02.17 | LiDAR-camera projection/coloring fusion kernels | intermediate |  | todo |  |  |
 | 02.18 | Weather filtering: snow/rain/dust outlier removal (DROR/LIOR) | intermediate |  | todo |  |  |
 | 02.19 | PointPillars/CenterPoint voxelization + scatter kernels feeding TensorRT | intermediate |  | todo |  |  |

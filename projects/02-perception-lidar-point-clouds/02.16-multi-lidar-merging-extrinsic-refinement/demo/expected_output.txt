@@ -1,8 +1,24 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.16 (multi-lidar-merging-extrinsic-refinement)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# here -- never timings ("[time]") or device names/measured floats ("[info]"), which vary by machine
+# and by run (the block-tree/atomic reductions this project uses are float-reordering-sensitive by
+# design -- see kernels.cu's file header). These lines are the ones actually printed on a real run
+# (RTX 2080 SUPER, sm_75, Release|x64, committed data/sample/{aligned,drifted}.csv, no CLI args).
+[demo] multi-lidar-merging-extrinsic-refinement -- project 02.16
+PROBLEM: multi-LiDAR merge + extrinsic refinement, aligned_points=8135 drifted_points=8135
+TRANSFORM_TWIN: PASS (GPU transform kernel matches the CPU reference)
+PLANE_FIT_TWIN: PASS (GPU-decoded vs CPU-independent plane fit agree)
+DRIFT_DETECTION: PASS (aligned rig stays under the threshold; drifted rig's LEFT and RIGHT both exceed it)
+ASSEMBLY_TWIN: PASS (one-shot GPU normal-equation assembly matches the CPU oracle)
+TRAJECTORY_TWIN: PASS (GPU-orchestrated LM trajectory matches the CPU-independent trajectory)
+RECOVERY_LEFT: PASS (LEFT's refined T_main_left recovers the true mounting drift)
+RECOVERY_RIGHT: PASS (RIGHT's refined T_main_right recovers the true mounting drift)
+VALIDATION_LOOP: PASS (post-refinement residuals fall back under the aligned-rig threshold)
+OBSERVABILITY: PASS (a single planar zone leaves the refinement Hessian far worse conditioned than three orthogonal zones)
+ZERO_DRIFT_CONTROL: PASS (no self-inflicted drift when the rig was never mis-mounted)
+ARTIFACT: wrote demo/out/topview_before.ppm and demo/out/topview_after.ppm (520x520, gray=main red=left blue=right -- the WHOLE-SCENE view; see topview_zoom_* for the ghosting itself, which is centimeter-scale against this 26 m scene)
+ARTIFACT: wrote demo/out/topview_zoom_before.ppm and demo/out/topview_zoom_after.ppm (520x520, a zoomed inset on wall_front's shared patch, x in [9.5,10.5] m -- the MONEY SHOT: LEFT/RIGHT's red/blue dots visibly separated from MAIN's gray line before refinement, coincident after)
+DEDUP_ACCOUNTING: PASS (GPU and CPU voxel-grid dedup agree exactly on which points survive; kept+removed==total)
+ARTIFACT: wrote demo/out/plane_residuals.csv
+ARTIFACT: wrote demo/out/gates_metrics.csv
+RESULT: PASS (all verification stages passed -- transform/plane-fit/assembly/trajectory twins, drift detection, both recoveries, validation loop, observability, zero-drift control, dedup accounting)

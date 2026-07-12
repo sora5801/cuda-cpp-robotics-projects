@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.16 (Multi-LiDAR merging + extrinsic refinement)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED: no public dataset applies here. Extrinsic-refinement needs a
+# KNOWN ground-truth mounting drift to be verifiable at all (see
+# scripts/make_synthetic.py's header) — no recorded multi-LiDAR fleet log
+# ships with an answer key for "how far did this sensor actually drift",
+# so this project is synthetic BY NECESSITY, not just by repo default. This
+# script is an honest no-op, kept only for interface uniformity with every
+# other project's scripts/ folder.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
