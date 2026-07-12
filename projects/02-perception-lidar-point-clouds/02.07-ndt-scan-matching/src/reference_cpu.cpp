@@ -2,63 +2,479 @@
 // reference_cpu.cpp — plain-C++ CPU reference for project 02.07
 //                     (NDT scan matching (Autoware-style map localizer))
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real CPU reference.
-// TODO(scaffold): implement the real algorithm here in the simplest, most
-// readable C++ you can write — clarity beats speed in this file, always.
-//
 // WHY does a GPU repository ship a CPU implementation of everything?
-// ------------------------------------------------------------------
-// Two load-bearing reasons (CLAUDE.md §5):
+// (the template's general answer, CLAUDE.md §5 — applies unchanged here):
+//   1) CORRECTNESS ORACLE — GPU indexing/race/stale-memory bugs are caught
+//      by comparing against a dead-simple sequential version.
+//   2) TEACHING BASELINE — reading this file first, then kernels.cu, shows
+//      exactly what the GPU mapping changed.
 //
-//   1) It is the CORRECTNESS ORACLE. GPU code fails in ways CPU code cannot:
-//      wrong thread indexing, missed tail elements, race conditions, stale
-//      device memory, bad transfers. A dead-simple sequential version that a
-//      reader can verify BY EYE gives us ground truth; main.cu runs both and
-//      asserts element-wise agreement within a documented tolerance. If the
-//      two disagree, the bug hunt starts with certainty that a bug exists.
+// THIS PROJECT'S INDEPENDENCE RULING (applying docs/PROJECT_TEMPLATE's
+// general rule to this project's specific functions; 01.17's kernels.cuh
+// states the identical ruling for its own camera-model sharing, cited):
 //
-//   2) It is the TEACHING BASELINE. The GPU version only makes sense as a
-//      transformation OF something — this file is that something. Reading it
-//      first, then kernels.cu, shows exactly what parallelization changed
-//      (spoiler for SAXPY: the loop became threads; the body is identical).
-//      It also makes the printed speed-up legible: same machine, same data,
-//      same algorithm — one core vs. thousands of threads.
+//   SHARED (kernels.cuh, NDT_HD) — the SE(3) retraction (skew3, mat3_vec,
+//   mat3_mul, so3_exp, retract), the 3x3 Jacobi eigensolve and covariance
+//   regularizer/inverter (jacobi_eigen_symmetric3, regularize_and_invert_
+//   cov3), the Mahalanobis helpers (sym3_quad_form, sym3_vec), and the
+//   dense-grid indexing formula (voxel_index). These are "the system under
+//   test" formulas THEORY.md derives — reimplementing closed-form linear
+//   algebra a second time by hand would be pure transcription of the same
+//   dozen lines of arithmetic, and getting it SUBTLY wrong in a
+//   re-transcription is a realistic bug class (01.17's own template-ratified
+//   argument, cited verbatim).
 //
-// Rules for this file: plain C++17, no CUDA headers, no hand-vectorization,
-// no OpenMP, no cleverness. If the reference is clever, it can be wrong, and
-// then the oracle lies. (This file is compiled by the HOST compiler, cl.exe;
-// the __CUDACC__ fence in kernels.cuh hides device declarations from it.)
+//   INDEPENDENTLY WRITTEN (this file, by hand, from scratch):
+//     - build_ndt_grid_cpu's accumulation loops — sequential, double
+//       precision throughout, TWO plain nested `for` passes with none of
+//       kernels.cu's atomics/kernel-launch structure. Twin-compared against
+//       the GPU grid's mean/inv_cov6 (main.cu's voxel_stats_twin gate).
+//     - ndt_assemble_cpu's accumulation loop — sequential over scan points
+//       into double H21/g6/score accumulators, no shared-memory tree at
+//       all. Twin-compared against the GPU's block-reduced-then-host-
+//       summed output (main.cu's assembly_twin gate).
+//     - run_ndt_multires_cpu's iteration control flow — its own damping/
+//       retry loop, written without reference to main.cu's run_ndt_multires_
+//       gpu (which calls the GPU assembly kernel each iteration). Twin-
+//       compared via the "one full trajectory" gate (measured-then-
+//       margined, 08.01's technique, cited).
+//     - icp_point_to_point_cpu — the project's CPU-only contrast baseline
+//       (NOT a twin of anything on the GPU side — see its own header
+//       comment below for why this project ships no GPU ICP kernel).
+//
+//   WHY THIS SHARING DOES NOT MAKE THE TWIN CHECKS VACUOUS — the
+//   INDEPENDENT gates that catch a bug hiding INSIDE the shared math even
+//   though both "sides" of a twin comparison route through it (01.17's
+//   exact argument, applied here):
+//     (a) jacobian_check (main.cu) compares the ANALYTIC gradient (from
+//         ndt_assemble_cpu, which contains the chain-rule J/H code) against
+//         a CENTRAL-DIFFERENCE numeric gradient computed by calling ONLY
+//         ndt_total_score_cpu repeatedly at perturbed poses.
+//         ndt_total_score_cpu shares voxel_index/sym3_quad_form (the
+//         SCORE formula) but contains NONE of the analytic Jacobian/Hessian
+//         chain-rule code (no skew3, no J, no Jtb) — central differencing
+//         it re-derives the gradient from first principles, blind to a bug
+//         in the analytic gradient specifically.
+//     (b) convergence/accuracy against ground truth (main.cu STAGE F) — the
+//         scene and the scan's true pose are generated by scripts/
+//         make_synthetic.py, an INDEPENDENT pure-Python reimplementation
+//         (no C++ shared, a different language entirely) of the sampling
+//         and sensor model. If voxel_index or the Mahalanobis formula had
+//         an axis-swap or sign bug, points would not cluster into the
+//         voxels a learner's intuition (and the Python ground truth) says
+//         they should, and registration would fail to converge to the
+//         KNOWN true pose regardless of GPU/CPU agreement — the "closed-
+//         form/analytic solution... negative control" the template rule
+//         asks for (01.17's exact "zero-noise sanity" argument, adapted).
+//
+// Rules for the INDEPENDENTLY-WRITTEN parts of this file: plain C++17, no
+// CUDA headers (kernels.cuh's NDT_HD macro expands to nothing here), no
+// hand-vectorization, no OpenMP.
 //
 // Read this after: kernels.cu — then compare the two side by side.
 // ===========================================================================
 
-#include "kernels.cuh"  // for the saxpy_cpu prototype: compiler-enforced
-                        // signature agreement with what main.cu calls.
+#include "kernels.cuh"
+
+#include <algorithm>   // std::max
+#include <cmath>       // std::exp, std::sqrt (float overloads)
+
+// ===========================================================================
+// build_ndt_grid_cpu — independent twin of launch_build_ndt_grid.
+//
+// Two plain sequential passes, exactly mirroring the ALGORITHM (mean, then
+// centered covariance) but none of the GPU's kernel/atomic machinery — see
+// the file header's independence ruling. Uses the SAME dense array layout
+// as the GPU grid (voxel_index()'s shared formula), which is a data-layout
+// contract, not an algorithm — 02.01's kernels.cuh makes the identical
+// argument for its own compute_keys_cpu twin (cited).
+// ===========================================================================
+void build_ndt_grid_cpu(int n_map, const float* map_xyz, float leaf, int nx, int ny, int nz,
+                        std::vector<NdtVoxelCPU>& out)
+{
+    const int capacity = nx * ny * nz;
+    out.assign(static_cast<size_t>(capacity), NdtVoxelCPU{});
+
+    // PASS 1: accumulate sums. mean[] TEMPORARILY holds the running SUM
+    // here (not yet divided) — the same two-pass structure as the GPU
+    // builder, but a plain loop, no atomics, no separate finalize kernel.
+    for (int i = 0; i < n_map; ++i) {
+        const float p[3] = { map_xyz[i * 3 + 0], map_xyz[i * 3 + 1], map_xyz[i * 3 + 2] };
+        const int vidx = voxel_index(p, kMapOriginX, kMapOriginY, kMapOriginZ, leaf, nx, ny, nz);
+        if (vidx < 0) continue;
+        NdtVoxelCPU& v = out[static_cast<size_t>(vidx)];
+        v.count++;
+        v.mean[0] += p[0]; v.mean[1] += p[1]; v.mean[2] += p[2];
+    }
+    for (int v = 0; v < capacity; ++v) {
+        NdtVoxelCPU& vx = out[static_cast<size_t>(v)];
+        if (vx.count > 0) { vx.mean[0] /= vx.count; vx.mean[1] /= vx.count; vx.mean[2] /= vx.count; }
+    }
+
+    // PASS 2: centered covariance, now that every voxel's mean is final.
+    for (int i = 0; i < n_map; ++i) {
+        const float p[3] = { map_xyz[i * 3 + 0], map_xyz[i * 3 + 1], map_xyz[i * 3 + 2] };
+        const int vidx = voxel_index(p, kMapOriginX, kMapOriginY, kMapOriginZ, leaf, nx, ny, nz);
+        if (vidx < 0) continue;
+        NdtVoxelCPU& v = out[static_cast<size_t>(vidx)];
+        const double dx = static_cast<double>(p[0]) - v.mean[0];
+        const double dy = static_cast<double>(p[1]) - v.mean[1];
+        const double dz = static_cast<double>(p[2]) - v.mean[2];
+        v.cov6[0] += dx * dx; v.cov6[1] += dx * dy; v.cov6[2] += dx * dz;
+        v.cov6[3] += dy * dy; v.cov6[4] += dy * dz; v.cov6[5] += dz * dz;
+    }
+
+    // Finalize: regularize + invert (shared formula), mark valid.
+    for (int v = 0; v < capacity; ++v) {
+        NdtVoxelCPU& vx = out[static_cast<size_t>(v)];
+        if (vx.count < kMinPointsPerVoxel) { vx.valid = false; continue; }
+        const double denom = static_cast<double>(vx.count - 1);
+        float cov[6];
+        for (int k = 0; k < 6; ++k) cov[k] = static_cast<float>(vx.cov6[k] / denom);
+        regularize_and_invert_cov3(cov, vx.inv_cov6);
+        vx.valid = true;
+    }
+}
 
 // ---------------------------------------------------------------------------
-// saxpy_cpu — sequential y[i] = a * x[i] + y[i] for i = 0 .. n-1.
-//
-// Parameters:
-//   n — element count (> 0)
-//   a — the SAXPY scalar
-//   x — [n] host pointer, read-only input
-//   y — [n] host pointer, read AND written in place (input y, output a*x+y)
-//
-// Complexity: O(n) time, O(1) extra space. Side effects: overwrites y.
-//
-// Numerical note (why GPU-vs-CPU comparison needs a tolerance): this line
-// may be compiled as a separate multiply and add (two rounding steps) or as
-// a fused multiply-add (one rounding step), depending on compiler flags; the
-// GPU almost always fuses. Both are correct; they may differ in the last bit
-// (~1 ULP). Hence main.cu's tolerance of 1e-6 rather than bit-equality —
-// the honest way to compare floating point across compilers and devices.
+// ndt_score_grad_hess_point — the per-point NDT contribution, written ONCE
+// here and called by both ndt_assemble_cpu and ndt_total_score_cpu's
+// bigger sibling... actually ndt_total_score_cpu deliberately does NOT call
+// this (see the file header's jacobian_check independence argument) — this
+// helper backs ONLY ndt_assemble_cpu, and is a direct, independent
+// transcription of the same math ndt_assemble_kernel computes per-thread
+// (independent CODE, shared FORMULA — the twin-independence ruling's
+// "algorithmic core written twice" default, applied at the single-point
+// granularity here because the outer accumulation loop, not this formula,
+// is what main.cu's assembly_twin gate is actually probing).
 // ---------------------------------------------------------------------------
-void saxpy_cpu(int n, float a, const float* x, float* y)
+static void ndt_score_grad_hess_point(const float x[3], const Rigid3& T,
+                                      const std::vector<NdtVoxelCPU>& grid,
+                                      float leaf, int nx, int ny, int nz,
+                                      float d1f, float d2f,
+                                      double H21[21], double g6[6], double* score)
 {
-    // One loop, one line — deliberately the simplest correct statement of
-    // the computation. This is the exact loop the GPU kernel parallelizes:
-    // in kernels.cu, "for each i" became "each thread owns some i".
-    for (int i = 0; i < n; ++i) {
-        y[i] = a * x[i] + y[i];
+    float RP[3];
+    mat3_vec(T.R, x, RP);
+    const float y[3] = { RP[0] + T.t[0], RP[1] + T.t[1], RP[2] + T.t[2] };
+
+    const int vidx = voxel_index(y, kMapOriginX, kMapOriginY, kMapOriginZ, leaf, nx, ny, nz);
+    if (vidx < 0 || !grid[static_cast<size_t>(vidx)].valid) return;
+
+    const NdtVoxelCPU& vx = grid[static_cast<size_t>(vidx)];
+    const float mu[3] = { static_cast<float>(vx.mean[0]), static_cast<float>(vx.mean[1]), static_cast<float>(vx.mean[2]) };
+    const float q[3] = { y[0] - mu[0], y[1] - mu[1], y[2] - mu[2] };
+
+    const float m = sym3_quad_form(vx.inv_cov6, q);
+    const float f = std::exp(-0.5f * d2f * m);
+    float b[3];
+    sym3_vec(vx.inv_cov6, q, b);
+
+    float S[9];
+    skew3(RP, S);
+    float J[18] = { 0.0f };
+    for (int r = 0; r < 3; ++r) {
+        J[r * 6 + 0] = -S[r * 3 + 0];
+        J[r * 6 + 1] = -S[r * 3 + 1];
+        J[r * 6 + 2] = -S[r * 3 + 2];
+        J[r * 6 + 3 + r] = 1.0f;
     }
+    float Jtb[6];
+    for (int k = 0; k < 6; ++k) {
+        float acc = 0.0f;
+        for (int r = 0; r < 3; ++r) acc += J[r * 6 + k] * b[r];
+        Jtb[k] = acc;
+    }
+    for (int l = 0; l < 6; ++l) {
+        const float Jcol_l[3] = { J[0 * 6 + l], J[1 * 6 + l], J[2 * 6 + l] };
+        float cJ_l[3];
+        sym3_vec(vx.inv_cov6, Jcol_l, cJ_l);
+        for (int k = 0; k <= l; ++k) {
+            const float Jcol_k[3] = { J[0 * 6 + k], J[1 * 6 + k], J[2 * 6 + k] };
+            const float dot = Jcol_k[0] * cJ_l[0] + Jcol_k[1] * cJ_l[1] + Jcol_k[2] * cJ_l[2];
+            H21[hidx(k, l)] += static_cast<double>(d1f * d2f * f * (dot - d2f * Jtb[k] * Jtb[l]));
+        }
+    }
+    for (int k = 0; k < 6; ++k) g6[k] += static_cast<double>(d1f * d2f * f * Jtb[k]);
+    *score += static_cast<double>(-d1f * f);
+}
+
+// ndt_assemble_cpu — see ndt_score_grad_hess_point's comment for what is
+// shared vs. independent; THIS function is the sequential accumulation
+// loop main.cu's assembly_twin gate actually exercises.
+void ndt_assemble_cpu(const float* scan_xyz, int n_scan, const Rigid3& T,
+                      const std::vector<NdtVoxelCPU>& grid,
+                      float leaf, int nx, int ny, int nz,
+                      double d1, double d2,
+                      double H21[21], double g6[6], double* score_out)
+{
+    for (int k = 0; k < 21; ++k) H21[k] = 0.0;
+    for (int k = 0; k < 6; ++k) g6[k] = 0.0;
+    double score = 0.0;
+    const float d1f = static_cast<float>(d1), d2f = static_cast<float>(d2);
+
+    for (int i = 0; i < n_scan; ++i) {
+        const float x[3] = { scan_xyz[i * 3 + 0], scan_xyz[i * 3 + 1], scan_xyz[i * 3 + 2] };
+        ndt_score_grad_hess_point(x, T, grid, leaf, nx, ny, nz, d1f, d2f, H21, g6, &score);
+    }
+    *score_out = score;
+}
+
+// ndt_total_score_cpu — SCORE ONLY. Deliberately does NOT call
+// ndt_score_grad_hess_point (which contains the analytic J/H code) — see
+// the file header's jacobian_check independence argument. Shares only
+// voxel_index/sym3_quad_form (the score formula itself).
+double ndt_total_score_cpu(const float* scan_xyz, int n_scan, const Rigid3& T,
+                           const std::vector<NdtVoxelCPU>& grid,
+                           float leaf, int nx, int ny, int nz,
+                           double d1, double d2)
+{
+    const float d1f = static_cast<float>(d1), d2f = static_cast<float>(d2);
+    double score = 0.0;
+    for (int i = 0; i < n_scan; ++i) {
+        const float x[3] = { scan_xyz[i * 3 + 0], scan_xyz[i * 3 + 1], scan_xyz[i * 3 + 2] };
+        float RP[3];
+        mat3_vec(T.R, x, RP);
+        const float y[3] = { RP[0] + T.t[0], RP[1] + T.t[1], RP[2] + T.t[2] };
+        const int vidx = voxel_index(y, kMapOriginX, kMapOriginY, kMapOriginZ, leaf, nx, ny, nz);
+        if (vidx < 0 || !grid[static_cast<size_t>(vidx)].valid) continue;
+        const NdtVoxelCPU& vx = grid[static_cast<size_t>(vidx)];
+        const float mu[3] = { static_cast<float>(vx.mean[0]), static_cast<float>(vx.mean[1]), static_cast<float>(vx.mean[2]) };
+        const float q[3] = { y[0] - mu[0], y[1] - mu[1], y[2] - mu[2] };
+        const float m = sym3_quad_form(vx.inv_cov6, q);
+        score += static_cast<double>(-d1f * std::exp(-0.5f * d2f * m));
+    }
+    return score;
+}
+
+// ---------------------------------------------------------------------------
+// run_ndt_multires_cpu — an INDEPENDENTLY-WRITTEN full coarse->fine Newton
+// trajectory: its own damping/retry loop (written without looking at
+// main.cu's GPU-orchestrated run_ndt_multires_gpu), sharing only
+// ndt_assemble_cpu (the accumulation this file already owns) and
+// cholesky6_solve_flat/retract (host-only linear algebra utilities — not a
+// twin-independence question, per 01.17's identical ruling for its own
+// shared cholesky6_solve: neither caller here is "the GPU path").
+//
+// loss_history must have room for at least kMaxItersCoarse+kMaxItersFine+1
+// entries (one initial-ish reading is NOT recorded; entries are the score
+// AFTER each assembly, i.e. the score the step that follows was computed
+// from — main.cu's twin gate compares the trajectory's LENGTH and FINAL
+// pose, not every intermediate value, since coarse/fine iteration counts
+// can differ run to run once either loop hits its own convergence check).
+// ---------------------------------------------------------------------------
+// Accept/reject Levenberg-Marquardt (kernels.cuh's kLambdaInit comment and
+// main.cu's run_ndt_stage_gpu explain WHY this is required for NDT's
+// possibly-indefinite Hessian, unlike 01.17/02.06's always-accept Gauss-
+// Newton on a PSD system): a step is taken only if it actually LOWERS the
+// score; otherwise lambda grows and the SAME H/g are re-damped and
+// re-solved. Independently written control flow (own inner/outer loop
+// structure) — the twin pairing with main.cu's run_ndt_stage_gpu is at the
+// FINAL-POSE level (STAGE D), not this function's exact code shape.
+static void run_ndt_stage_cpu(const float* scan_xyz, int n_scan,
+                              const std::vector<NdtVoxelCPU>& grid, float leaf, int nx, int ny, int nz,
+                              double d1, double d2, int max_iters,
+                              Rigid3& T, double* loss_history, int& idx)
+{
+    double H21[21], g6[6], score;
+    ndt_assemble_cpu(scan_xyz, n_scan, T, grid, leaf, nx, ny, nz, d1, d2, H21, g6, &score);
+    double lambda = kLambdaInit;   // cholesky6_solve_flat scales this per-parameter internally (see its header)
+    loss_history[idx++] = score;
+
+    for (int outer = 0; outer < max_iters; ++outer) {
+        bool accepted = false;
+        double delta[6] = { 0, 0, 0, 0, 0, 0 };
+
+        for (int inner = 0; inner < kMaxAcceptRejectRetries; ++inner) {
+            bool ok = false;
+            for (int tries = 0; tries < 40 && !ok; ++tries) {
+                ok = cholesky6_solve_flat(H21, g6, lambda, delta);
+                if (!ok) lambda *= kLambdaUp;
+            }
+            if (!ok) break;   // Hessian would not damp to SPD even at large lambda -- stop honestly
+
+            Rigid3 T_cand;
+            retract(T, delta, T_cand);
+            double Hc[21], gc[6], score_cand;
+            ndt_assemble_cpu(scan_xyz, n_scan, T_cand, grid, leaf, nx, ny, nz, d1, d2, Hc, gc, &score_cand);
+
+            if (score_cand < score) {
+                T = T_cand;
+                for (int k = 0; k < 21; ++k) H21[k] = Hc[k];
+                for (int k = 0; k < 6; ++k) g6[k] = gc[k];
+                score = score_cand;
+                lambda = std::max(lambda * kLambdaDown, kLambdaMin);
+                accepted = true;
+                break;
+            }
+            lambda *= kLambdaUp;
+        }
+
+        loss_history[idx++] = score;
+        if (!accepted) break;
+
+        const double dn = std::sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]
+                                    + delta[3] * delta[3] + delta[4] * delta[4] + delta[5] * delta[5]);
+        if (dn < kConvergeDeltaNorm) break;
+    }
+}
+
+void run_ndt_multires_cpu(const float* scan_xyz, int n_scan,
+                          const std::vector<NdtVoxelCPU>& grid_coarse, float leaf_coarse, int cnx, int cny, int cnz,
+                          const std::vector<NdtVoxelCPU>& grid_fine, float leaf_fine, int fnx, int fny, int fnz,
+                          double d1_coarse, double d2_coarse, double d1_fine, double d2_fine,
+                          Rigid3 T_init, Rigid3& out_T, double* loss_history, int& out_num_iters)
+{
+    Rigid3 T = T_init;
+    int idx = 0;
+    run_ndt_stage_cpu(scan_xyz, n_scan, grid_coarse, leaf_coarse, cnx, cny, cnz,
+                      d1_coarse, d2_coarse, kMaxItersCoarse, T, loss_history, idx);
+    run_ndt_stage_cpu(scan_xyz, n_scan, grid_fine, leaf_fine, fnx, fny, fnz,
+                      d1_fine, d2_fine, kMaxItersFine, T, loss_history, idx);
+    out_T = T;
+    out_num_iters = idx;
+}
+
+// ===========================================================================
+// Compact point-to-point ICP — the project's DIRECT CONTRAST baseline.
+//
+// Deliberately CPU-only (kernels.cuh's declaration comment states the
+// scoping decision): this project's GPU-teaching payload is the NDT voxel-
+// build and assembly kernels above; re-deriving 02.06's brute-force GPU
+// correspondence-search kernel here would duplicate that project's own
+// didactic content (the "which GPU parallelism regime" lesson) rather than
+// teaching anything new — README "Limitations" states this honestly, and
+// 02.06 is cited as the full GPU point-to-point/point-to-plane/GICP
+// treatment. What IS reused here (host-only, so no twin-independence
+// question applies, 01.17's identical ruling for shared host solves): the
+// SE(3) retraction (retract/skew3/mat3_vec) and the 6x6 hidx() packing.
+//
+// cholesky6_solve_marquardt — a SEPARATE damping variant from kernels.cuh's
+// cholesky6_solve_flat, written locally because point-to-point ICP's
+// H = J^T J IS guaranteed positive-semidefinite by construction (unlike
+// NDT's H, kernels.cuh's cholesky6_solve_flat comment explains why NDT's
+// is not) — Marquardt's diag(H)-scaled damping is the textbook-appropriate
+// choice here, and the contrast between the two damping strategies used by
+// the two algorithms in the SAME project is itself a documented THEORY.md
+// "numerical considerations" teaching point.
+// ---------------------------------------------------------------------------
+static bool cholesky6_solve_marquardt(const double H21[21], const double g6[6], double lambda, double out_delta[6])
+{
+    double A[6][6];
+    for (int i = 0; i < 6; ++i)
+        for (int j = i; j < 6; ++j) {
+            const double hij = H21[hidx(i, j)];
+            A[i][j] = hij;
+            A[j][i] = hij;
+        }
+    for (int i = 0; i < 6; ++i) A[i][i] *= (1.0 + lambda);
+
+    double L[6][6] = {};
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 0; j <= i; ++j) {
+            double sum = A[i][j];
+            for (int k = 0; k < j; ++k) sum -= L[i][k] * L[j][k];
+            if (i == j) {
+                if (sum <= 0.0) return false;
+                L[i][i] = std::sqrt(sum);
+            } else {
+                L[i][j] = sum / L[j][j];
+            }
+        }
+    }
+    double y[6];
+    for (int i = 0; i < 6; ++i) {
+        double sum = -g6[i];
+        for (int k = 0; k < i; ++k) sum -= L[i][k] * y[k];
+        y[i] = sum / L[i][i];
+    }
+    for (int i = 5; i >= 0; --i) {
+        double sum = y[i];
+        for (int k = i + 1; k < 6; ++k) sum -= L[k][i] * out_delta[k];
+        out_delta[i] = sum / L[i][i];
+    }
+    return true;
+}
+
+void icp_point_to_point_cpu(const float* scan_xyz, int n_scan,
+                            const float* target_xyz, int n_target,
+                            Rigid3 T_init, int max_iters, float max_corr_dist_m,
+                            Rigid3& out_T, int& out_num_iters)
+{
+    Rigid3 T = T_init;
+    double lambda = kIcpLambdaInit;
+    const float max_d2 = max_corr_dist_m * max_corr_dist_m;
+    int iters_done = 0;
+
+    for (int iter = 0; iter < max_iters; ++iter) {
+        iters_done = iter + 1;
+
+        // Assemble H = J^T J, g = J^T r over all VALID correspondences
+        // (brute-force nearest-neighbor search — 02.06's exact O(n*m)
+        // teaching choice, cited, reimplemented locally on the CPU).
+        double H21[21] = {};
+        double g6[6] = {};
+        int n_valid = 0;
+
+        for (int i = 0; i < n_scan; ++i) {
+            const float x[3] = { scan_xyz[i * 3 + 0], scan_xyz[i * 3 + 1], scan_xyz[i * 3 + 2] };
+            float RP[3];
+            mat3_vec(T.R, x, RP);
+            const float y[3] = { RP[0] + T.t[0], RP[1] + T.t[1], RP[2] + T.t[2] };
+
+            int best = -1;
+            float best_d2 = max_d2;
+            for (int j = 0; j < n_target; ++j) {
+                const float dx = y[0] - target_xyz[j * 3 + 0];
+                const float dy = y[1] - target_xyz[j * 3 + 1];
+                const float dz = y[2] - target_xyz[j * 3 + 2];
+                const float d2v = dx * dx + dy * dy + dz * dz;
+                if (d2v < best_d2) { best_d2 = d2v; best = j; }
+            }
+            if (best < 0) continue;
+            n_valid++;
+
+            const float q[3] = { target_xyz[best * 3 + 0], target_xyz[best * 3 + 1], target_xyz[best * 3 + 2] };
+            const float r[3] = { y[0] - q[0], y[1] - q[1], y[2] - q[2] };   // point-to-point residual
+
+            float S[9];
+            skew3(RP, S);
+            float J[18] = { 0.0f };
+            for (int rr = 0; rr < 3; ++rr) {
+                J[rr * 6 + 0] = -S[rr * 3 + 0];
+                J[rr * 6 + 1] = -S[rr * 3 + 1];
+                J[rr * 6 + 2] = -S[rr * 3 + 2];
+                J[rr * 6 + 3 + rr] = 1.0f;
+            }
+            for (int a = 0; a < 6; ++a)
+                for (int b = a; b < 6; ++b)
+                    H21[hidx(a, b)] += static_cast<double>(J[0 * 6 + a] * J[0 * 6 + b]
+                                                          + J[1 * 6 + a] * J[1 * 6 + b]
+                                                          + J[2 * 6 + a] * J[2 * 6 + b]);
+            for (int a = 0; a < 6; ++a)
+                g6[a] += static_cast<double>(J[0 * 6 + a] * r[0] + J[1 * 6 + a] * r[1] + J[2 * 6 + a] * r[2]);
+        }
+
+        if (n_valid < 6) break;   // under-constrained (fewer valid correspondences than DOF) -- bail honestly
+
+        bool ok = false;
+        double delta[6] = { 0, 0, 0, 0, 0, 0 };
+        for (int tries = 0; tries < 30 && !ok; ++tries) {
+            ok = cholesky6_solve_marquardt(H21, g6, lambda, delta);
+            if (!ok) lambda *= kIcpLambdaUp;
+        }
+        if (!ok) break;
+        lambda = std::max(lambda * kIcpLambdaDown, kIcpLambdaMin);
+
+        Rigid3 T_new;
+        retract(T, delta, T_new);
+        T = T_new;
+
+        const double dn = std::sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]
+                                    + delta[3] * delta[3] + delta[4] * delta[4] + delta[5] * delta[5]);
+        if (dn < kIcpConvergeDeltaNorm) break;
+    }
+
+    out_T = T;
+    out_num_iters = iters_done;
 }

@@ -1,8 +1,47 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.07 (ndt-scan-matching)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# expected_output.txt — project 02.07 (NDT scan matching, Autoware-style map
+# localizer)
+#
+# Lines starting with '#' are comments; run_demo.ps1/.sh ignore them when
+# diffing. Every non-comment line below must appear VERBATIM in the demo's
+# stdout (subset check — extra lines, including every "[info]"/"[time]" line
+# with the actual measured numbers, are expected and NOT checked here; see
+# main.cu's "Output contract" comment for why numbers stay off stable lines).
+#
+# Captured from an actual run on the reference machine: NVIDIA GeForce RTX
+# 2080 SUPER (sm_75), Release|x64, CUDA 13.3, after a finisher pass raised
+# COHORT_TRIALS_PER_BIN 15->40 (90->240 total trials, for a statistically
+# trustworthy basin measurement) and fixed a real RNG stream-desync bug in
+# scripts/make_synthetic.py's generate_scan() (THEORY.md "Numerical
+# considerations" tells the full story). Measured numbers for every gate
+# (voxel_stats_twin: mean rel dev 5.9e-8, inv_cov rel dev 1.5e-6; jacobian
+# check: worst rel dev 2.2e-3 vs tol 5e-2; assembly twin: 2.6e-6 vs tol 5e-3;
+# trajectory twin: GPU rot 1.283 deg / trans 0.0771 m vs CPU IDENTICAL to 4
+# sig figs; score_sanity: 0/240 violations; convergence: 32/240 = 13.3% vs
+# floor 10%; accuracy: worst converged trans 77.1 mm / rot 2.67 deg;
+# basin_contrast: NDT multi-res 13.3% vs NDT fine-only 1.2% vs ICP 24.2%
+# (ICP genuinely wins this small, simple scene's cohort overall — reported
+# honestly, not hidden; THEORY.md "Where this sits in the real world"
+# explains why and at what scale this would flip); accuracy contrast: NDT
+# 51.3 mm/1.02 deg vs ICP 36.6 mm/0.73 deg among converged trials;
+# bin0_corridor_axis_split: perturbations along the corridor's degenerate
+# axis converge 0% (0/9) vs 84% (26/31) off-axis — the smallest bin's own
+# 65% almost entirely explained by that one measured geometric axis;
+# outlier_robustness: clean 13.8% vs with-outliers 13.3% (properly paired
+# now that the RNG bug above is fixed); degenerate_axis: near-field
+# condition ratio 346 vs full-scan 96.7, both loading on translation, not
+# rotation) are documented, not repeated, here — see demo/README.md and
+# demo/out/gates_metrics.csv.
+[demo] NDT scan matching: Autoware-style map localizer (project 02.07)
+PROBLEM: NDT scan-to-map registration, multi-resolution Newton (coarse 2.0 m -> fine 1.0 m), vs a compact point-to-point ICP contrast, over a 240-trial perturbation cohort
+SCENARIO: L-shaped corridor->room map (40000 pts), scan_main 5122 pts, scan_cohort 1269 pts (1262 pts clean), ICP target 724 pts, 240 perturbation trials [synthetic]
+VOXEL_STATS_TWIN: PASS (GPU voxel grid matches the independent CPU builder)
+JACOBIAN_CHECK: PASS (analytic vs. central-difference numeric gradient agree within tolerance)
+ASSEMBLY_TWIN: PASS (GPU block-reduced assembly matches the independent CPU accumulation)
+TRAJECTORY_TWIN: PASS (GPU-orchestrated and independent CPU trajectories converge to the same pose)
+SCORE_SANITY: PASS (score at ground truth beats every perturbed initial guess)
+CONVERGENCE: PASS (NDT multi-resolution converges from a useful fraction of the perturbation cohort)
+ACCURACY: PASS (converged NDT poses are close to ground truth)
+BASIN_CONTRAST: PASS (NDT's multi-resolution schedule matches or widens the convergence basin vs. the same iteration budget spent at fine resolution alone)
+OUTLIER_ROBUSTNESS: PASS (accuracy degrades gracefully, not catastrophically, with the documented outlier fraction)
+ARTIFACT: wrote registration_topview.csv, basin_curve.csv, convergence_trajectories.csv, gates_metrics.csv to demo/out/
+RESULT: PASS (all verification stages passed - voxel/assembly/trajectory twins, jacobian check, score sanity, convergence, accuracy, basin contrast, outlier robustness)

@@ -1,0 +1,8 @@
+# SYNTHETIC ground-truth metadata for project 02.07's NDT/ICP demo.
+# regenerate: python make_synthetic.py --seed 42
+# GT_POSE row: r00,r01,r02,r10,r11,r12,r20,r21,r22,tx,ty,tz -- T_map_scan (row-major R, t in meters).
+# COUNTS row: n_map,n_scan_main,n_scan_cohort,n_scan_cohort_clean,n_icp_target.
+# PARAMS row: range_noise_sigma_m,true_outlier_fraction,leaf_coarse_m,leaf_fine_m,icp_target_leaf_m.
+GT_POSE,1.0000000000,0.0000000000,0.0000000000,0.0000000000,1.0000000000,0.0000000000,0.0000000000,0.0000000000,1.0000000000,5.0000000000,0.0000000000,1.2000000000
+COUNTS,40000,5122,1269,1262,724
+PARAMS,0.020000,0.050000,2.0000,1.0000,0.5000

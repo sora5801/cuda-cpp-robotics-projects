@@ -1,10 +1,10 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.07 (NDT scan matching (Autoware-style map localizer))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project stays synthetic-only, permanently.
+# NDT needs a map, a scan, and an EXACT ground-truth pose between them to be
+# verifiable at all -- no real LiDAR recording ships an answer key (data/README.md
+# makes this argument in full). This script is therefore an honest, permanent no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

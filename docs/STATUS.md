@@ -19,19 +19,19 @@
 
 ## Summary
 
-**Overall: 64/505 done** (12.7%)
+**Overall: 65/505 done** (12.9%)
 
 | Status | Count |
 |--------|-------|
-| todo | 441 |
+| todo | 440 |
 | in-progress | 0 |
-| done | 64 |
+| done | 65 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
 | 01 Perception — Cameras & Vision | 24/24 |
-| 02 Perception — LiDAR & Point Clouds | 6/20 |
+| 02 Perception — LiDAR & Point Clouds | 7/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
@@ -96,7 +96,7 @@
 | 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); §5 desktop teaching core, 9 stages all bit-exact twins, MHC beats bilinear 1.52 dB, dual AWB + designed failures, Jetson path documented never faked |
 | 01.24 | Transparent/reflective object detection via polarization imaging | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Fresnel anchor\|diff\|=0.00034, Brewster peak 0.31° off true, glass: intensity recall 0% vs DoLP 97% — domain 01 COMPLETE (24/24) |
 
-## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 6/20 done
+## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 7/20 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -106,7 +106,7 @@
 | 02.04 | Euclidean clustering via GPU union-find / connected components | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); lock-free union-find 2 sweeps vs label-prop 299 on the snake, partition exact vs truth, chaining hazard asserted honestly |
 | 02.05 | KD-tree or LBVH construction + KNN/radius search on GPU | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Karras radix tree topology bit-exact, brute-force anchor exact, missing __threadfence caught by 3rd tier (twin-blind save #4), depth bound proved 62 |
 | 02.06 | ICP: point-to-point → point-to-plane → GICP, all batched | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); pt-to-plane 6 vs 48 iters; GICP documented milestone |
-| 02.07 | NDT scan matching (Autoware-style map localizer) | intermediate |  | todo |  |  |
+| 02.07 | NDT scan matching (Autoware-style map localizer) | intermediate |  | done | worker+finisher+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); corridor observability root-caused (0% on-axis vs 84% off-axis), RNG-desync outlier paradox fixed, ICP-wins-small-scenes taught honestly |
 | 02.08 | Per-point motion deskew with pose interpolation | intermediate |  | todo |  |  |
 | 02.09 | Normal + curvature estimation at millions of points/sec | intermediate |  | todo |  |  |
 | 02.10 | FPFH descriptors + RANSAC global registration | intermediate |  | todo |  |  |
