@@ -154,6 +154,28 @@
            gate (CLAUDE.md paragraph 9) while Nsight stays fully usable in
            both configurations. -->
       <GPUDebugInfo>true</GPUDebugInfo>
+      <!-- kernels.cu includes <thrust/...> (Thrust sort/scan/reduce/copy_if,
+           CLAUDE.md paragraph 5 — header-only CUDA Toolkit library). Two
+           real MSVC/CCCL toolchain requirements CUDA 13.3's Thrust (now
+           shipped as part of CCCL) hits under MSBuild, fixed here rather
+           than silenced (CLAUDE.md paragraph 9 "explain or fix" — the exact
+           fix 02.01's kernels.cu first root-caused and this project's
+           vcxproj reuses verbatim):
+             /Zc:preprocessor — CCCL hard-requires MSVC's STANDARD-
+               CONFORMING preprocessor; cl.exe's legacy/traditional
+               preprocessor (its historical default) trips a hard #error
+               inside cccl/preprocessor.h naming this exact flag as the fix.
+             /Zc:__cplusplus — MSVC does NOT update the __cplusplus macro to
+               match the active /std: level unless this flag is also
+               passed (it otherwise always reports 199711L, "C++98");
+               Thrust's dialect check reads __cplusplus directly and fails
+               closed ("Thrust requires at least C++17") without it.
+           Both are forwarded via -Xcompiler so nvcc passes them through to
+           the underlying cl.exe host-code compilation; -std=c++17 is a
+           THIRD, separate requirement for nvcc's OWN device-side front end
+           (cicc), which Thrust's dialect check also runs under and which
+           the ClCompile LanguageStandard property above does not reach. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -187,6 +209,10 @@
            README documents the tolerance impact (CLAUDE.md paragraph 5). -->
       <CodeGeneration>compute_75,sm_75;compute_86,sm_86;compute_89,sm_89;compute_89,compute_89</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>            <!-- -lineinfo is cheap and makes Nsight useful in Release -->
+      <!-- Same /Zc:preprocessor / /Zc:__cplusplus / -std=c++17 requirement
+           as Debug (see that block's comment): kernels.cu's <thrust/...>
+           includes need it in every configuration, not just Debug. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -202,6 +228,7 @@
     <ClInclude Include="..\src\kernels.cuh" />
     <ClInclude Include="..\src\util\cuda_check.cuh" />
     <ClInclude Include="..\src\util\timer.cuh" />
+    <ClInclude Include="..\src\util\paths.h" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

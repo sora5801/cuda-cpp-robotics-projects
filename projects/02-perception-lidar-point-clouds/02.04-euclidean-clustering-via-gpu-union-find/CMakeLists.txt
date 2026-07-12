@@ -70,9 +70,11 @@ target_compile_options(euclidean-clustering-via-gpu-union-find PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(euclidean-clustering-via-gpu-union-find PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). kernels.cu's Thrust usage (sort/scan/
+# reduce/copy_if — voxel indexing, edge-set construction support, and
+# cluster relabeling; see src/kernels.cuh) needs no extra
+# target_link_libraries entry either: Thrust is header-only, and this
+# project sets no extra flags CMake's default CUDA language support does
+# not already provide (the /Zc:preprocessor / /Zc:__cplusplus MSVC
+# requirements documented in the .vcxproj are an MSBuild+nvcc interaction
+# specific to that build path; a Linux/gcc CMake build does not need them).

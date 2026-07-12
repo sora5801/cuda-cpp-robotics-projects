@@ -19,19 +19,19 @@
 
 ## Summary
 
-**Overall: 62/505 done** (12.3%)
+**Overall: 63/505 done** (12.5%)
 
 | Status | Count |
 |--------|-------|
-| todo | 443 |
+| todo | 442 |
 | in-progress | 0 |
-| done | 62 |
+| done | 63 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
 | 01 Perception — Cameras & Vision | 24/24 |
-| 02 Perception — LiDAR & Point Clouds | 4/20 |
+| 02 Perception — LiDAR & Point Clouds | 5/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
@@ -96,14 +96,14 @@
 | 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); §5 desktop teaching core, 9 stages all bit-exact twins, MHC beats bilinear 1.52 dB, dual AWB + designed failures, Jetson path documented never faked |
 | 01.24 | Transparent/reflective object detection via polarization imaging | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Fresnel anchor\|diff\|=0.00034, Brewster peak 0.31° off true, glass: intensity recall 0% vs DoLP 97% — domain 01 COMPLETE (24/24) |
 
-## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 4/20 done
+## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 5/20 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
 | 02.01 | Voxel-grid downsampling with GPU spatial hashing | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); atomic hash vs sort-based determinism duality, Method B bit-identical x3 runs, first Thrust project (CCCL toolchain flags ratified) |
 | 02.02 | ROI crop, passthrough, organized↔unorganized conversion kernels | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); hand-rolled Blelloch == Thrust == CPU bit-exact, all comparisons exact (min-vs-sum order argument), collision bookkeeping reconciles exactly |
 | 02.03 | Ground segmentation: RANSAC plane fit; Patchwork++-style GPU port | ★ beginner |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); RANSAC formula gated analytically, designed single-plane failure 93.25%, CZM IoU 0.954, canopy FP 0.00% |
-| 02.04 | Euclidean clustering via GPU union-find / connected components | intermediate |  | todo |  |  |
+| 02.04 | Euclidean clustering via GPU union-find / connected components | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); lock-free union-find 2 sweeps vs label-prop 299 on the snake, partition exact vs truth, chaining hazard asserted honestly |
 | 02.05 | KD-tree or LBVH construction + KNN/radius search on GPU | intermediate |  | todo |  |  |
 | 02.06 | ICP: point-to-point → point-to-plane → GICP, all batched | ★ beginner | ⭐ | done | worker+lead | all §9 gates green 2026-07-09 (RTX 2080 SUPER); pt-to-plane 6 vs 48 iters; GICP documented milestone |
 | 02.07 | NDT scan matching (Autoware-style map localizer) | intermediate |  | todo |  |  |

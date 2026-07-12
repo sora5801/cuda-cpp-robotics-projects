@@ -1,8 +1,26 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.04 (euclidean-clustering-via-gpu-union-find)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract for project 02.04 (Euclidean clustering via GPU union-find / connected
+# components). Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when
+# diffing. Every non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check --
+# extra "[info]"/"[time]" lines are fine and expected; see ../src/main.cu's "Output contract" header
+# comment). These are the ACTUAL lines an unmodified `euclidean-clustering-via-gpu-union-find.exe`
+# (no arguments) printed on the reference machine (RTX 2080 SUPER, sm_75, Release|x64) against the
+# committed data/sample/cluster_scene.bin (1,469 non-ground points; see ../data/README.md for
+# provenance). Sweep counts (299 / 2) were confirmed stable across three repeated runs before being
+# locked in here as stable text.
+[demo] Euclidean clustering: GPU lock-free union-find (Method A) vs GPU min-label propagation (Method B), same edges, same partition, very different sweep counts (project 02.04)
+PROBLEM: 180000 ground points (context only, not clustered) + 1469 non-ground points (the clustering input), cluster tolerance d=leaf=0.40 m, min_cluster_size=5
+DATA: data/sample/cluster_scene.bin [synthetic, seed 42, xorshift32, see scripts/make_synthetic.py]
+VERIFY(keys): PASS (GPU voxel keys bit-exact vs CPU reference for all points)
+VERIFY(edges): PASS (GPU neighbor-edge set exactly equals the independent CPU unordered_map-based edge set; zero edge-buffer overflows)
+VERIFY(union_find): PASS (GPU lock-free union-find's canonical roots bit-exact vs independent sequential CPU union-find, for all 1469 points; converged within 128 sweeps)
+VERIFY(label_propagation): PASS (GPU min-label propagation's converged labels bit-exact vs the SAME CPU union-find canonical partition, for all 1469 points; converged within 4096 sweeps)
+GATE partition_vs_truth: PASS (GPU union-find's canonical partition exactly equals the generator's single-linkage ground truth, for all 1469 non-ground points)
+GATE stats_integrity: PASS (per-cluster counts sum to 1469 non-ground points exactly; every centroid lies inside its own cluster's AABB, K=37 raw clusters)
+VERIFY(stats): PASS (GPU per-cluster count/centroid/AABB within documented tolerance of independent double-precision CPU accumulation, all 37 raw clusters; counts exact)
+GATE noise_filtering: PASS (all 28 scattered-noise points -- each farther than d from every other point, singleton raw components -- end up unclustered after min-size filtering, min_cluster_size=5)
+GATE separation_test: PASS (two objects separated by more than d stay two DISTINCT clusters -- the resolution test)
+GATE chaining_test: PASS (two objects bridged by a thin points path under d MERGE into one cluster -- this is single-linkage Euclidean clustering's well-known failure mode, not a bug: a real system disambiguates it with SEMANTICS -- e.g. a learned classifier or a max-cluster-extent heuristic -- that this repo's next stage, 12.xx-style semantic segmentation, would add on top; see THEORY.md "The problem")
+GATE snake_convergence: PASS (label_propagation sweeps=299 >= floor 50; union_find sweeps=2 <= ceiling 20 -- both measured on the SAME scene containing the long-snake pathology, 299 points; the complexity gap this project teaches, made visible)
+[info] clusters: 37 raw connected components -> 9 reported after min-size filtering (28 points rejected as noise)
+ARTIFACT: wrote demo/out/{topview_truth.ppm, topview_gpu_result.ppm, topview_snake_highlight.ppm, sweep_comparison.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY(keys/edges/union_find/label_propagation/stats) + all 6 gates passed: partition_vs_truth, stats_integrity, noise_filtering, separation_test, chaining_test, snake_convergence)
