@@ -19,19 +19,19 @@
 
 ## Summary
 
-**Overall: 77/505 done** (15.2%)
+**Overall: 78/505 done** (15.4%)
 
 | Status | Count |
 |--------|-------|
-| todo | 428 |
+| todo | 427 |
 | in-progress | 0 |
-| done | 77 |
+| done | 78 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
 | 01 Perception — Cameras & Vision | 24/24 |
-| 02 Perception — LiDAR & Point Clouds | 19/20 |
+| 02 Perception — LiDAR & Point Clouds | 20/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
@@ -96,7 +96,7 @@
 | 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); §5 desktop teaching core, 9 stages all bit-exact twins, MHC beats bilinear 1.52 dB, dual AWB + designed failures, Jetson path documented never faked |
 | 01.24 | Transparent/reflective object detection via polarization imaging | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Fresnel anchor\|diff\|=0.00034, Brewster peak 0.31° off true, glass: intensity recall 0% vs DoLP 97% — domain 01 COMPLETE (24/24) |
 
-## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 19/20 done
+## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 20/20 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -119,7 +119,7 @@
 | 02.17 | LiDAR-camera projection/coloring fusion kernels | intermediate |  | done | worker+lead | all §9 gates green 2026-07-12 (RTX 2080 SUPER); occlusion fix 89.1%->0.7% wrong-color, sensitivity curve matches 01.17 analytic 1.09x, edge bleeding 287x taught |
 | 02.18 | Weather filtering: snow/rain/dust outlier removal (DROR/LIOR) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-12 (RTX 2080 SUPER); Beer-Lambert scatterer model, SOR far-range failure 60.5% vs DROR 5.9% asserted, dust-plume DROR/LIOR divergence measured |
 | 02.19 | PointPillars/CenterPoint voxelization + scatter kernels feeding TensorRT | intermediate |  | done | worker+lead | all §9 gates green 2026-07-12 (RTX 2080 SUPER); atomic-cap nondeterminism measured vs sorted bit-identity, 6/6 detection closure, TRT handoff documented per §5 with zero fabricated numbers |
-| 02.20 | LiDAR intensity calibration across channels | intermediate |  | todo |  |  |
+| 02.20 | LiDAR intensity calibration across channels | intermediate |  | done | worker+lead | all §9 gates green 2026-07-12 (RTX 2080 SUPER); gains 5.8% worst, spread collapse 5.5x, LIOR decision-flip demo closes 02.18 loop, observability-as-connectivity — DOMAIN 02 COMPLETE (20/20) |
 
 ## 3. Perception — Radar, Sonar, Event & Exotic Sensors (`03-perception-radar-sonar-event`) — 1/13 done
 

@@ -1,8 +1,17 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 02.20.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.20 (lidar-intensity-calibration-across-channels)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — never a measured percentage, timing, or GPU name ("[info]"/"[time]"
+# lines vary by machine and are deliberately unchecked — CLAUDE.md §12). Change the program's
+# stable lines and this file together (see the output-contract note at the top of ../src/main.cu).
+# Captured from an actual run on an RTX 2080 SUPER (sm_75), CUDA 13.3, Release|x64.
+[demo] LiDAR intensity calibration across channels: self-calibrating 16 beam gains from shared-voxel observations, no reflectance targets (project 02.20)
+PROBLEM: 16-channel spinning LiDAR, forward model I=g[ch]*R*f(r)*cos(theta)+noise, self-calibration via a shared-voxel graph least squares, FP32
+DATA: synthetic structured scene (ground/wall_near/panel/wall_far[/isolated_target]) ray-cast per channel; primary scan n=1032, degenerate scan n=1056 [synthetic, seed 42]
+VERIFY: PASS (GPU matches CPU reference within documented per-stage tolerance: features, binning, accumulate, assemble)
+GATE gain_recovery: PASS
+GATE consistency_improvement: PASS
+GATE multi_material_robustness: PASS
+GATE unobservable_channel: PASS
+ARTIFACT: wrote demo/out/{intensity_hist_before.csv, intensity_hist_after.csv, range_profile.csv, range_image_before.ppm, range_image_after.ppm, gates_metrics.csv}
+RESULT: PASS (VERIFY + all 4 gates passed: gain_recovery, consistency_improvement, multi_material_robustness, unobservable_channel)

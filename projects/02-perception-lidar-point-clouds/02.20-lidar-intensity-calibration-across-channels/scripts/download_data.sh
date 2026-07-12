@@ -3,10 +3,13 @@
 # download_data.sh — public-dataset fetcher for 02.20 (LiDAR intensity calibration across channels)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (CLAUDE.md paragraph 8): this project stays synthetic-only. No
+# public dataset publishes the TRUE per-channel gain it used to synthesize a
+# scan — that is exactly the ground truth this project's gates grade
+# against, and no LiDAR vendor ships it (per-channel gain compensation
+# tables are proprietary calibration-line data, not published alongside raw
+# scans). Recovering it after the fact would need a laboratory reflectance-
+# target rig this repo cannot reproduce. data/README.md states this in full.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
