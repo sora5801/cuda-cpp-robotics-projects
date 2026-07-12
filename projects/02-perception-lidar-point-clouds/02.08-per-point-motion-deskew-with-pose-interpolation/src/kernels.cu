@@ -1,131 +1,130 @@
 // ===========================================================================
-// kernels.cu — GPU kernels for project 02.08 (Per-point motion deskew with pose interpolation)
-//
-// TEMPLATE PLACEHOLDER — replace with this project's real kernels.
-// TODO(scaffold): delete the SAXPY kernel and implement the real ones (one
-// teaching-focused kernel per concept, each commented to the standard shown
-// here and in CLAUDE.md §6.2 / docs/COMMENTING_STANDARD.md).
+// kernels.cu — GPU kernel for project 02.08
+//              Per-point motion deskew with pose interpolation
 //
 // Role in the project
 // -------------------
-// All __global__ (GPU) code lives here, together with the small host-side
-// launch wrappers that own the grid/block math. Keeping the launch math next
-// to the kernel means the launch-configuration reasoning (the comments the
-// repo standard requires) sits beside the code it configures.
-//
-// Big idea of the placeholder kernel
-// ----------------------------------
-// SAXPY is a pure MAP: out[i] depends only on in[i]. The GPU mapping is
-// therefore the simplest one that exists — one thread per element — written
-// here in its robust production form, the GRID-STRIDE LOOP. Learn this
-// pattern well: a large fraction of the kernels in this repository are maps
-// or start from one.
+// The ONE __global__ kernel in this project, plus the small host-side pieces
+// that feed it: the __constant__ trajectory buffer and its setter, and the
+// launch wrapper owning the grid/block math. All of the actual MATH (SLERP,
+// quaternion algebra, the rigid re-projection) lives in kernels.cuh as
+// shared HD functions — this file is deliberately thin, because the whole
+// point of the deskew kernel is that it is a PURE MAP: read a point + a
+// uniform pose, call one function, write a point.
 //
 // Read this after: main.cu, kernels.cuh.  Read this before: reference_cpu.cpp.
 // ===========================================================================
 
-#include "kernels.cuh"           // our own interface — keeps decl/def in sync at compile time
-#include "util/cuda_check.cuh"   // CUDA_CHECK_LAST_ERROR for post-launch error surfacing
+#include "kernels.cuh"
+#include "util/cuda_check.cuh"
+
+#include <cstdio>
+#include <cstdlib>
 
 // ---------------------------------------------------------------------------
-// saxpy_kernel — one grid-stride pass computing y[i] = a * x[i] + y[i].
+// g_traj — the currently-uploaded trajectory, in __constant__ memory.
 //
-// Thread-to-data mapping:
-//   Thread (blockIdx.x, threadIdx.x) starts at global element
-//       i0 = blockIdx.x * blockDim.x + threadIdx.x
-//   and then strides by the TOTAL number of threads in the grid
-//       stride = gridDim.x * blockDim.x
-//   visiting i0, i0+stride, i0+2*stride, ... < n.
+// WHY constant memory (the same reasoning 09.01's robot model and 01.10's
+// row LUT give, both cited in kernels.cuh): every thread in the grid reads
+// the SAME kMaxTrajSamples*kTrajStride = 512 floats (2 KiB) for a GIVEN
+// launch — a textbook broadcast access pattern. Constant memory is cached
+// and serves a uniform read to an entire warp in one transaction; the
+// alternative (a plain __device__ array read through a pointer) would work
+// correctly but forgo that broadcast — measurably slower for an access this
+// hot (every thread touches g_traj on every find_bracket_index step).
 //
-// Why a grid-stride loop instead of the naive "one thread = one element,
-// return if i >= n"?
-//   1) Correct for ANY n, even n larger than the maximum grid size —
-//      the loop just runs more iterations per thread.
-//   2) Lets the CALLER choose the grid size for occupancy reasons instead of
-//      being forced to launch exactly ceil(n/block) blocks.
-//   3) It is the idiom used throughout CUDA's own samples and libraries, so
-//      learning it here pays off everywhere.
-//   The cost: two extra registers and a loop branch — negligible for a
-//   memory-bound kernel.
-//
-// Memory behavior (the whole performance story for SAXPY):
-//   Adjacent threads (threadIdx.x, threadIdx.x+1) read adjacent addresses
-//   x[i], x[i+1] — so each 32-thread warp touches one contiguous 128-byte
-//   span, which the hardware COALESCES into the minimum number of memory
-//   transactions. Coalescing is THE first-order GPU optimization; a strided
-//   or random access pattern here could cost 10-30x. No shared memory is
-//   used because no data is reused between threads — shared memory only pays
-//   when threads share or revisit data (see THEORY.md "The GPU mapping").
-//
-// Parameters:
-//   n   — element count (> 0); unitless placeholder data
-//   a   — the SAXPY scalar (FP32, exactly representable 2.0 in the demo)
-//   x   — [n] device pointer, read-only input. __restrict__ promises the
-//         compiler x and y do not alias, unlocking wider loads/scheduling.
-//   y   — [n] device pointer, read AND written in place (input y, output
-//         a*x+y). In-place is safe because element i never reads element j.
-//
-// Numerical note: the compiler typically fuses a*x[i]+y[i] into one FMA
-// (fused multiply-add, a single rounding step). The CPU reference may round
-// twice (mul, then add). Max divergence ~1 ULP — which is exactly why
-// main.cu compares with a small tolerance instead of demanding bit equality.
-//
-// Launch configuration: owned by launch_saxpy() below — see its comment.
+// Sized to kMaxTrajSamples (64), not kDenseSamples (21): the buffer is
+// declared once at its ceiling; set_trajectory() below uploads only the
+// FIRST n*kTrajStride floats that matter for a given call, and every reader
+// (find_bracket_index, interpolate_pose) is told the true n explicitly — the
+// unused tail of the buffer is simply never addressed. This headroom is what
+// lets a learner's Exercise (denser trajectories) change ONLY the data, not
+// this kernel or its buffer declaration.
 // ---------------------------------------------------------------------------
-__global__ void saxpy_kernel(int n,
-                             float a,
-                             const float* __restrict__ x,
-                             float*       __restrict__ y)
+__constant__ float g_traj[kMaxTrajSamples * kTrajStride];
+
+// ---------------------------------------------------------------------------
+// set_trajectory — see kernels.cuh for the full contract. Validates n before
+// touching the device (a silent out-of-range n would either under-fill the
+// buffer with stale bytes from a PREVIOUS regime's upload, or overflow it).
+// ---------------------------------------------------------------------------
+void set_trajectory(const float* host_traj, int n)
 {
-    // This thread's first element, and the whole-grid stride (see mapping
-    // note above). Both fit in int here because n is int; a real project
-    // handling >2^31 elements would use long long / size_t indexing.
-    int i      = blockIdx.x * blockDim.x + threadIdx.x;  // my starting element
-    int stride = gridDim.x * blockDim.x;                 // total threads in the grid
-
-    // Each iteration: 2 loads (x[i], y[i]), 1 FMA, 1 store — ~12 bytes moved
-    // per 2 FLOPs. Memory-bound, as promised. The loop condition also guards
-    // the ragged tail: threads whose i starts beyond n simply do nothing.
-    for (; i < n; i += stride) {
-        y[i] = a * x[i] + y[i];
+    if (n < 2 || n > kMaxTrajSamples) {
+        std::fprintf(stderr,
+            "set_trajectory: n=%d out of range [2,%d] (kMaxTrajSamples)\n",
+            n, kMaxTrajSamples);
+        std::exit(EXIT_FAILURE);
     }
+    // cudaMemcpyToSymbol copies HOST bytes into a __constant__/__device__
+    // symbol by NAME (the compiler resolves g_traj's device address at link
+    // time) — the standard way to seed constant memory from the host; see
+    // util/cuda_check.cuh for what CUDA_CHECK catches here (a malformed
+    // symbol reference or a size that would overflow the declared array).
+    CUDA_CHECK(cudaMemcpyToSymbol(g_traj, host_traj,
+                                  static_cast<size_t>(n) * kTrajStride * sizeof(float)));
 }
 
 // ---------------------------------------------------------------------------
-// launch_saxpy — host wrapper that owns the launch configuration.
+// deskew_kernel — one thread per point, a pure MAP (kernels.cuh's
+// deskew_one_point derivation is the whole algorithm; this kernel is just
+// the thread-to-data mapping around it).
 //
-// Purpose: keep the <<<grid, block>>> math, its reasoning, and the mandatory
-// post-launch error check in ONE place, so callers (main.cu) stay clean and
-// no launch in the codebase goes unchecked (CLAUDE.md §6.1 rule 7).
+// Thread-to-data mapping: thread (blockIdx.x, threadIdx.x) owns global point
+// index i = blockIdx.x*blockDim.x + threadIdx.x, and does exactly ONE call
+// into the shared math — no loop, no grid-stride (this project's N is at
+// most a few thousand points per cohort, comfortably under one launch's
+// natural grid size; a grid-stride loop, as 33.01/SAXPY use for very large
+// N, would be the right upgrade if N ever grew past ~10 million — README
+// Exercise).
 //
-// Parameters: as saxpy_kernel, but x/y are DEVICE pointers the CALLER owns —
-// this function allocates nothing, frees nothing, and synchronizes nothing
-// (the caller times/syncs via events; see main.cu step 3).
-//
-// Launch configuration reasoning:
-//   block = 256 threads — a solid default on sm_75..sm_89: a multiple of the
-//     32-thread warp (mandatory for full warps), large enough for good
-//     occupancy, small enough to keep per-block resources (registers) free.
-//     Powers of two between 128 and 512 are all reasonable; measure before
-//     believing any single number.
-//   grid = ceil(n / block), capped at 4096 blocks — enough blocks to fill
-//     every SM on any current GPU many times over (an RTX 2080 has 46 SMs);
-//     beyond that, more blocks add scheduling overhead without adding
-//     parallelism, and the grid-stride loop absorbs the remainder anyway.
-//     The integer ceil idiom (n + block - 1) / block is used all over this
-//     repo — it rounds UP so the last partial block is not lost.
+// Memory behavior: t_points/xyz_local are read once per thread (coalesced:
+// adjacent threads read adjacent point indices -> adjacent addresses,
+// exactly like every other per-element kernel in this repo); g_traj is a
+// UNIFORM broadcast read from constant memory (same address range for
+// every thread in the grid, see the g_traj comment above); xyz_out is one
+// coalesced write per thread. No shared memory (points share no data with
+// each other) and no atomics (each point's output is independent — the
+// embarrassingly-parallel property the catalog bullet names explicitly).
 // ---------------------------------------------------------------------------
-void launch_saxpy(int n, float a, const float* d_x, float* d_y)
+__global__ void deskew_kernel(int n_points, const float* __restrict__ t_points,
+                              const float* __restrict__ xyz_local, int n_samples,
+                              Pose ref_pose, float* __restrict__ xyz_out)
 {
-    const int block = 256;                              // threads per block (warp multiple; see above)
-    int grid = (n + block - 1) / block;                 // ceil(n/block): cover every element
-    if (grid > 4096) grid = 4096;                       // cap: grid-stride loop covers the rest
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n_points) return;   // guard the ragged last block
 
-    saxpy_kernel<<<grid, block>>>(n, a, d_x, d_y);
+    const Vec3 p_local{ xyz_local[i * 3 + 0], xyz_local[i * 3 + 1], xyz_local[i * 3 + 2] };
+    const Vec3 p_out = deskew_one_point(g_traj, n_samples, ref_pose, t_points[i], p_local);
+    xyz_out[i * 3 + 0] = p_out.x;
+    xyz_out[i * 3 + 1] = p_out.y;
+    xyz_out[i * 3 + 2] = p_out.z;
+}
 
-    // Kernel launches return errors ASYNCHRONOUSLY: an invalid configuration
-    // or a crashed kernel surfaces on a LATER call unless we ask. This macro
-    // (util/cuda_check.cuh) calls cudaGetLastError() right away so a broken
-    // launch is reported HERE, at the launch site, not three calls later.
-    CUDA_CHECK_LAST_ERROR("saxpy_kernel launch");
+// ---------------------------------------------------------------------------
+// launch_deskew — host wrapper owning the launch configuration.
+//
+// block = 256 threads (repo-default warp-multiple, good occupancy on
+// sm_75..sm_89 — the same default 02.01/08.01/09.01 use). grid =
+// ceil(n_points/256): every project cohort has a few thousand points, so
+// this is at most a few dozen blocks — nowhere near saturating even one SM
+// generation's block-scheduling capacity, which is exactly why NO grid cap
+// or grid-stride loop is needed here (contrast SAXPY's 4096-block cap for
+// million-element inputs — this kernel's N never approaches that regime;
+// see the deskew_kernel comment above for the explicit exercise pointer).
+// ---------------------------------------------------------------------------
+void launch_deskew(int n_points, const float* d_t_points, const float* d_xyz_local,
+                   int n_samples, Pose ref_pose, float* d_xyz_out)
+{
+    if (n_points <= 0) return;   // 0-point cohort is a valid (if degenerate) no-op
+
+    const int block = 256;
+    const int grid = (n_points + block - 1) / block;
+
+    deskew_kernel<<<grid, block>>>(n_points, d_t_points, d_xyz_local, n_samples, ref_pose, d_xyz_out);
+
+    // Kernel launches fail asynchronously (CLAUDE.md §6.1 rule 7) — surface
+    // any launch-configuration error (bad grid/block dims, no compatible
+    // device code for this GPU's sm_XX) HERE, at the launch site.
+    CUDA_CHECK_LAST_ERROR("deskew_kernel launch");
 }

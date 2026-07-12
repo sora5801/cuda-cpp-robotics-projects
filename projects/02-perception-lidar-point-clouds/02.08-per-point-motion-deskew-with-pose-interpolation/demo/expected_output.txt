@@ -1,8 +1,25 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# Expected stable output for project 02.08 (Per-point motion deskew with pose interpolation).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.08 (per-point-motion-deskew-with-pose-interpolation)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# here — never timings ("[time]") or per-cohort measurements ("[info]"), which carry floats that
+# can differ in the last bit across GPU architectures (FMA fusion, sinf/cosf/acosf implementation)
+# even though every gate's PASS/FAIL verdict itself is engineered to be robust to that (see the
+# gate-tolerance comment block at the top of src/main.cu). This is an ACTUAL run's output, captured
+# on the reference machine (RTX 2080 SUPER, sm_75) — see THEORY.md "How we verify correctness" for
+# the measured numbers behind every gate below.
+[demo] per-point motion deskew with pose interpolation (project 02.08)
+PROBLEM: deskew points from 4 motion cohorts (straight/arc/wiggle/stationary) via LERP+SLERP pose interpolation, sweep 100 ms, 16 beams x 360 azimuth steps
+DATA: loaded data/sample/deskew_scan.bin (synthetic, 4 cohorts, 18426 points total) [synthetic]
+VERIFY: PASS (GPU deskew matches CPU reference within tol 1.0e-04 m, all cohorts x both regimes)
+SLERP_CORRECTNESS: PASS (geodesic angle progression + double-cover sign-flip invariance within tolerance)
+IDENTITY_CONTROL: PASS (stationary cohort: deskew is a no-op within tolerance)
+RESTORATION: PASS (dense-sampled deskew recovers instantaneous truth on all 3 moving cohorts; undeskewed baseline order-of-magnitude worse)
+SAMPLING_LESSON: PASS (wiggle cohort: sparse/dense error ratio clears the floor; straight cohort: dense and sparse regimes agree, as constant velocity predicts)
+DOWNSTREAM_PAYOFF: PASS (wall plane-fit RMS tightens after deskew, straight cohort)
+ARTIFACT: wrote demo/out/triptych_wiggle.pgm
+ARTIFACT: wrote demo/out/gates_metrics.csv
+ARTIFACT: wrote demo/out/errors_straight.csv
+ARTIFACT: wrote demo/out/errors_arc.csv
+ARTIFACT: wrote demo/out/errors_wiggle.csv
+ARTIFACT: wrote demo/out/errors_stationary.csv
+RESULT: PASS (all gates passed)

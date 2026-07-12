@@ -3,10 +3,12 @@
 # download_data.sh — public-dataset fetcher for 02.08 (Per-point motion deskew with pose interpolation)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (CLAUDE.md paragraph 8): no public dataset applies to this project.
+# Motion deskew needs the platform's EXACT continuous trajectory during a
+# sweep to measure restoration against ground truth — no recorded LiDAR
+# dataset hands that over cleanly (see ../scripts/make_synthetic.py's module
+# docstring for the full reasoning). This script is therefore the honest
+# no-op below, kept in the same shape every project's download script uses.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

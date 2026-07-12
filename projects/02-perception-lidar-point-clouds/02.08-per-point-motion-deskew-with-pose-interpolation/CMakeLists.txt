@@ -70,9 +70,7 @@ target_compile_options(per-point-motion-deskew-with-pose-interpolation PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(per-point-motion-deskew-with-pose-interpolation PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). This project links no extra CUDA libraries
+# (no cuBLAS/cuFFT/Thrust/cuRAND — every quaternion/interpolation primitive
+# in src/kernels.cuh is hand-written, and there is no runtime randomness
+# anywhere in this pipeline; see THEORY.md "Numerical considerations").
