@@ -1,10 +1,13 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.02 (ROI crop, passthrough, organized↔unorganized conversion kernels)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RESOLVED: no public dataset teaches this project's kernels better than the
+# fully-controlled synthetic scene in ../scripts/make_synthetic.py — this
+# project needs EXACT boundary-straddling points and a deterministic
+# collision table, neither of which any public LiDAR dataset would provide,
+# and every ROI/frustum bound is this project's OWN illustrative choice, not
+# something borrowed from a real deployment. This script therefore stays the
+# honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

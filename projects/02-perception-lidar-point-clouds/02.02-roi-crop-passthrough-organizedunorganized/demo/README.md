@@ -12,13 +12,43 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The demo loads the committed single-revolution 16-beam organized LiDAR scan
+(`data/sample/roi_scan.bin`) and runs every kernel this project teaches, in order:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+1. **Organized -> unorganized**: compacts the 16,384-cell ring x azimuth grid down to its ~12,361
+   valid points, GPU and CPU, and checks them bit-exact against each other AND against the Python
+   generator's own independent tally (three differently-timed, differently-languaged counts of the
+   same thing).
+2. Builds the **predicate test cloud** (those valid points + a 39-point "edge cohort" straddling
+   every passthrough/box/frustum boundary) and runs all four named compactions — **passthrough**,
+   **box ROI**, **frustum crop**, and **fused** — GPU vs. CPU.
+3. Runs the SAME three filters as a **chained** 3-pass pipeline and checks it against the **fused**
+   single-pass result: bit-identical, with an analytical memory-traffic estimate printed alongside.
+4. **Round-trips** the unorganized cloud back through **unorganized -> organized** and checks
+   identity against the original grid on every originally-valid cell.
+5. Builds a **collision test** cloud (the valid points plus 200 "ghost" second-echo duplicates at
+   known cells) and exercises the 64-bit-encoded-atomicMin nearest-wins scatter, reconciling
+   `valid_in == occupied + collisions` for both GPU and CPU.
+6. Compares the **hand-rolled two-level Blelloch scan** against `thrust::exclusive_scan` and a CPU
+   serial scan — bit-exact, integer arithmetic, no tolerance needed — then times both across three
+   synthetic array sizes (`[info] scan_scaling`).
+
+Every comparison above prints a `VERIFY(...)`/`GATE ...:` line with a `PASS`/`FAIL` verdict; the
+program's exit code is nonzero if any of them fail. `RESULT: PASS` means every one of them agreed.
+
+### Artifacts (`demo/out/`)
+
+| File | What it shows |
+|------|----------------|
+| `full_topview.ppm` | Top-down (looking down -z) render of the whole predicate test cloud. |
+| `box_topview.ppm` | Same view, dim-gray backdrop + the box-ROI survivors highlighted in **green** — the crop boundary should be visible as a sharp rectangle of green points against gray. |
+| `frustum_topview.ppm` | Same view, backdrop + the frustum-crop survivors highlighted in **cyan** — a wedge shape fanning out from the camera/LiDAR origin. |
+| `organized_occupancy_before.pgm` | The organized grid's validity mask (white = valid, black = invalid), 1024x16 px — dark horizontal bands are open-sky misses over the (ceiling-less) walls; scattered single-pixel dropouts are the 5% absorption/glare model. |
+| `organized_occupancy_after.pgm` | The SAME mask reconstructed via the round-trip (organized -> unorganized -> organized) — should be visually IDENTICAL to `_before.pgm` (`GATE roundtrip` checks this bit-exact, not just visually). |
+| `gates_metrics.csv` | Every measured number behind every printed line, in one machine-readable file. |
+
+PPM/PGM are viewable in most image viewers, GIMP, or IrfanView; VS Code's "PBM/PPM/PGM Viewer"
+extension also opens them directly.
 
 ## How to read the output
 

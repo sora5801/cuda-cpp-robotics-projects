@@ -1,8 +1,21 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
 # here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.02 (roi-crop-passthrough-organizedunorganized)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# These lines are copied from an ACTUAL Release|x64 run on the owner's RTX 2080 SUPER (sm_75),
+# default sample (data/sample/roi_scan.bin, seed 42), no CLI arguments. Every count below is an
+# INTEGER produced by deterministic scan/compaction/atomicMin-race logic (no float summation
+# anywhere in this pipeline), confirmed byte-identical across repeated runs on the same GPU before
+# being copied here — see main.cu's output-contract comment.
+[demo] ROI crop / passthrough / organized<->unorganized conversion kernels: prefix-scan stream compaction (project 02.02)
+PROBLEM: organized grid 16 rings x 1024 azimuth = 16384 cells; N_edge=39, N_ghost=200
+DATA: data/sample/roi_scan.bin [synthetic, seed 42, xorshift32, single-revolution 16-beam organized scan + edge cohort + ghost table]
+VERIFY(organized_to_unorganized): PASS (GPU vs CPU vs Python-generator tally bit-exact, N_valid=12361/16384 cells)
+VERIFY(predicate_correctness): PASS (passthrough=5181, box=377, frustum=1924, fused=25 kept of N=12400; GPU counts+order match CPU, every kept point independently satisfies its predicate)
+GATE order_preservation: PASS (compacted original-index sequence strictly increasing, all 4 filters)
+GATE frustum_geometry: PASS (GPU 5-plane frustum crop == CPU brute-force point-in-frustum, set+order exact; edge cohort: 15 inside / 24 outside)
+GATE fused_vs_chained: PASS (fused single-pass == chained 3-pass, bit-identical set+order+values; N=12400 -> 5181 -> 350 -> 25)
+GATE roundtrip: PASS (organized -> unorganized -> organized identity on all 12361 valid cells, 0 collisions expected and 0 observed, 4023 empty cells stay empty)
+GATE collision_accounting: PASS (valid_in=12561 == occupied(12361)+collisions(200) [GPU], == occupied(12361)+collisions(200) [CPU]; GPU winner-per-cell bit-exact vs CPU)
+VERIFY(scan_bitexact): PASS (hand-rolled Blelloch GPU scan == Thrust GPU scan == CPU serial scan, integer-exact, on flag arrays of size 16384 and 12400)
+ARTIFACT: wrote demo/out/{full_topview.ppm, box_topview.ppm, frustum_topview.ppm, organized_occupancy_before.pgm, organized_occupancy_after.pgm, gates_metrics.csv}
+RESULT: PASS (VERIFY(organized_to_unorganized/predicate_correctness/scan_bitexact) + GATE(order_preservation/frustum_geometry/fused_vs_chained/roundtrip/collision_accounting) all passed)
