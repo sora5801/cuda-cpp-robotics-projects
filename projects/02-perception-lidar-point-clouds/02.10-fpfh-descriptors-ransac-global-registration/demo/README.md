@@ -12,23 +12,45 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The demo loads three synthetic (source, target) LiDAR scan pairs of one room, related by a known
+140-degree/8-meter transform (`data/README.md`), computes FPFH descriptors for every cloud on the GPU,
+runs the full pipeline (descriptor matching → RANSAC hypothesis farm → inlier refit → point-to-plane
+ICP polish) on each pair, then reports:
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+- **`VERIFY(...)` lines** — GPU vs. independent-CPU agreement for every stage (KNN, normals, SPFH,
+  FPFH, matching, RANSAC hypotheses, the RANSAC refit, the ICP linear system).
+- **`GATE ...` lines** — the independent, ground-truth checks that are this project's real teaching
+  payoff: `descriptor_invariance` (FPFH computed independently in each scan's own frame agrees for the
+  SAME physical point — pose-invariance, measured), `registration_recovery` (the recovered pose matches
+  the TRUE 140deg/8m transform, from a cold start), `icp_negative_control` (local ICP alone, run from
+  identity with no RANSAC, provably FAILS at this relative pose — proving global registration earns its
+  keep), and `ransac_formula` (the classical RANSAC iteration-count formula, checked against the
+  measured correspondence inlier ratio).
+- **`[info]` lines** for every measured number behind those verdicts (percentages, angular/translation
+  errors, the low-overlap stress cohort's honestly-reported result) — not diffed, so the demo's checked
+  contract survives running on a different GPU architecture.
+
+**Artifacts** written to `demo/out/`: `topview_before.ppm`/`topview_after.ppm` (the classic
+before/after registration top-view — source in red, target in blue, **purple where both clouds land
+on the same pixel** (the visual signature of correct alignment: corresponding points differ by only
+~1 cm of sensor noise, far under one pixel at this image's scale, so successful registration turns
+large red/blue regions into purple), before = raw unaligned local frames, after = the final recovered
+alignment), `descriptor_distance_histogram.csv` (FPFH L2 distance
+for ground-truth-matched vs. random point pairs — the separability visual behind the ratio test and
+`descriptor_invariance`), and `gates_metrics.csv` (every measured number in machine-readable form).
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, and every MEASURED number (percentages, errors, counts) — deliberately not diffed so the contract survives a different GPU architecture's atomic-reduction order. | No. |
+| `PROBLEM:` / `DATA:` | The problem instance and the three committed scan pairs' sizes/overlap/noise. | Yes — stable (demo runs with no args, data is committed). |
+| `VERIFY(...):` | `PASS`/`FAIL` — GPU vs. independent-CPU agreement for one pipeline stage. | Yes — stable (verdict + compile-time thresholds only; the measured agreement percentage is a companion `[info]` line). |
+| `GATE ...:` | `PASS`/`FAIL` — an independent ground-truth/invariant check (never GPU-vs-CPU). | Yes — stable, same split as `VERIFY`. |
+| `ARTIFACT:` | Which files were written to `demo/out/`. | Yes — stable. |
+| `[time]`    | Pipeline timing — a **teaching artifact, never a benchmark claim**. | No. |
+| `RESULT:`   | Final `PASS`/`FAIL` verdict (every `VERIFY` and gated `GATE` must pass). The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines

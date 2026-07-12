@@ -16,7 +16,7 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's contents:** three (source, target) scan pairs of one synthetic room, each a pair of
+`.bin` point clouds (see `../README.md` for the byte layout, checksums, and provenance) plus
+`pairs_meta.csv` (per-pair counts, measured overlap, noise level, and the TRUE relative pose). Total
+~235 KiB, regenerated bit-for-bit by `python ../../scripts/make_synthetic.py --seed 42`.

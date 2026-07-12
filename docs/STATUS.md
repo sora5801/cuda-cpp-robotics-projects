@@ -19,19 +19,19 @@
 
 ## Summary
 
-**Overall: 67/505 done** (13.3%)
+**Overall: 68/505 done** (13.5%)
 
 | Status | Count |
 |--------|-------|
-| todo | 438 |
+| todo | 437 |
 | in-progress | 0 |
-| done | 67 |
+| done | 68 |
 | blocked | 0 |
 
 | Domain | Done / Total |
 |--------|--------------|
 | 01 Perception — Cameras & Vision | 24/24 |
-| 02 Perception — LiDAR & Point Clouds | 9/20 |
+| 02 Perception — LiDAR & Point Clouds | 10/20 |
 | 03 Perception — Radar, Sonar, Event & Exotic Sensors | 1/13 |
 | 04 Sensor Fusion & State Estimation | 1/13 |
 | 05 SLAM, Mapping & Localization | 1/18 |
@@ -96,7 +96,7 @@
 | 01.23 | Full RAW→RGB ISP on Jetson (Argus + custom CUDA stages) | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); §5 desktop teaching core, 9 stages all bit-exact twins, MHC beats bilinear 1.52 dB, dual AWB + designed failures, Jetson path documented never faked |
 | 01.24 | Transparent/reflective object detection via polarization imaging | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); Fresnel anchor\|diff\|=0.00034, Brewster peak 0.31° off true, glass: intensity recall 0% vs DoLP 97% — domain 01 COMPLETE (24/24) |
 
-## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 9/20 done
+## 2. Perception — LiDAR & Point Clouds (`02-perception-lidar-point-clouds`) — 10/20 done
 
 | ID | Project | Difficulty | Flagship | Status | Owner | Notes |
 |----|---------|------------|----------|--------|-------|-------|
@@ -109,7 +109,7 @@
 | 02.07 | NDT scan matching (Autoware-style map localizer) | intermediate |  | done | worker+finisher+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); corridor observability root-caused (0% on-axis vs 84% off-axis), RNG-desync outlier paradox fixed, ICP-wins-small-scenes taught honestly |
 | 02.08 | Per-point motion deskew with pose interpolation | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); SLERP double-cover gated, identity control exact 0.0, sampling lesson 19.2x, wall tightening 42x |
 | 02.09 | Normal + curvature estimation at millions of points/sec | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); 19.9 Mpts/s gated, plane anchor 0.0024°, cylinder axis 0.07°, KNN ring-termination bug caught by brute-force anchor |
-| 02.10 | FPFH descriptors + RANSAC global registration | intermediate |  | todo |  |  |
+| 02.10 | FPFH descriptors + RANSAC global registration | intermediate |  | done | worker+lead | all §9 gates green 2026-07-11 (RTX 2080 SUPER); descriptor invariance MEASURED 0.057 L1, 140°/8m cold-start recovered to 0.011m, ICP-from-identity fails as designed, 33% overlap failure honest |
 | 02.11 | Scan Context / ring-descriptor loop-closure search | intermediate |  | todo |  |  |
 | 02.12 | Range-image conversion + depth-clustering segmentation | intermediate |  | todo |  |  |
 | 02.13 | Dynamic point removal (raycast free-space carving) | intermediate |  | todo |  |  |

@@ -1,8 +1,31 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.10 (fpfh-descriptors-ransac-global-registration)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract for project 02.10 (FPFH descriptors + RANSAC global registration).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing. Every
+# non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check -- extra "[info]"/
+# "[time]" lines are fine and expected; see ../src/main.cu's "Output contract" header comment). Stable
+# lines carry the PASS/FAIL verdict and compile-time-constant thresholds only; every MEASURED number
+# (percentages, errors, counts) lives in a companion "[info]" line, deliberately not diffed, so this
+# file stays valid across GPU architectures whose atomic-reduction order can shift a measured float in
+# its last few bits. These are the ACTUAL stable lines an unmodified
+# fpfh-descriptors-ransac-global-registration.exe (no arguments) printed on the reference machine
+# (RTX 2080 SUPER, sm_75, Release|x64) against the committed data/sample/{pair0,pair1,pair2}_
+# {source,target}.bin (see ../data/README.md).
+[demo] 02.10 FPFH descriptors + RANSAC global registration
+PROBLEM: 3 scan pairs of one synthetic room (floor+4 walls+crate+pillar); TRUE relative pose 140.0 deg yaw, 8.000 m translation (data/README.md)
+DATA: pair0 n_source=3158 n_target=2649 overlap=62.0% noise_sigma=0.000m
+DATA: pair1 n_source=3158 n_target=2649 overlap=62.0% noise_sigma=0.010m
+DATA: pair2 n_source=3158 n_target=1496 overlap=33.5% noise_sigma=0.010m
+VERIFY(knn): PASS (GPU brute-force KNN neighbor lists vs independent CPU twin, pair1 source, exact-match required)
+VERIFY(normals): PASS (GPU vs independent-CPU-eigensolve normal agreement, pair1 source, need >=95% of points with dot>=0.98)
+VERIFY(spfh): PASS (GPU vs CPU-twin SPFH histogram bins, pair1 source, need >=98% of bins within tol 0.05)
+VERIFY(fpfh): PASS (GPU vs CPU-twin FPFH descriptor bins, pair1 source, need >=98% of bins within tol 0.05)
+VERIFY(match): PASS (GPU vs independent-CPU descriptor matching, pair1, need >=95% agree)
+VERIFY(ransac): PASS (GPU vs independent-CPU hypothesis farm, pair1, 8192 hypotheses, need >=95% agree (valid+inlier_count))
+VERIFY(ransac_refit): PASS (real float refit vs independent double-precision oracle, pair1, tol 1.0deg/0.03m)
+VERIFY(icp_system): PASS (GPU-atomic vs CPU-sequential-double point-to-plane accumulator, pair1 iter0, tol 5.00e-03 relative)
+GATE descriptor_invariance: PASS (pair1, ground-truth-identical point pairs, need mean L1(FPFH_src,FPFH_tgt) <= 0.35 -- the pose-invariance property Rusu et al.'s Darboux triplet promises, MEASURED)
+GATE registration_recovery: PASS (pair1, recovered-vs-true pose needs rot_err<=3.0deg AND trans_err<=0.20m -- global registration recovers a 140deg/8m transform with NO initial guess)
+GATE icp_negative_control: PASS (pair1, ICP-FROM-IDENTITY (no RANSAC) residual error must EXCEED 25 deg or 1.0 m, proving local ICP alone cannot recover this 140deg/8m transform: global registration earns its keep)
+GATE ransac_formula: PASS (pair1, classical k=log(1-p)/log(1-w^3) [w = measured correspondence inlier ratio] must clear budget kRansacK=8192 for p=0.999)
+ARTIFACT: wrote demo/out/descriptor_distance_histogram.csv (400 matched + 400 random pairs, pair1)
+ARTIFACT: wrote demo/out/{topview_before.ppm, topview_after.ppm, descriptor_distance_histogram.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY(knn/normals/spfh/fpfh/match/ransac/ransac_refit/icp_system) + GATE(descriptor_invariance/registration_recovery/icp_negative_control/ransac_formula) all PASS)

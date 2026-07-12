@@ -1,10 +1,12 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.10 (FPFH descriptors + RANSAC global registration)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RATIFIED N/A for this project: global registration needs a scene with a
+# KNOWN, EXACT relative pose between two scans to grade recovered rotation/
+# translation error against — no public LiDAR dataset ships that ground
+# truth for two independently-posed scans of the same scene at this
+# repo's committed-sample scale. ../scripts/make_synthetic.py is the
+# permanent source (see ../data/README.md's "This project's data" table).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

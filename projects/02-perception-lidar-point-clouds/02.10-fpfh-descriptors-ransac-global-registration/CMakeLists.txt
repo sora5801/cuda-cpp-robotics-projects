@@ -70,9 +70,7 @@ target_compile_options(fpfh-descriptors-ransac-global-registration PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(fpfh-descriptors-ransac-global-registration PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). This project links NOTHING beyond the CUDA
+# runtime + C++17 standard library (no cuBLAS/cuFFT/Thrust — kernels.cuh's
+# file header explains why brute-force KNN needs no spatial-index library at
+# this project's point-count scale).
