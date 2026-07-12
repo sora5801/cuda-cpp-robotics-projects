@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-12 — batch 2k: **domain 02 complete (20/20)** — 02.18–02.20 done (78/505); SOR far-range trap asserted 60.5% vs 5.9%, ML-preprocessing determinism measured, 16-channel gains to 5.8% with the LIOR decision-flip loop closed — [push-note](push-notes/2026-07-12-02-phase-2-batch-2k-domain-02-complete.md)
 - 2026-07-12 — batch 2j: 02.14–02.17 done (75/505); disocclusion mitigation 50×, distortion bound tight at 0.9962, drift recovered to 0.11 mm with a 9.8e9× observability contrast, 01.17's formula finally measured at 1.09× — [push-note](push-notes/2026-07-12-01-phase-2-batch-2j-domain-02-movers-fleets-fusion.md)
 - 2026-07-12 — batch 2i: 02.10–02.13 done (71/505); FPFH invariance measured 0.057, 0/8 false loop closures with exact yaw recovery, β-criterion showcase 0-vs-1 clusters, bit-exact DDA with the thin-pole erosion lesson — [push-note](push-notes/2026-07-12-00-phase-2-batch-2i-domain-02-places-maps-dynamics.md)
 - 2026-07-11 — batch 2h: 02.05/02.07/02.08/02.09 done (67/505); threadfence + KNN-termination bugs caught by brute-force anchors, NDT held-and-instrumented (0% vs 84% direction split), walls tighten 42× after deskew, 19.9 Mpts/s normals — [push-note](push-notes/2026-07-11-06-phase-2-batch-2h-domain-02-registration-and-geometry.md)
