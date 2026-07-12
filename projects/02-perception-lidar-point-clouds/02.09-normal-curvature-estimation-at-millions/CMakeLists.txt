@@ -70,9 +70,12 @@ target_compile_options(normal-curvature-estimation-at-millions PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(normal-curvature-estimation-at-millions PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed).
+#
+# Thrust (kernels.cu's voxel-hash index build: stable_sort_by_key/reduce/
+# copy_if, CLAUDE.md paragraph 5 — header-only CUDA Toolkit library) needs
+# NO extra flags here: the .vcxproj's /Zc:preprocessor /Zc:__cplusplus
+# workaround (see that file's CudaCompile comments) is specifically for
+# MSVC's legacy preprocessor tripping a hard #error inside CCCL's headers —
+# gcc/clang's host preprocessors are standard-conforming already, so a
+# Linux/CMake build of this exact same kernels.cu needs nothing special.

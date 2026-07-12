@@ -1,8 +1,25 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.09 (normal-curvature-estimation-at-millions)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract for project 02.09 (Normal + curvature estimation at millions of points/sec).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing. Every
+# non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check -- extra "[info]"/
+# "[time]" lines are fine and expected; see ../src/main.cu's "Output contract" header comment). These
+# are the ACTUAL lines an unmodified `normal-curvature-estimation-at-millions.exe` (no arguments)
+# printed on the reference machine (RTX 2080 SUPER, sm_75, Release|x64) against the committed
+# data/sample/normals_scan.bin (8,400 points, 12 analytic-surface cohorts; see ../data/README.md).
+[demo] Normal + curvature estimation at millions of points/sec (project 02.09): voxel-hash KNN -> mean-shifted covariance -> Jacobi eigensolve -> sensor-oriented normal -> surface-variation curvature -> degeneracy flag
+PROBLEM: N=8400 points, 12 analytic-surface cohorts (plane/sphere/cylinder/edge x none/low/high noise), K=16 neighbors, cell=0.30 m
+DATA: data/sample/normals_scan.bin [synthetic, seed 42, xorshift32, see scripts/make_synthetic.py]
+VERIFY(knn): PASS (GPU voxel-hash bounded-heap KNN result lists exactly equal the independent CPU unordered_map + partial_sort twin, ascending under the shared (dist2,index) tie-break, all 8400 points)
+VERIFY(eigen): PASS (GPU d_jacobi_eigen_3x3 vs independent CPU jacobi_eigen_3x3_cpu -- two different rotation-angle formulas, same algorithm family, tol 5.0e-04 m^2)
+VERIFY(normals): PASS (GPU vs CPU-twin full-pipeline normal agreement, tol 0.50 deg)
+VERIFY(curvature): PASS (GPU vs CPU-twin surface-variation agreement, tol 5.0e-04)
+VERIFY(degeneracy): PASS (GPU vs CPU-twin degeneracy-flag agreement, 0/8400 mismatches)
+GATE brute_force_anchor: PASS (GPU neighbor sets exactly equal a hash-free O(n) linear-scan CPU oracle for 420 of 8400 points, stride 20; 0 mismatches)
+GATE plane_normals: PASS (angular error vs analytic normal, grazing points excluded -- noise=none mean=0.0024 deg max=0.0269 deg [near-exact anchor, tol mean<=0.05 max<=0.50]; noise=low mean=0.445 max=1.443 deg; noise=high mean=2.229 max=6.293 deg [tol mean<=3.0 max<=8.0])
+GATE sphere_normals: PASS (angular error vs analytic radial normal, grazing points excluded -- noise=none mean=1.4393 deg max=5.7802 deg [curvature-fit bias, NOT sensor noise -- no near-exact anchor expected here, see THEORY.md]; noise=low mean=1.528 max=5.279 deg; noise=high mean=3.507 max=11.956 deg [tol mean<=4.0 max<=15.0])
+GATE cylinder_axis: PASS (axis fitted from 700 ESTIMATED normals' scatter-matrix smallest eigenvector vs the TRUE cylinder axis: 0.0725 deg apart, tol 2.0 deg)
+GATE orientation: PASS (8073/8073 confidently-viewable points (|cos| >= 0.20) correctly face the sensor; exact-gated)
+GATE curvature_ordering: PASS (median surface variation, noise=none: plane=0.00000 < cylinder=0.00146 < sphere=0.00161 < edge=0.04703)
+GATE degeneracy_flags: PASS (edge cohort flagged EDGE_CORNER: 328/700 = 46.9%, floor 40%; plane-interior (noise=none) flagged EDGE_CORNER: 0/700 = 0.0%, ceiling 5%)
+GATE throughput: PASS (1050000 points [125 replicated+jittered copies of the 8400-point committed sample -- see build_throughput_cloud()], floor 8.0 Mpts/s)
+ARTIFACT: wrote demo/out/{normal_map.ppm, curvature_heatmap.ppm, degeneracy_map.ppm, per_cohort_errors.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY(knn/eigen/normals/curvature/degeneracy) + GATE(brute_force_anchor/plane_normals/sphere_normals/cylinder_axis/orientation/curvature_ordering/degeneracy_flags/throughput) all passed)

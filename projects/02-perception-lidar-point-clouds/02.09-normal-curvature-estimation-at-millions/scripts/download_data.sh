@@ -3,10 +3,13 @@
 # download_data.sh — public-dataset fetcher for 02.09 (Normal + curvature estimation at millions of points/sec)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# RATIFIED N/A for this project: normal/curvature estimation needs
+# closed-form GROUND TRUTH (an exact analytic normal and curvature at every
+# point) to grade an estimator against, and no public LiDAR dataset ships
+# that ground truth for real scans — only a synthetic truth engine can
+# (../scripts/make_synthetic.py). This is therefore a permanent, honest
+# no-op, not an unfinished stub — see ../data/README.md's "This project's
+# data" table for the reasoning stated once more, in full.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

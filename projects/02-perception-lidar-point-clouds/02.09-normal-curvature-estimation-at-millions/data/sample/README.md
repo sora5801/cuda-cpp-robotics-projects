@@ -16,7 +16,8 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `normals_scan.bin` (~263 KiB, 8,400 points across 12 analytic-surface
+cohorts) is written here by `python ../../scripts/make_synthetic.py --seed 42` (the default; byte-
+identical to the committed file). See [`../README.md`](../README.md) for the full field-by-field format
+and [`../../scripts/make_synthetic.py`](../../scripts/make_synthetic.py)'s module docstring for how each
+surface's geometry and noise model are derived.

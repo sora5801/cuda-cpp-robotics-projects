@@ -154,6 +154,22 @@
            gate (CLAUDE.md paragraph 9) while Nsight stays fully usable in
            both configurations. -->
       <GPUDebugInfo>true</GPUDebugInfo>
+      <!-- kernels.cu includes <thrust/...> (the voxel-hash index build's
+           sort + boundary compaction, CLAUDE.md paragraph 5 — header-only
+           CUDA Toolkit library). Two real MSVC/CCCL toolchain requirements
+           project 02.01 root-caused first in this repo, reproduced here
+           verbatim (CLAUDE.md paragraph 9 "explain or fix"):
+             /Zc:preprocessor — CCCL hard-requires MSVC's STANDARD-
+               CONFORMING preprocessor; cl.exe's legacy preprocessor trips
+               a hard #error inside cccl/preprocessor.h naming this flag.
+             /Zc:__cplusplus — MSVC does not update the __cplusplus macro
+               to match /std: unless this flag is passed; Thrust's dialect
+               check reads __cplusplus directly and fails closed without it.
+           Both forwarded via -Xcompiler to the underlying cl.exe host pass.
+           -std=c++17 is a THIRD, separate requirement for nvcc's OWN
+           device-side front end (cicc), which LanguageStandard=stdcpp17
+           (ClCompile, host-only) does not reach. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -187,6 +203,10 @@
            README documents the tolerance impact (CLAUDE.md paragraph 5). -->
       <CodeGeneration>compute_75,sm_75;compute_86,sm_86;compute_89,sm_89;compute_89,compute_89</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>            <!-- -lineinfo is cheap and makes Nsight useful in Release -->
+      <!-- Same /Zc:preprocessor / /Zc:__cplusplus / -std=c++17 requirement
+           as Debug (see that block's comment): kernels.cu's <thrust/...>
+           includes need it in every configuration. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -202,6 +222,10 @@
     <ClInclude Include="..\src\kernels.cuh" />
     <ClInclude Include="..\src\util\cuda_check.cuh" />
     <ClInclude Include="..\src\util\timer.cuh" />
+    <!-- paths.h: data-file / demo-out-dir resolution (find_data_file /
+         resolve_out_dir), used by main.cu the moment it loads the committed
+         sample and writes demo/out/ artifacts (CLAUDE.md §5 self-containment). -->
+    <ClInclude Include="..\src\util\paths.h" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
