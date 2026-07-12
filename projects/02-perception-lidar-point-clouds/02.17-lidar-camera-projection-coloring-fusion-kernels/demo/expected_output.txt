@@ -1,8 +1,21 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 02.17.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.17 (lidar-camera-projection-coloring-fusion-kernels)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — "[info]" (measured numbers, per-level sensitivity rows) and "[time]"
+# lines vary by machine/GPU architecture and are deliberately unchecked; every GATE threshold below
+# carries measured-then-margined headroom (README/THEORY document the exact measured numbers and
+# margins) so the verdict is stable even where the raw numbers drift a little across GPUs.
+[demo] LiDAR-camera projection/coloring fusion kernels (project 02.17)
+PROBLEM: 160x120 camera, 3368 LiDAR returns, occlusion band 0.30 m, color-boundary thresh 0.25, 3-level rotation/translation sensitivity sweep
+SCENARIO: red occluder (~4 m) hides part of a green background (~12 m) from the CAMERA but not the (higher-mounted) LiDAR; 138/3368 = 4.1% of returns are ground-truth-occluded (the occlusion cohort) [synthetic]
+VERIFY: project+z-buffer PASS (tol 1e-4 m, zero empty-pixel mismatches)
+VERIFY: project-points PASS (tol 1e-3 px / 1e-4 m, zero in-frustum mismatches)
+VERIFY: bilinear-sample PASS (tol 1e-5)
+VERIFY: occlusion-check PASS (<=1% boundary-case flag mismatches tolerated)
+GATE: frustum_accounting PASS (in_frustum+out_frustum==total AND colored+filtered==in_frustum)
+GATE: coloring_accuracy PASS (>= 70% of ground-truth-visible points colored within tol 0.12)
+GATE: occlusion_correctness PASS (WITHOUT check >= 80% wrong; WITH check <= 5% wrong)
+GATE: depth_image_fidelity PASS (painted depth matches an independently re-derived per-pixel minimum within tol 1e-4 m)
+GATE: sensitivity_curve PASS (flip-fraction non-decreasing with |perturbation| for both rotation and translation sweeps AND the smallest level's measured mean pixel displacement matches the 01.17 analytic prediction within 4x)
+ARTIFACT: wrote cloud_topview.ppm, cloud_sideview.ppm, occlusion_cohort_naive.ppm, occlusion_cohort_checked.ppm, painted_depth.pgm, sensitivity_curve.csv, gates_metrics.csv to demo/out/
+RESULT: PASS (all VERIFY twins agree and all evaluation gates pass -- see GATE lines above)

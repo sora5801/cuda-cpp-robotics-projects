@@ -1,10 +1,12 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.17 (LiDAR-camera projection/coloring fusion kernels)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): synthetic-only. Grading a fusion pipeline needs
+# EXACT per-point ground truth (true surface color AND camera-visibility) no
+# public LiDAR-camera dataset ships — a real sensor pair can only ever report
+# "what pixel did this point land on", never "was that the RIGHT pixel" — so
+# this script is an intentional, honest no-op; scripts/make_synthetic.py is
+# the sole data source (data/README.md).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
