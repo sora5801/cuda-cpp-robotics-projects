@@ -67,12 +67,25 @@ target_compile_options(ground-segmentation PRIVATE
   $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-lineinfo>
 )
 
+# kernels.cu's Milestone-2 CZM pipeline uses Thrust (thrust::stable_sort_by_key
+# / sequence / lower_bound) for the patch sort + vectorized boundary search —
+# header-only (part of the CUDA Toolkit), so no target_link_libraries entry
+# is needed for it. Thrust's CCCL headers DO need two extra flags when the
+# HOST compiler nvcc calls is MSVC (cl.exe) — the same requirement the
+# .vcxproj documents in full (ratified from project 02.01's identical fix):
+# CCCL's preprocessor.h hard-requires MSVC's standard-conforming
+# preprocessor (/Zc:preprocessor), and Thrust's dialect check needs
+# __cplusplus to actually reflect /std:c++17 (/Zc:__cplusplus). This is an
+# MSVC-specific requirement, not a CUDA one — a gcc/clang host compiler
+# (the common case for this optional Linux CMake path) needs neither flag,
+# so they are added ONLY when CMake has selected an MSVC host compiler
+# (verified: this project's CMake configuration fails to compile kernels.cu
+# with CCCL's own #error otherwise, on a Windows+MSVC CMake generator).
+target_compile_options(ground-segmentation PRIVATE
+  $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/Zc:preprocessor -Xcompiler=/Zc:__cplusplus>
+)
+
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(ground-segmentation PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed).

@@ -1,8 +1,30 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.03 (ground-segmentation)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# expected_output.txt — project 02.03 (Ground segmentation: RANSAC plane
+# fit; Patchwork++-style GPU port)
+#
+# Captured from an ACTUAL run: Release|x64, RTX 2080 SUPER (sm_75), CUDA
+# 13.3, the committed data/sample/ground_scan.bin (seed 42). Lines starting
+# with '#' are comments; run_demo.ps1 / run_demo.sh ignore them. Every
+# remaining line must appear VERBATIM in the demo's stdout — these are the
+# STABLE lines only (main.cu's "Output contract" comment): "[demo]",
+# "PROBLEM:", "DATA:", every "VERIFY(...)"/"GATE ...:" verdict, "ARTIFACT:",
+# "RESULT:". "[info]" and "[time]" lines carry machine/run-varying numbers
+# (GPU name, timings) and are deliberately NOT checked here.
+[demo] ground segmentation: RANSAC plane fit (Milestone 1) vs Patchwork++-style GPU concentric-zone model (Milestone 2) (project 02.03)
+PROBLEM: N=161836 points (135972 ground: 105828 flat + 27540 ramp + 2604 plateau; 23364 obstacle [box/pole/wall-segment]; 2500 canopy overhang), RANSAC K=1024 hypotheses thresh=0.08m, CZM 80 columns x 2 rings = 160 patches
+DATA: data/sample/ground_scan.bin [synthetic, seed 42, xorshift32, see scripts/make_synthetic.py]
+VERIFY(hypotheses_full): PASS (GPU hypothesis planes within tolerance [0.050deg/0.0010m] of CPU shared-formula twin, 0/1024 mismatched [tol 5])
+VERIFY(ransac_eval_full): PASS (GPU per-hypothesis inlier counts vs independent CPU twin, 9/1024 mismatched [tol 30, expected near-zero: a handful of points can straddle the 0.08m threshold by float ULP])
+VERIFY(ransac_refine_full): PASS (GPU float-atomics refined plane within tolerance of independent double-precision CPU twin; angle diff=0.0000 deg, offset diff=0.00000 m)
+VERIFY(hypotheses_flat): PASS (GPU hypothesis planes within tolerance [0.050deg/0.0010m] of CPU shared-formula twin, 0/1024 mismatched [tol 5])
+VERIFY(ransac_eval_flat): PASS (GPU per-hypothesis inlier counts vs independent CPU twin, 0/1024 mismatched [tol 30, expected near-zero: a handful of points can straddle the 0.08m threshold by float ULP])
+VERIFY(ransac_refine_flat): PASS (GPU float-atomics refined plane within tolerance of independent double-precision CPU twin; angle diff=0.0000 deg, offset diff=0.00001 m)
+VERIFY(patch_ids): PASS (GPU polar patch assignment vs CPU shared-formula twin, 2/161836 mismatched [tol 25, expected near-zero: a point can straddle a zone/ring/sector edge by float ULP in sqrtf/atan2f vs std::sqrt/std::atan2])
+VERIFY(czm_fit): PASS (GPU vs independent CPU twin: 0/160 patches disagree on is_ground [tol 6], point-label mismatch rate=0.0000% [tol 1.00%])
+GATE ransac_flat: PASS (near-field flat-only crop, n=38409: fitted-plane angle-from-vertical=0.084deg [tol 3.0], |offset-1.5m|=0.0052m [tol 0.050m]; precision=0.9810 recall=1.0000 [floors 0.95/0.90])
+GATE ransac_formula: PASS (measured w=0.5696 [flat-only best/n], p=0.999 -> k_needed=33.8, K=1024 >= k_needed)
+GATE single_plane_failure: PASS (single-plane RANSAC on the FULL scene misses 93.25% of true ramp+plateau ground [n=30144] -- floor 55%: a single global plane CANNOT also represent a sloped/elevated ground level; this is the DESIGNED failure)
+GATE czm_recovery: PASS (overall precision=0.9844 recall=0.9691 IoU=0.9544 [floors 0.85/0.85/0.75]; ramp recall=0.9709 [floor 0.65, n=27540]; plateau recall=0.9831 [floor 0.55, n=2604] -- CZM recovers ground RANSAC misses, the reason this milestone exists)
+GATE overhang: PASS (CZM ground false-positive rate on 2500 canopy/overhang points = 0.0000% [ceiling 2.00%] -- calling overhead canopy "ground" would let a planner route a robot as if the space beneath were driveable; RANSAC's rate on the same points = 0.0000% [info])
+GATE obstacle_rejection: PASS (CZM ground false-positive rate on 23364 box/pole/wall-segment points = 8.9625% [ceiling 13.00%]; RANSAC's rate on the same points = 3.9676% [info])
+ARTIFACT: wrote demo/out/{topview_truth_ransac_czm.ppm, sideview_truth_ransac_czm.ppm, czm_patch_stats.csv, gates_metrics.csv}
+RESULT: PASS (all VERIFY checks and all 6 gates passed: ransac_flat, ransac_formula, single_plane_failure, czm_recovery, overhang, obstacle_rejection)

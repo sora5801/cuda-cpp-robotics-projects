@@ -9,9 +9,15 @@
   path edits, everything flows from $(CUDA_PATH) via the CUDA MSBuild
   integration (CLAUDE.md paragraph 5).
 
-  Library policy: this template links ONLY the CUDA runtime. If the real
-  project adds cuBLAS/cuFFT/cuRAND/..., add each .lib to AdditionalDependencies
-  below WITH an XML comment explaining why it is linked (CLAUDE.md paragraph 5).
+  Library policy: this project links ONLY the CUDA runtime (cudart_static.lib,
+  below). kernels.cu's Milestone-2 CZM pipeline (launch_czm_sort_and_index)
+  uses Thrust (thrust::stable_sort_by_key / sequence / lower_bound) for the
+  patch-id sort and the vectorized patch-boundary binary search; Thrust is a
+  HEADER-ONLY part of the CUDA Toolkit (its algorithms compile directly into
+  the calling .cu file's device code; there is no separate thrust*.lib to
+  add to AdditionalDependencies) — see the CudaCompile AdditionalOptions
+  below (ratified from project 02.01's identical CCCL/MSVC fix) for the two
+  extra compiler flags Thrust's headers require under MSVC.
 ======================================================================== -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
@@ -154,6 +160,24 @@
            gate (CLAUDE.md paragraph 9) while Nsight stays fully usable in
            both configurations. -->
       <GPUDebugInfo>true</GPUDebugInfo>
+      <!-- kernels.cu includes <thrust/...> (Milestone 2's CZM sort +
+           vectorized boundary search, CLAUDE.md paragraph 5 — header-only
+           CUDA Toolkit library). Two MSVC/CCCL toolchain requirements this
+           repo's Thrust-using projects hit (ratified in project 02.01,
+           reproduced here identically):
+             /Zc:preprocessor — CCCL hard-requires MSVC's STANDARD-
+               CONFORMING preprocessor; cl.exe's legacy/traditional
+               preprocessor trips a hard #error inside cccl/preprocessor.h
+               that names this exact flag as the fix.
+             /Zc:__cplusplus — MSVC does NOT update the __cplusplus macro
+               to match the active /std: level unless this flag is also
+               passed; Thrust's dialect check (cpp_dialect.h) reads
+               __cplusplus directly and fails closed without it.
+           Both are forwarded via -Xcompiler so nvcc passes them through to
+           the underlying cl.exe host-code compilation. -std=c++17 is a
+           THIRD, separate requirement for nvcc's OWN device-side front end
+           (cicc), which cpp_dialect.h also runs under. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -187,6 +211,10 @@
            README documents the tolerance impact (CLAUDE.md paragraph 5). -->
       <CodeGeneration>compute_75,sm_75;compute_86,sm_86;compute_89,sm_89;compute_89,compute_89</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>            <!-- -lineinfo is cheap and makes Nsight useful in Release -->
+      <!-- Same /Zc:preprocessor / /Zc:__cplusplus requirement as Debug (see
+           that block's comment): kernels.cu's <thrust/...> includes need it
+           in every configuration, not just Debug. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -202,6 +230,11 @@
     <ClInclude Include="..\src\kernels.cuh" />
     <ClInclude Include="..\src\util\cuda_check.cuh" />
     <ClInclude Include="..\src\util\timer.cuh" />
+    <!-- paths.h: find_data_file()/resolve_out_dir(); main.cu uses both to
+         load data/sample/ground_scan.bin and to write demo/out/ artifacts
+         (top/side-view PPMs, per-patch CSV, gates_metrics.csv). No library
+         to link: header-only, plain C++17. -->
+    <ClInclude Include="..\src\util\paths.h" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

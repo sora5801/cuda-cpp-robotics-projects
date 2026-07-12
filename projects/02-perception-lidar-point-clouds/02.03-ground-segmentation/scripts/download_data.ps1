@@ -1,10 +1,15 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.03 (Ground segmentation: RANSAC plane fit; Patchwork++-style GPU port)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# 02.03 DECISION: no public dataset applies. This project's whole teaching
+# point is a DESIGNED scene that proves single-plane RANSAC fails where a
+# patch-local model succeeds (a flat segment + an 8-degree ramp + a raised
+# plateau, with exact per-point ground truth) — no public LiDAR dataset
+# ships pre-labeled with that specific single-plane-defeating geometry, and
+# even if one did, this project needs the CONTROL of knowing exactly why
+# the ground bends where it does. scripts/make_synthetic.py builds the
+# whole scene deterministically (see ../data/README.md); this script stays
+# the honest no-op below.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
