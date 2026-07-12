@@ -1,8 +1,32 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 02.18.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.18 (weather-filtering)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — never a measured percentage, timing, or GPU name ("[info]"/"[time]"
+# lines vary by machine and are deliberately unchecked — CLAUDE.md paragraph 12). Change the
+# program's stable lines and this file together (see the output-contract note at the top of
+# ../src/main.cu).
+# Captured from an actual run on an RTX 2080 SUPER (sm_75), CUDA 13.3, Release|x64.
+[demo] Weather filtering: snow/rain/dust outlier removal (DROR/LIOR) - project 02.18
+PROBLEM: 3 weather scans (SNOW/RAIN/DUST) of the SAME static scene, up to 1600 beams/scan, 3 filters (SOR/DROR/LIOR), brute-force radius/KNN search
+VERIFY: SOR mean-KNN-distance PASS (GPU vs CPU, tol 1e-3 m)
+VERIFY: SOR classify PASS (GPU vs CPU, same input array, exact)
+VERIFY: DROR neighbor count PASS (GPU vs CPU, exact integers)
+VERIFY: DROR classify PASS (GPU vs CPU, given the exact-verified counts)
+VERIFY: LIOR neighbor count PASS (GPU vs CPU, exact integers)
+VERIFY: LIOR classify PASS (GPU vs CPU, given the exact-verified counts + shared intensity)
+ARTIFACT: wrote demo/out/triptych_snow.ppm (raw / DROR-cleaned / LIOR-cleaned top view)
+ARTIFACT: wrote demo/out/range_stratified.csv (9 rows)
+ARTIFACT: wrote demo/out/gates_metrics.csv (12 gates)
+GATE: dror_recall_snow PASS
+GATE: dror_recall_rain PASS
+GATE: dror_precision_snow PASS
+GATE: dror_precision_rain PASS
+GATE: lior_recall_snow PASS
+GATE: lior_recall_rain PASS
+GATE: lior_precision_snow PASS
+GATE: lior_precision_rain PASS
+GATE: real_point_preservation_dror PASS
+GATE: real_point_preservation_lior PASS
+GATE: sor_far_range_failure PASS
+GATE: dust_plume_honesty PASS
+RESULT: PASS (all verify stages and gates passed; DROR/LIOR clean the weather-noise scans)

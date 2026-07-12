@@ -1,12 +1,19 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.18 (Weather filtering: snow/rain/dust outlier removal (DROR/LIOR))
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project stays synthetic-only. The real
+# public weather-LiDAR datasets that would apply here — CADC (Canadian
+# Adverse Driving Conditions) and WADS (Winter Adverse Driving dataSet, both
+# named in THEORY.md "Where this sits in the real world") — ship raw driving
+# logs, not a per-point real/scatterer ground-truth label; recovering that
+# label from either would need hand-annotation this repo cannot do
+# automatically, and CADC in particular carries a non-commercial research
+# license (README "Data" states this explicitly, CLAUDE.md paragraph 8: such
+# datasets are pointed at, never mirrored). Synthesizing the physics instead
+# (scripts/make_synthetic.py) gives EXACT per-point ground truth for free —
+# the deciding factor, not a shortcut.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any future real fetch added here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

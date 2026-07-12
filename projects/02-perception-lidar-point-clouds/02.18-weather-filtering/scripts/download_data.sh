@@ -3,12 +3,15 @@
 # download_data.sh — public-dataset fetcher for 02.18 (Weather filtering: snow/rain/dust outlier removal (DROR/LIOR))
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project stays synthetic-only. The real
+# public weather-LiDAR datasets that would apply here — CADC and WADS (both
+# named in THEORY.md "Where this sits in the real world") — ship raw driving
+# logs, not a per-point real/scatterer ground-truth label, and CADC carries a
+# non-commercial research license (README "Data", CLAUDE.md paragraph 8:
+# such datasets are pointed at, never mirrored). Synthesizing the physics
+# instead (scripts/make_synthetic.py) gives EXACT per-point ground truth.
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any future real fetch added here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE
