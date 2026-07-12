@@ -1,8 +1,23 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 02.13.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.13 (dynamic-point-removal)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — never a measured percentage, timing, or GPU name ("[info]"/"[time]"
+# lines vary by machine and are deliberately unchecked; the algorithm's own arithmetic is bit-
+# deterministic across GPUs per kernels.cu's "DETERMINISM" note, but the demo still keeps every
+# number off the diffed lines on principle — CLAUDE.md paragraph 12). Change the program's stable
+# lines and this file together (see the output-contract note at the top of ../src/main.cu).
+# Captured from an actual run on an RTX 2080 SUPER (sm_75), CUDA 13.3, Release|x64.
+[demo] Dynamic point removal (raycast free-space carving) - project 02.13
+PROBLEM: K=10 posed scans, 28800 beams (16 beams x 180 az x 10 scans), voxel 0.20 m, grid 160x160x30 (768000 voxels), max range 20.0 m
+VERIFY: DDA trace exact PASS (documented subset, integer voxel sequences)
+VERIFY: hit/pass ledger exact PASS (full-beam-set carve)
+VERIFY: classification exact PASS (given the verified ledger)
+ARTIFACT: wrote demo/out/triptych.ppm (raw / cleaned / truth-static top view)
+ARTIFACT: wrote demo/out/pedestrian_evidence.csv (10 scans, voxel evidence accumulation)
+ARTIFACT: wrote demo/out/gates_metrics.csv (5 gates)
+GATE: ghost_removal PASS
+GATE: late_leaver PASS
+GATE: static_preservation PASS
+GATE: free_space_consistency PASS
+GATE: max_range_carving PASS
+RESULT: PASS (all verify stages and gates passed; map cleaned of ghosts)

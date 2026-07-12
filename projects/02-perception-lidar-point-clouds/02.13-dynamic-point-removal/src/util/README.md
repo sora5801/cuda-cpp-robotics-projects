@@ -6,6 +6,7 @@ Small, heavily-commented helpers that every project in this repository uses:
 |------|------------------|----------------|
 | [`cuda_check.cuh`](cuda_check.cuh) | `CUDA_CHECK(call)` and `CUDA_CHECK_LAST_ERROR(what)` — the mandatory, visible error checking around every CUDA API call and kernel launch (CLAUDE.md §6.1 rule 7) — plus `print_device_info()`. | …you meet your first `CUDA_CHECK` in `main.cu`. |
 | [`timer.cuh`](timer.cuh) | `GpuTimer` (cudaEvent-based — the *correct* way to time asynchronous GPU work) and `CpuTimer` (std::chrono, for synchronous host code). | …you reach the timing lines in `main.cu` and wonder why host clocks lie about kernels. |
+| [`paths.h`](paths.h) | `find_data_file()` / `resolve_out_dir()` — multi-candidate resolution of `data/sample/` inputs and the `demo/out/` artifact directory, so the same exe works from the VS layout, the run_demo scripts, and the optional CMake build (ratified from project 12.01's fix in the Phase-1 standards retrospective). Also documents the repo's **no-`<filesystem>`-under-nvcc** rule. | …loading `beams.csv`/`poses.csv` and writing the triptych/CSV artifacts in `main.cu`. |
 
 ## Why is this folder *copied* into every project instead of shared?
 
