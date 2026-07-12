@@ -16,7 +16,7 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's sample:** `lbvh_scan.bin` — a synthetic 16-beam spinning-LiDAR scan (199,404 points:
+195,384 beam-scan + 4,000 dense-cluster + 20 sparse-region) plus 2,000 designed/self/grid query points,
+written by `python ../../scripts/make_synthetic.py`. Full provenance, field-by-field format, and the
+exact measured composition are in [`../README.md`](../README.md).

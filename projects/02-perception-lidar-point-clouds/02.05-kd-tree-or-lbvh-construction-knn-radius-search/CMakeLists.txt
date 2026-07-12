@@ -70,9 +70,12 @@ target_compile_options(kd-tree-or-lbvh-construction-knn-radius-search PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
+# with only a driver installed). kernels.cu's <thrust/...> includes (Stage
+# 2's sort + the voxel-hash baseline's sort/compact pipeline) are
+# HEADER-ONLY — no thrust*.lib to link — and need no extra flags under
+# g++/clang (CMAKE_CUDA_STANDARD 17 above is sufficient; the .vcxproj's
+# /Zc:preprocessor / /Zc:__cplusplus workarounds are MSVC-specific quirks
+# Thrust's headers trip under cl.exe, not a Thrust requirement in general).
+# If the real project adds cuBLAS/cuFFT/..., link them here explicitly:
 #   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(kd-tree-or-lbvh-construction-knn-radius-search PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+#   target_link_libraries(kd-tree-or-lbvh-construction-knn-radius-search PRIVATE CUDA::cublas)

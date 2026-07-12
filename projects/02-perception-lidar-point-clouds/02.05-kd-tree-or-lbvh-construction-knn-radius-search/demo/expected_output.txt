@@ -1,8 +1,23 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.05 (kd-tree-or-lbvh-construction-knn-radius-search)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract for project 02.05 (KD-tree or LBVH construction + KNN/radius search on GPU).
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing. Every
+# non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check -- extra "[info]"/
+# "[time]" lines are fine and expected; see ../src/main.cu's "Output contract" header comment). These
+# are the ACTUAL lines an unmodified `kd-tree-or-lbvh-construction-knn-radius-search.exe` (no arguments)
+# printed on the reference machine (RTX 2080 SUPER, sm_75, Release|x64) against the committed
+# data/sample/lbvh_scan.bin (199,404 points + 2,000 queries; see ../data/README.md for provenance).
+[demo] LBVH (Karras radix-tree) construction + KNN/radius search on GPU, contrasted against fixed-radius voxel hashing (project 02.05)
+PROBLEM: N=199404 points (195384 beam-scan + 4000 dense-cluster + 20 sparse-region), 2000 queries (2 designed + 998 self-query + 1000 grid), K=8, radius r=0.50 m
+DATA: data/sample/lbvh_scan.bin [synthetic, seed 42, xorshift32, see scripts/make_synthetic.py]
+VERIFY(morton): PASS (GPU augmented Morton keys bit-exact vs CPU reference for all 199404 points)
+VERIFY(sort): PASS (GPU thrust::sort order bit-exact vs CPU std::sort twin, all 199404 points; augmented keys are pairwise distinct so this is the UNIQUE correct order)
+VERIFY(topology): PASS (GPU radix-tree left/right/parent/point_idx bit-exact vs independent CPU Karras-construction twin, all 398807 nodes: 199403 internal + 199404 leaves)
+VERIFY(aabb): PASS (GPU bottom-up AABB propagation bit-exact vs independent CPU post-order twin, all 398807 nodes; exact because float min/max is order-independent -- 02.02 lineage)
+GATE tree_validity: PASS (every leaf reached from root exactly once: 199404/199404; every internal node's AABB exactly contains both children's AABB: yes; 199403 internal nodes checked)
+VERIFY(radius_bvh): PASS (GPU BVH radius-search result sets exactly equal independent CPU BVH-traversal twin for all 2000 queries, r=0.50 m; zero result-buffer overflows)
+VERIFY(knn_bvh): PASS (GPU BVH K=8-NN result lists exactly equal independent CPU BVH-traversal twin under the documented (dist2,index) tie-break, all 2000 queries)
+VERIFY(radius_hash): PASS (GPU voxel-hash radius-search result sets exactly equal independent CPU unordered_map twin for all 2000 queries; zero overflows; 2258 occupied voxels)
+GATE hash_vs_bvh_agreement: PASS (voxel-hash and BVH radius-search return IDENTICAL result sets for all 2000 queries at the SAME r=0.50 m)
+GATE brute_force_anchor: PASS (GPU BVH radius-search AND KNN results exactly equal CPU brute-force O(N*Q) ground truth for the first 1000 sampled queries, both query types)
+GATE density_contrast: PASS (fixed-radius search at r=0.50 m returns 1215 neighbors in the DENSE cluster query vs 0 in the SPARSE far-field query; KNN returns 8/8 neighbors at BOTH -- the sensor-physics motivation for adaptive search, measured)
+ARTIFACT: wrote demo/out/{topview_density_contrast.ppm, traversal_stats.csv, timing.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY(morton/sort/topology/aabb/radius_bvh/knn_bvh/radius_hash) + GATE(tree_validity/hash_vs_bvh_agreement/brute_force_anchor/density_contrast) all passed)
