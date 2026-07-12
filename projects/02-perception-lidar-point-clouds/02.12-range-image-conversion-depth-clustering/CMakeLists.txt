@@ -70,9 +70,10 @@ target_compile_options(range-image-conversion-depth-clustering PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(range-image-conversion-depth-clustering PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). kernels.cu's <thrust/...> includes (the
+# Euclidean-comparison voxel index's sort + boundary compaction) are
+# header-only, so no extra find_package/target_link_libraries entry is
+# needed for them either — g++/clang's preprocessor does not have the
+# MSVC-specific /Zc:preprocessor / /Zc:__cplusplus quirks the .vcxproj
+# works around (see that file's CudaCompile comment), so this Linux path
+# needs no equivalent flags.

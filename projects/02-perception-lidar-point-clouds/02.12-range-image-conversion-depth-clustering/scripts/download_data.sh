@@ -3,10 +3,15 @@
 # download_data.sh — public-dataset fetcher for 02.12 (Range-image conversion + depth-clustering segmentation)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (this project): no public dataset applies. Depth clustering needs
+# exact, checkable per-point ground truth (ground/object id for every cell)
+# AND four specific, adversarial geometric cohorts (a depth-gap pair with a
+# MEASURED sub-40cm visible gap, a large-near/small-far occlusion pair, an
+# isolated thin object, and a grazing-incidence wall) that no off-the-shelf
+# LiDAR dataset ships by construction — see scripts/make_synthetic.py's
+# module docstring. This script is therefore the honest no-op below, kept
+# only so every project in the repo exposes the same two entry points
+# (CLAUDE.md paragraph 8).
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the

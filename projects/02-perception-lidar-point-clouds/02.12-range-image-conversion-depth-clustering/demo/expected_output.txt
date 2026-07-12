@@ -1,8 +1,30 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.12 (range-image-conversion-depth-clustering)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# expected_output.txt -- stable-line contract for project 02.12
+#
+# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore
+# them when diffing. Every non-comment line below must appear VERBATIM in
+# the demo's stdout. Only STABLE lines belong here -- "[time]" (timings)
+# and "[info]" (device name, resolved paths) vary by machine/run and are
+# deliberately excluded (see the output-contract comment at the top of
+# src/main.cu). These exact lines were captured from an ACTUAL run on the
+# reference machine (RTX 2080 SUPER, sm_75, Release|x64, the committed
+# data/sample/range_image_scene.bin, 7,957 raw scan points) -- never
+# fabricated (CLAUDE.md section 12).
+[demo] Range-image conversion + depth-clustering segmentation (Bogoslavskyi-Stachniss) vs voxel-hash Euclidean clustering, on the same non-ground points
+PROBLEM: 16-beam x 1024-azimuth-bin range image, 7957 raw scan points, ground_angle<=10.0 deg, beta>=10.0 deg, euclid_d=0.40 m
+DATA: loaded range_image_scene.bin (7957 points, truth_num_objects=6)
+VERIFY(range_image): PASS (0 mismatch field(s) <= allowance 0; GPU atomicMin scatter bit-exact vs independent CPU running-minimum scatter)
+GATE collision_resolution: PASS (0 synthetic phantom point(s) won an organized cell, of 2 injected -- nearest-wins atomicMin race verified honest)
+VERIFY(ground_removal): PASS (0 mismatch(es) <= allowance 8; GPU column-walk vs independent CPU column-walk)
+GATE ground_removal: PASS (precision=0.9789, recall=1.0000, both >= floor 0.95; TP=4168 FP=90 FN=0 TN=3697; 02.03's full RANSAC/CZM treatment [info] handles terrain this flat-ground column-walk cannot)
+VERIFY(depth_edges): PASS (0 differing edge(s) <= allowance 8; GPU=6916 edges, CPU=6916 edges; beta >= 10.0 deg criterion, GPU device transcription vs independent CPU nested loop)
+VERIFY(union_find_depth): PASS (0 mismatch(es), bit-exact required; converged=yes in 2 sweep(s), cap 128)
+GATE compaction_integrity: PASS (compacted 3697 obstacle points; expected 3697 from the organized grid's own ground/obstacle mask)
+GATE euclid_edge_capacity: PASS (overflow_count=0; capacity=3785728 edges = 3697 points x 1024/point)
+VERIFY(euclidean_edges): PASS (0 differing edge(s) <= allowance 8; GPU=442640 edges, CPU=442640 edges; voxel-hash+27-cell-stencil vs independent unordered_map neighbor search)
+VERIFY(union_find_euclid): PASS (0 mismatch(es), bit-exact required; converged=yes in 2 sweep(s), cap 128)
+GATE partition_vs_truth: PASS (best-IoU floor 0.85 over the clean, unoccluded cohort {person,big_box,far_pole}: id1=1.000 id3=1.000 id4=1.000 )
+GATE depth_gap_showcase: PASS (person/wall_behind visible gap=0.19 m < euclid_d=0.40 m: depth clustering shares 0 cluster(s) [expect 0 -- separated at any range], Euclidean shares 1 cluster(s) [expect >=1 -- fixed-radius merge])
+GATE grazing_fragmentation: PASS (grazing_wall fragments into 13 depth-cluster(s) [floor 3 -- the beta criterion's known weakness at shallow incidence]; Euclidean clustering, blind to viewing angle, keeps it in 5 cluster(s) [info])
+GATE timing_payoff: PASS (both the depth-image path and the voxel-hash Euclidean path were measured with cudaEvents -- see the '[time] ... path total' lines below for the actual numbers, a single-shot teaching artifact, not a benchmark claim)
+ARTIFACT: wrote demo/out/{range_image.pgm, truth_labels.ppm, depth_cluster_labels.ppm, euclid_cluster_labels.ppm, beta_angle_map.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY(range_image/ground_removal/depth_edges/union_find_depth/euclidean_edges/union_find_euclid) + all gates passed: collision_resolution, ground_removal, compaction_integrity, euclid_edge_capacity, partition_vs_truth, depth_gap_showcase, grazing_fragmentation, timing_payoff)
