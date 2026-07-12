@@ -12,23 +12,41 @@ One command builds (if needed), runs on the committed sample, and verifies the o
 
 ## What the demo demonstrates
 
-TODO(scaffold): describe what the real demo shows, what artifact it writes (PNG/CSV/OBJ, if the
-result is visual), and what the learner should notice in the output.
+The demo loads a 5-scan window (the CURRENT scan plus its 4 immediately preceding scans) from
+`data/sample/`, organizes the current scan into a 16x360 range image, reprojects each of the 4
+previous scans into the current sensor's frame, computes the signed per-cell residual against each,
+fuses them via MIN(|residual|), thresholds, cleans up with range-image connected-component labeling,
+and grades the result against ground truth built into four differently-moving car cohorts (a lateral
+crosser, a radial approach, a radial departure, and a car that just stopped) plus two static
+honesty cohorts (a wall and a thin pole).
 
-**Placeholder status:** as scaffolded, the demo runs the SAXPY (`y = a*x + y`) toolchain-validation
-placeholder — a memory-bandwidth-bound *map* over 1,048,576 elements, computed on the GPU and
-verified element-by-element against the plain-C++ CPU reference. If it prints `RESULT: PASS`, your
-Visual Studio 2026 + CUDA 13.3 toolchain and GPU are healthy.
+**What to look at:**
+
+- `demo/out/residual_image.pgm` — the signature visual: a grayscale rendering of the fused
+  |residual| at every cell. The four cars appear as bright blobs against a mostly-dark (near-zero
+  residual) static background — literally "movers glow".
+- `demo/out/label_vs_truth.ppm` — a confusion map over the same range-image layout: TP green
+  (correctly flagged moving), FP red (falsely flagged), FN orange (missed mover), TN gray (correctly
+  static).
+- `demo/out/disocclusion_band.ppm` — highlights, in magenta, exactly which WALL cells the crossing
+  car's passage occluded/revealed somewhere in the 5-scan window (the ground-truth
+  `disocclusion_band` flag) versus clean wall cells (gray) — compare this against where
+  `label_vs_truth.ppm` shows any false positives on the wall.
+- `demo/out/per_cohort_metrics.csv` and `demo/out/gates_metrics.csv` — the numeric backbone behind
+  every `[info]`/`GATE:` line the program prints.
 
 ## How to read the output
 
 | Line prefix | Meaning | Checked against `expected_output.txt`? |
 |-------------|---------|----------------------------------------|
 | `[demo]`    | Which project/demo this is. | Yes — stable. |
-| `[info]`    | GPU name and compute capability — varies by machine. | No. |
-| `PROBLEM:`  | The exact problem instance (sizes, parameters). | Yes — stable (demo runs with no args). |
-| `[time]`    | CPU reference ms, GPU kernel ms, and a speed-up figure — a **teaching artifact, never a benchmark claim** (single-shot, kernel-only vs. one CPU core; first launches pay one-time init costs). | No. |
-| `RESULT:`   | `PASS`/`FAIL` verdict of the GPU-vs-CPU check (tolerance documented in `../src/main.cu` and `THEORY.md`). The program exits nonzero on `FAIL`. | Yes — stable. |
+| `[info]`    | GPU name, and every MEASURED number this project reports (recall/precision/IoU per cohort, sign-consistency fractions, false-positive rates, the window-size study) — varies run to run only in the *number*, never the presence of the line. | No. |
+| `PROBLEM:`  | The exact problem instance (window size, range-image shape, threshold). | Yes — stable (demo runs with no args). |
+| `VERIFY:`   | GPU-vs-CPU agreement for one of the four pipeline stages (organize / reproject / residual-fuse / CCL). | Yes — stable text, no numbers. |
+| `[time]`    | The full canonical MOS pass's GPU kernel time versus the 20 Hz per-scan budget — a **teaching artifact, never a benchmark claim** (this project's demo scale is tiny; a real sensor's full point count would matter more to occupancy/bandwidth). | No. |
+| `GATE:`     | `PASS`/`FAIL` verdict for one of the five independent correctness gates (mover_detection, sign_semantics, static_precision, disocclusion_mitigation, timing). | Yes — stable text, no numbers. |
+| `ARTIFACT:` | Confirms a demo/out/ file was written. | Yes — stable. |
+| `RESULT:`   | Overall `PASS`/`FAIL` — every VERIFY stage AND every GATE must pass. The program exits nonzero on `FAIL`. | Yes — stable. |
 
 The runner scripts do a **subset diff**: every non-comment line of
 [`expected_output.txt`](expected_output.txt) must appear verbatim in the output; extra lines

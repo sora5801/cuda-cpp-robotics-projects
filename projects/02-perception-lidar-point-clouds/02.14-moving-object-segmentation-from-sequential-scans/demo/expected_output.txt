@@ -1,8 +1,24 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 02.14.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.14 (moving-object-segmentation-from-sequential-scans)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here — never a measured percentage, timing, or GPU name ("[info]"/"[time]"
+# lines vary by machine and are deliberately unchecked; see the output-contract note at the top of
+# ../src/main.cu). Change the program's stable lines and this file together.
+# Captured from an actual run on an RTX 2080 SUPER (sm_75), CUDA 13.3, Release|x64.
+[demo] Moving-object segmentation from sequential scans (online MOS) - project 02.14
+PROBLEM: online MOS, current scan + M=4 previous scans, range image 16 beams x 360 az (5760 cells), max range 30.0 m, residual threshold 0.20 m
+VERIFY: current-scan range image exact PASS
+VERIFY: reprojected previous-scan range images close PASS (tol 0.0050 m, mismatch fraction ceiling 2.0%)
+VERIFY: residual fusion exact PASS
+VERIFY: CCL (edges + union-find) exact PASS
+ARTIFACT: wrote demo/out/residual_image.pgm (fused |residual|, M=4, movers glow)
+ARTIFACT: wrote demo/out/label_vs_truth.ppm (confusion map: TP green / FP red / FN orange / TN gray)
+ARTIFACT: wrote demo/out/disocclusion_band.ppm (WALL disocclusion-band cells highlighted magenta)
+ARTIFACT: wrote demo/out/per_cohort_metrics.csv (6 cohorts, M=4)
+ARTIFACT: wrote demo/out/gates_metrics.csv (5 gates)
+GATE: mover_detection PASS
+GATE: sign_semantics PASS
+GATE: static_precision PASS
+GATE: disocclusion_mitigation PASS
+GATE: timing PASS
+RESULT: PASS (all verify stages and gates passed; current-scan movers segmented)

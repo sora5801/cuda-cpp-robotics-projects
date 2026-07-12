@@ -3,10 +3,11 @@
 # download_data.sh — public-dataset fetcher for 02.14 (Moving-object segmentation from sequential scans)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# THIS PROJECT USES NO PUBLIC DATASET. Online MOS needs an object-level,
+# per-scan-window ground truth (which points are moving RIGHT NOW, including
+# a disocclusion-band flag) that no public LiDAR dataset hands you directly —
+# scripts/make_synthetic.py's analytic ray-cast scene provides it exactly and
+# reproducibly. This script is the honest, repo-wide-conventional no-op.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
