@@ -3,12 +3,18 @@
 # download_data.sh — public-dataset fetcher for 02.19 (PointPillars/CenterPoint voxelization + scatter kernels feeding TensorRT)
 # (Linux/macOS twin of download_data.ps1 — keep the two in sync.)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION (not a placeholder): this project stays synthetic-only. A real
+# BEV detection dataset (KITTI, nuScenes) would teach realistic point
+# statistics, but not the two things this project's gates actually need --
+# EXACT ground-truth object centers (for detection_closure) and a
+# DELIBERATE, precisely-placed cap-overflow pillar (for cap_truncation,
+# kernels.cuh's file header). Both require synthesis with known-by-
+# construction truth; a real scan cannot supply either honestly. This
+# script therefore stays the intentional no-op below (CLAUDE.md paragraph 8:
+# synthetic-first is the default, and here it is also the *better* choice,
+# not merely the fallback).
 #
-# Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
+# Repo policy (CLAUDE.md paragraph 8) for any FUTURE real fetch here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
 #     right checksum.
 #   * Documented — source URL, expected size, SHA-256 checksum, and LICENSE

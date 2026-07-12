@@ -1,0 +1,13 @@
+# scene_meta.csv -- the point-stream layout CONTRACT main.cu reads verbatim, project 02.19
+# key,value
+n_total,7530
+n_ground,6000
+n_cars_total,1320
+n_cars,6
+points_per_car,220
+n_clutter,150
+n_capstress,60
+capstress_start_index,7470
+capstress_pillar_key,4824
+capstress_center_x_m,-30.200
+capstress_center_y_m,-30.200

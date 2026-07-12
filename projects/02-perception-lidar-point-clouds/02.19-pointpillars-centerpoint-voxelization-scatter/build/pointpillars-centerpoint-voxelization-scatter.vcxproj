@@ -9,9 +9,14 @@
   path edits, everything flows from $(CUDA_PATH) via the CUDA MSBuild
   integration (CLAUDE.md paragraph 5).
 
-  Library policy: this template links ONLY the CUDA runtime. If the real
-  project adds cuBLAS/cuFFT/cuRAND/..., add each .lib to AdditionalDependencies
-  below WITH an XML comment explaining why it is linked (CLAUDE.md paragraph 5).
+  Library policy: links only the CUDA runtime (cudart_static.lib). kernels.cu
+  also includes Thrust (stable_sort_by_key / reduce / copy_if — the sort+
+  compact machinery shared by pillar and voxel binning, CLAUDE.md paragraph
+  5): Thrust is a HEADER-ONLY part of the CUDA Toolkit, so there is no
+  separate thrust*.lib to add here — only the /Zc:preprocessor /
+  /Zc:__cplusplus / -std=c++17 CudaCompile AdditionalOptions the CCCL
+  headers require (see each configuration's CudaCompile block below, and
+  02.01's .vcxproj for the first project to hit and document this).
 ======================================================================== -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
@@ -154,6 +159,21 @@
            gate (CLAUDE.md paragraph 9) while Nsight stays fully usable in
            both configurations. -->
       <GPUDebugInfo>true</GPUDebugInfo>
+      <!-- kernels.cu includes <thrust/...> (the sort+compact machinery
+           shared by the pillar and voxel binning paths, CLAUDE.md paragraph
+           5 — header-only CUDA Toolkit library, see the Sources comment
+           below). Same three flags 02.01's kernels.cu needed first
+           (Phase-1 standards retrospective) — see that project's .vcxproj
+           for the full derivation of each:
+             /Zc:preprocessor  — CCCL hard-requires MSVC's standard-
+               conforming preprocessor.
+             /Zc:__cplusplus   — MSVC does not update __cplusplus to match
+               the active /std: level without this flag; Thrust's dialect
+               check reads __cplusplus directly.
+             -std=c++17        — nvcc's OWN device-side front end (cicc)
+               needs this directly; LanguageStandard=stdcpp17 (ClCompile,
+               above) only reaches cl.exe's host pass. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -187,6 +207,10 @@
            README documents the tolerance impact (CLAUDE.md paragraph 5). -->
       <CodeGeneration>compute_75,sm_75;compute_86,sm_86;compute_89,sm_89;compute_89,compute_89</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>            <!-- -lineinfo is cheap and makes Nsight useful in Release -->
+      <!-- Same /Zc:preprocessor / /Zc:__cplusplus / -std=c++17 requirement as
+           Debug (see that block's comment): kernels.cu's <thrust/...>
+           includes need it in every configuration, not just Debug. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -202,6 +226,7 @@
     <ClInclude Include="..\src\kernels.cuh" />
     <ClInclude Include="..\src\util\cuda_check.cuh" />
     <ClInclude Include="..\src\util\timer.cuh" />
+    <ClInclude Include="..\src\util\paths.h" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

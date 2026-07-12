@@ -16,7 +16,8 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+**This project's files.** `points.bin` (the KITTI-layout point cloud), `object_truths.csv` (ground-truth
+car centers), `scene_meta.csv` (the point-stream layout contract), and `pfn_lite_weights.csv` (the fixed,
+not-trained PFN weights) — all written by `python ../../scripts/make_synthetic.py` (seed 42) and read by
+`../../src/main.cu`. Full field documentation, provenance, and checksums live in
+[`../README.md`](../README.md).

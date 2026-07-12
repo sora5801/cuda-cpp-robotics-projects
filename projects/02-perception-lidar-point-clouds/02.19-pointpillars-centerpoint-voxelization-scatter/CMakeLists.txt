@@ -70,9 +70,9 @@ target_compile_options(pointpillars-centerpoint-voxelization-scatter PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(pointpillars-centerpoint-voxelization-scatter PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed). kernels.cu includes Thrust
+# (stable_sort_by_key / reduce / copy_if — the sort+compact machinery shared
+# by pillar and voxel binning) — header-only, part of the CUDA Toolkit, so
+# no extra target_link_libraries entry is needed for it either. The
+# .vcxproj's /Zc:preprocessor /Zc:__cplusplus flags are an MSVC/cl.exe-only
+# requirement (CCCL's dialect check); g++/clang under CMake do not need them.

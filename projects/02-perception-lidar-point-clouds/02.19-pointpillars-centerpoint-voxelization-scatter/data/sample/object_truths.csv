@@ -1,0 +1,8 @@
+# object_truths.csv -- ground-truth BEV object centers, project 02.19
+# id,cx_m,cy_m,length_m,width_m,height_m,category
+0,20.000,20.000,4.20,1.80,1.50,car
+1,-20.000,20.000,4.20,1.80,1.50,car
+2,20.000,-20.000,4.20,1.80,1.50,car
+3,-20.000,-20.000,4.20,1.80,1.50,car
+4,0.000,28.000,4.20,1.80,1.50,car
+5,0.000,-28.000,4.20,1.80,1.50,car

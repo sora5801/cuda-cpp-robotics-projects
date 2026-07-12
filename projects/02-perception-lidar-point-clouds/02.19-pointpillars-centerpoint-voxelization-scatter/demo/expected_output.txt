@@ -1,8 +1,24 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
-# Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.19 (pointpillars-centerpoint-voxelization-scatter)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Stable-line contract for project 02.19 (PointPillars/CenterPoint voxelization + scatter kernels
+# feeding TensorRT). Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when
+# diffing. Every non-comment line below must appear VERBATIM in the demo's stdout (a SUBSET check --
+# extra "[info]"/"[time]" lines are fine and expected; see ../src/main.cu's "Output contract" header
+# comment). These are the ACTUAL lines an unmodified
+# `pointpillars-centerpoint-voxelization-scatter.exe` (no arguments) printed on the reference machine
+# (RTX 2080 SUPER, sm_75, Release|x64) against the committed data/sample/points.bin (7,530 points; see
+# ../data/README.md for provenance). The "atomic SAME/SHUFFLED-order" [info] variance numbers are NOT
+# checked here -- they measure genuine run-to-run nondeterminism by design (kernels.cuh's file header).
+[demo] PointPillars/CenterPoint voxelization + scatter: Method A (atomic) vs Method B (sorted, deterministic) binning, PFN-lite, scatter, hand-designed BEV head (project 02.19)
+PROBLEM: BEV grid 200x200 pillars @ 0.40 m (window [-40,40) x [-40,40) m), cap=32 points/pillar, D=9 point features, PFN-lite C=6 channels, CenterPoint-style comparison: 2 z-bins
+DATA: data/sample/points.bin [synthetic, seed 42, xorshift32, see scripts/make_synthetic.py] (7530 points = 6000 ground + 1320 car + 150 clutter + 60 cap-stress; 6 truth objects)
+VERIFY(keys): PASS (GPU pillar+voxel keys bit-exact vs CPU reference for all 7530 points)
+GATE cap_truncation: PASS (every variant keeps exactly 32 of 60 arrived points; sorted keeps the analytic answer {0..31} bit-identically across repeats; shuffled-order atomic binning demonstrably changes which points survive)
+VERIFY(binning): PASS (occupied-pillar list + kept counts + augmented 9-D features match CPU reference; features within 1e-4)
+VERIFY(pfn): PASS (PFN-lite occupancy/height-extent/linear-maxpool channels within 1e-4)
+VERIFY(scatter): PASS (dense BEV canvas bit-exact vs CPU reference, worst |gpu-cpu|=9.760e-07)
+VERIFY(head): PASS (2-layer conv + gate heatmap within 1e-4)
+VERIFY(peaks): PASS (6 GPU peaks vs 6 CPU peaks, same (iy,ix) set after NMS)
+GATE layout_roundtrip: PASS (gather(scatter(pillar_feat)) bit-identical on all 6042 occupied pillars)
+GATE feature_semantics: PASS (hand-computed 9-D features for a 3-point synthetic pillar match the pipeline within 1e-4)
+GATE detection_closure: PASS (every truth object has a peak within 3.0 m; every peak maps to a truth object -- zero false peaks on the cap-stress pillar or clutter)
+ARTIFACT: wrote demo/out/{occupancy.pgm, heatmap.pgm, feature_stats.csv, gates_metrics.csv}
+RESULT: PASS (VERIFY(keys/binning/pfn/scatter/head/peaks) + GATE(cap_truncation/layout_roundtrip/feature_semantics/detection_closure) all passed)
