@@ -1,8 +1,30 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
+# expected_output.txt — the stable output contract for project 02.15.
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
-# Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
-# here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.15 (point-cloud-compression-for-fleet-uplink)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Every non-comment line below must appear VERBATIM in the demo's stdout (subset match). Only
+# STABLE lines belong here: "[demo]", "PROBLEM:", "DATA:", "VERIFY:", "GATE:", "ARTIFACT:", and
+# "RESULT:" lines carry NO measured numbers (bits/point, distortion, ratios, timings — all of
+# that lives on "[info]"/"[time]" lines, deliberately unchecked, since floats can vary in their
+# last bit across GPU architectures/driver versions even when every gate still passes). Change
+# the program's stable lines and this file together (../src/main.cu's file header explains the
+# contract in full).
+[demo] Point cloud compression (octree/entropy) for fleet uplink (project 02.15)
+PROBLEM: occupancy-octree geometry coding + canonical-Huffman entropy coding, depth sweep D in {8,9,10,11}, structured map tile vs pathological uniform-random cube
+DATA: structured map tile n=200000 points, pathological uniform-random cube n=200000 points [synthetic]
+VERIFY morton: PASS (GPU vs CPU Morton codes, all points, bit-exact)
+VERIFY sort: PASS (GPU thrust::sort vs CPU std::sort, full array, exact)
+VERIFY octree_levels: PASS (GPU vs CPU node counts + occupancy bytes, every level, exact)
+VERIFY histogram: PASS (GPU vs CPU 256-bin occupancy-byte histogram, exact)
+VERIFY huffman_table: PASS (independent heap-based vs linear-scan canonical-Huffman builders, all 256 symbols, exact)
+VERIFY encode_bitstream: PASS (GPU map+scan+scatter vs CPU serial bit-writer, packed bytes + bit count, exact)
+VERIFY roundtrip: PASS (decode(encode(cloud)) reproduces the depth-10 quantized leaf set exactly, in order)
+ARTIFACT: wrote demo/out/rd_curve.csv (8 rows: 2 cohorts x 4 depths)
+ARTIFACT: wrote demo/out/occupancy_histogram.csv (256 symbols, canonical depth D=10)
+ARTIFACT: wrote demo/out/topview_original.pgm, topview_recon_d8.pgm, topview_recon_d11.pgm (before/after top-view, 256x256)
+ARTIFACT: wrote demo/out/gates_metrics.csv (6 gates)
+GATE: lossless_roundtrip PASS
+GATE: distortion_bound PASS
+GATE: rate_monotonic PASS
+GATE: entropy_payoff PASS
+GATE: entropy_bound PASS
+GATE: timing PASS
+RESULT: PASS (verify stage + all gates passed; rate-distortion sweep written)

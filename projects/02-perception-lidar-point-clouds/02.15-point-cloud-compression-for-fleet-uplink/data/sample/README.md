@@ -16,7 +16,12 @@ anyone can clone this repo, build, and see the documented result with **zero dow
   sample is **copied into** this folder — never referenced across project folders at build or run
   time (CLAUDE.md §4 self-containment rule).
 
-**Placeholder status:** the scaffolded SAXPY demo generates its vectors **in memory** (see
-`make_input()` in `../../src/main.cu`), so it reads nothing from here. Running
-`python ../../scripts/make_synthetic.py` writes a small demonstration CSV into this folder so the
-synthetic-data pattern is visible. The real project replaces both.
+This folder holds two files, both written by `../../scripts/make_synthetic.py` (seed 42):
+
+- `structured_map.bin` (2,400,012 bytes) — a synthetic warehouse-room map tile, 200,000 points on
+  30 flat surfaces (floor + 4 walls + 5 boxes × 5 faces). The **compressible** half of this
+  project's contrast.
+- `pathological_cube.bin` (2,400,012 bytes) — 200,000 points scattered uniformly at random in a
+  cube of matching size. The **incompressible** half.
+
+See [`../README.md`](../README.md) for the full binary format, field table, and SHA-256 checksums.

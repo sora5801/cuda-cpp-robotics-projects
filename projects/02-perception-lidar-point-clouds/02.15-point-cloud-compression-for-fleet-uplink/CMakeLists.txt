@@ -70,9 +70,13 @@ target_compile_options(point-cloud-compression-for-fleet-uplink PRIVATE
 # No target_link_libraries needed: with CUDA as an enabled language, CMake
 # links the CUDA runtime automatically (CUDA_RUNTIME_LIBRARY defaults to
 # Static — matching the .vcxproj's cudart_static.lib choice: the exe runs
-# with only a driver installed). If the real project adds cuBLAS/cuFFT/...,
-# link them here explicitly, with a comment on why each exists
-# (CLAUDE.md paragraph 5) — e.g.:
-#   find_package(CUDAToolkit REQUIRED)
-#   target_link_libraries(point-cloud-compression-for-fleet-uplink PRIVATE CUDA::cublas)  # batched GEMMs in <where>
-# TODO(scaffold): extend for the real project's sources and libraries.
+# with only a driver installed).
+#
+# Thrust (kernels.cu's launch_sort_codes / launch_scan_thrust — CLAUDE.md
+# paragraph 5, header-only, part of the CUDA Toolkit): needs NO extra
+# target_link_libraries or find_package call here — CMAKE_CUDA_STANDARD 17
+# above already satisfies Thrust's CCCL dialect check. The .vcxproj's extra
+# `/Zc:preprocessor` / `/Zc:__cplusplus` flags (see that file's comment) are
+# an MSVC-only requirement (cl.exe's legacy preprocessor and its
+# __cplusplus macro quirk); GCC/Clang's preprocessors do not have that
+# problem, so no equivalent flag is needed on the CMake/Linux path.

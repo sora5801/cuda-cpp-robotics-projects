@@ -154,6 +154,21 @@
            gate (CLAUDE.md paragraph 9) while Nsight stays fully usable in
            both configurations. -->
       <GPUDebugInfo>true</GPUDebugInfo>
+      <!-- kernels.cu includes <thrust/...> (Stage 1's launch_sort_codes and
+           Stage 2's launch_scan_thrust — CLAUDE.md paragraph 5, header-only
+           CUDA Toolkit library, no separate .lib). Flags copied VERBATIM
+           from project 02.01/02.02's ratified precedent (cited in README
+           "Prior art" and in kernels.cu's Thrust call sites) — that project
+           root-caused two real MSVC/CCCL toolchain requirements Thrust's
+           CCCL headers hard-require under this repo's CUDA 13.3 + VS 2026
+           toolset: /Zc:preprocessor (CCCL needs MSVC's standard-conforming
+           preprocessor) and /Zc:__cplusplus (MSVC does not update the
+           __cplusplus macro to match /std: without it, and Thrust's dialect
+           check reads that macro directly). -std=c++17 additionally targets
+           nvcc's OWN device-side front end (cicc), which the ClCompile-side
+           LanguageStandard property does not reach. See 02.01's vcxproj for
+           the full three-paragraph derivation of each flag. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -187,6 +202,10 @@
            README documents the tolerance impact (CLAUDE.md paragraph 5). -->
       <CodeGeneration>compute_75,sm_75;compute_86,sm_86;compute_89,sm_89;compute_89,compute_89</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>            <!-- -lineinfo is cheap and makes Nsight useful in Release -->
+      <!-- Same /Zc:preprocessor / /Zc:__cplusplus / -std=c++17 requirement
+           as Debug (see that block's comment) — kernels.cu's <thrust/...>
+           includes need these in EVERY configuration, not just Debug. -->
+      <AdditionalOptions>-std=c++17 -Xcompiler "/Zc:preprocessor /Zc:__cplusplus" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
 
@@ -202,6 +221,7 @@
     <ClInclude Include="..\src\kernels.cuh" />
     <ClInclude Include="..\src\util\cuda_check.cuh" />
     <ClInclude Include="..\src\util\timer.cuh" />
+    <ClInclude Include="..\src\util\paths.h" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

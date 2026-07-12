@@ -1,10 +1,14 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.15 (Point cloud compression (octree/entropy) for fleet uplink)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# HONEST NO-OP BY DESIGN. This project's whole point is a CONTRAST between
+# structured (compressible) and pathological (incompressible) geometry —
+# both halves are exactly, cheaply synthesizable with full ground truth
+# (scripts/make_synthetic.py), and no public LiDAR/map dataset ships a
+# matched "designed-to-be-incompressible" negative control. Redistribution-
+# gated real map datasets (e.g. KITTI, nuScenes) would not improve on that
+# and would reintroduce a license/registration dependency this project does
+# not need — so there is nothing to fetch here, on purpose, not by omission.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
