@@ -1,8 +1,20 @@
-# TODO(scaffold): replace with this project's real expected output (and delete this comment when done).
 # Lines starting with '#' are comments; run_demo.ps1 / run_demo.sh ignore them when diffing.
 # Every non-comment line below must appear VERBATIM in the demo's stdout. Only STABLE lines belong
 # here — never timings ("[time]") or device names ("[info]"), which vary by machine and run.
-# The three lines below are what the scaffolded SAXPY placeholder actually prints (default size, no args).
-[demo] template placeholder demo for project 02.11 (scan-context-ring-descriptor-loop-closure-search)
-PROBLEM: SAXPY y = a*x + y, n = 1048576 elements, a = 2.0
-RESULT: PASS (GPU matches CPU reference, max |gpu-cpu| <= tol 1e-6)
+# Captured from an ACTUAL run (Release|x64, RTX 2080 SUPER, CUDA 13.3, committed sample seed=42).
+[demo] 02.11 Scan Context / ring-descriptor loop-closure search
+PROBLEM: Scan Context loop closure, 160 keyframes, 20 rings x 60 sectors, max range 40 m, gap 15 keyframes, prefilter budget 12
+DATA: 160 keyframes, 9 buildings, 216157 total points (avg 1351 pts/scan), 16 curated revisit pairs [synthetic]
+VERIFY(scan_context): PASS (exact-match fraction >= 0.995)
+VERIFY(ring_key): PASS (3037/3200 entries match within 1e-6, 94.9063%)
+VERIFY(shift_distance): PASS (per-cell tol 2.0e-04, best-match+shift agree)
+GATE loop_detection: PASS (recall=0.769 >= 0.70, precision=1.000 >= 0.90)
+GATE rotation_invariance: PASS (|recall_rotated-recall_same_heading|=0.000 <= 0.40; mean yaw error 0.0 deg <= 24.0 deg)
+GATE lateral_sensitivity: PASS (4 offset examples measured and reported)
+GATE negative_cohort: PASS (0 false loop closures required — a false closure corrupts the map irreversibly, see PRACTICE.md)
+GATE ringkey_prefilter: PASS (recall=0.862 >= 0.80, prefilter budget 12 of up to 145 candidates)
+ARTIFACT: wrote demo/out/pr_curve.csv (61 threshold steps, 0.00..1.20)
+ARTIFACT: wrote demo/out/sc_heatmap_{revisit,nonpair}_{query,match|candidate}.pgm (query=92 match=22 | query=17 candidate=1)
+ARTIFACT: wrote demo/out/trajectory_view.ppm (51 detected loop chords, green=correct place / red=wrong place)
+ARTIFACT: wrote demo/out/gates_metrics.csv (16 rows)
+RESULT: PASS (all VERIFY + GATE checks passed, all artifacts written)

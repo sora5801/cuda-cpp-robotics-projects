@@ -2,63 +2,113 @@
 // reference_cpu.cpp — plain-C++ CPU reference for project 02.11
 //                     (Scan Context / ring-descriptor loop-closure search)
 //
-// TEMPLATE PLACEHOLDER — replace with this project's real CPU reference.
-// TODO(scaffold): implement the real algorithm here in the simplest, most
-// readable C++ you can write — clarity beats speed in this file, always.
+// Two jobs (CLAUDE.md paragraph 5, and the template's independence ruling
+// this file follows exactly — see docs/PROJECT_TEMPLATE/src/reference_cpu.cpp
+// for the ruling in full):
 //
-// WHY does a GPU repository ship a CPU implementation of everything?
-// ------------------------------------------------------------------
-// Two load-bearing reasons (CLAUDE.md §5):
+//   1) CORRECTNESS ORACLE — main.cu's VERIFY stage runs sc_build_cpu /
+//      ring_key_cpu / sc_shift_distance_cpu against the GPU kernels on
+//      identical inputs and requires agreement within a documented
+//      tolerance (exact for the scatter-max, small-tolerance for the
+//      shift-distance sum — kernels.cuh's file header explains why the two
+//      differ). If GPU and CPU disagree, a bug is proven to exist.
 //
-//   1) It is the CORRECTNESS ORACLE. GPU code fails in ways CPU code cannot:
-//      wrong thread indexing, missed tail elements, race conditions, stale
-//      device memory, bad transfers. A dead-simple sequential version that a
-//      reader can verify BY EYE gives us ground truth; main.cu runs both and
-//      asserts element-wise agreement within a documented tolerance. If the
-//      two disagree, the bug hunt starts with certainty that a bug exists.
+//   2) TEACHING BASELINE — reading this file first, then kernels.cu, shows
+//      exactly what parallelization changed: the scatter-max becomes an
+//      atomic race instead of a safe sequential update; the shift-distance
+//      mean becomes a block of 64 threads and a tree reduction instead of
+//      one loop. Same math, different concurrency story.
 //
-//   2) It is the TEACHING BASELINE. The GPU version only makes sense as a
-//      transformation OF something — this file is that something. Reading it
-//      first, then kernels.cu, shows exactly what parallelization changed
-//      (spoiler for SAXPY: the loop became threads; the body is identical).
-//      It also makes the printed speed-up legible: same machine, same data,
-//      same algorithm — one core vs. thousands of threads.
-//
-// Rules for this file: plain C++17, no CUDA headers, no hand-vectorization,
-// no OpenMP, no cleverness. If the reference is clever, it can be wrong, and
-// then the oracle lies. (This file is compiled by the HOST compiler, cl.exe;
-// the __CUDACC__ fence in kernels.cuh hides device declarations from it.)
+// Independence ruling for THIS project (kernels.cuh's own header states it,
+// repeated here for the file that actually implements it): the SMALL,
+// deterministic, formulaic pieces (ring_index_from_range,
+// sector_index_from_xy, column_cosine_distance, ring_key_l1_distance) are
+// SHARED — called directly from kernels.cuh, not re-derived — because
+// duplicating a four-line index formula would be pure token-for-token
+// transcription with no independence value. The AGGREGATION LOOPS below
+// (the scatter over points, the reduction over sectors) are INDEPENDENTLY
+// reimplemented in the simplest possible sequential C++, with NO structural
+// resemblance to kernels.cu's parallel scatter/reduce — this is where a
+// real GPU-only bug (wrong thread-to-cell mapping, a race, a reduction
+// order bug) would actually surface as a GPU-vs-CPU mismatch.
 //
 // Read this after: kernels.cu — then compare the two side by side.
 // ===========================================================================
 
-#include "kernels.cuh"  // for the saxpy_cpu prototype: compiler-enforced
-                        // signature agreement with what main.cu calls.
+#include "kernels.cuh"   // shared model constants, layouts, the shared index/distance formulas, signatures
+
+#include <cstring>       // std::memset — zeroing sc_all to the empty sentinel
 
 // ---------------------------------------------------------------------------
-// saxpy_cpu — sequential y[i] = a * x[i] + y[i] for i = 0 .. n-1.
-//
-// Parameters:
-//   n — element count (> 0)
-//   a — the SAXPY scalar
-//   x — [n] host pointer, read-only input
-//   y — [n] host pointer, read AND written in place (input y, output a*x+y)
-//
-// Complexity: O(n) time, O(1) extra space. Side effects: overwrites y.
-//
-// Numerical note (why GPU-vs-CPU comparison needs a tolerance): this line
-// may be compiled as a separate multiply and add (two rounding steps) or as
-// a fused multiply-add (one rounding step), depending on compiler flags; the
-// GPU almost always fuses. Both are correct; they may differ in the last bit
-// (~1 ULP). Hence main.cu's tolerance of 1e-6 rather than bit-equality —
-// the honest way to compare floating point across compilers and devices.
+// sc_build_cpu — sequential twin of sc_build_kernel's scatter. Every point,
+// in order, computes its (ring, sector) cell (via the SHARED formulas) and
+// updates that cell's running max with a plain "if bigger, replace" — no
+// atomic needed: a single thread touching memory in sequence can never
+// race with itself. sc_all must already be filled with kEmptyZ by the
+// caller (main.cu mirrors the GPU path's separate init step so both paths
+// start from the same documented empty sentinel — kernels.cuh's file
+// header, and its derivation of why kEmptyZ, not 0.0f, is the only sentinel
+// a running MAX can safely seed from in this project's world).
 // ---------------------------------------------------------------------------
-void saxpy_cpu(int n, float a, const float* x, float* y)
+void sc_build_cpu(int total_points, const float* xyz, const int32_t* point_scan_id,
+                  int n_scans, float* sc_all)
 {
-    // One loop, one line — deliberately the simplest correct statement of
-    // the computation. This is the exact loop the GPU kernel parallelizes:
-    // in kernels.cu, "for each i" became "each thread owns some i".
-    for (int i = 0; i < n; ++i) {
-        y[i] = a * x[i] + y[i];
+    (void)n_scans;   // bounds are the caller's responsibility (mirrors the GPU launcher's contract); kept for a readable signature
+    for (int i = 0; i < total_points; ++i) {
+        const float x = xyz[i * 3 + 0];
+        const float y = xyz[i * 3 + 1];
+        const float z = xyz[i * 3 + 2];
+
+        const float range_m = std::sqrt(x * x + y * y);   // planar range — see kernels.cu's identical comment
+        const int ring   = ring_index_from_range(range_m);
+        const int sector = sector_index_from_xy(x, y);
+
+        const int scan = point_scan_id[i];
+        float& cell = sc_all[scan * kScCells + ring * kNumSector + sector];
+        if (z > cell) cell = z;   // the whole "atomic" in a single-threaded world: just compare and overwrite
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ring_key_cpu — sequential twin of ring_key_kernel. For every (scan, ring),
+// count non-empty sector cells and divide by kNumSector.
+// ---------------------------------------------------------------------------
+void ring_key_cpu(int n_scans, const float* sc_all, float* ringkey_all)
+{
+    for (int scan = 0; scan < n_scans; ++scan) {
+        for (int ring = 0; ring < kNumRing; ++ring) {
+            const float* row = sc_all + scan * kScCells + ring * kNumSector;
+            int occupied = 0;
+            for (int s = 0; s < kNumSector; ++s)
+                if (row[s] > kEmptyZ + 1.0f) ++occupied;
+            ringkey_all[scan * kNumRing + ring] = static_cast<float>(occupied) / static_cast<float>(kNumSector);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// sc_shift_distance_cpu — sequential twin of sc_shift_distance_kernel. For
+// every candidate and every shift, sum column_cosine_distance() over all
+// kNumSector sectors in plain left-to-right order and divide by kNumSector.
+// This is a DIFFERENT summation order than the GPU's tree reduction —
+// floating point addition is not associative, so the two sums can differ by
+// a few ULP even though every column comparison feeding them is identical
+// (kernels.cuh's file header flags this; main.cu's VERIFY tolerance for
+// this stage is a small ABSOLUTE tolerance, not exact equality, for exactly
+// this reason).
+// ---------------------------------------------------------------------------
+void sc_shift_distance_cpu(const float* sc_query, int num_candidates,
+                           const float* sc_candidates, float* out_dist)
+{
+    for (int c = 0; c < num_candidates; ++c) {
+        const float* cand = sc_candidates + static_cast<size_t>(c) * kScCells;
+        for (int shift = 0; shift < kNumSector; ++shift) {
+            float sum = 0.0f;
+            for (int s = 0; s < kNumSector; ++s) {
+                const int shifted_col = (s + shift) % kNumSector;
+                sum += column_cosine_distance(sc_query, s, cand, shifted_col);
+            }
+            out_dist[static_cast<size_t>(c) * kNumSector + shift] = sum / static_cast<float>(kNumSector);
+        }
     }
 }

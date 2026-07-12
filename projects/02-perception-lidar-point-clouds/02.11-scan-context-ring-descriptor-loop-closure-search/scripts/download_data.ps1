@@ -1,10 +1,16 @@
 # ===========================================================================
 # download_data.ps1 — public-dataset fetcher for 02.11 (Scan Context / ring-descriptor loop-closure search)
 #
-# TEMPLATE PLACEHOLDER.
-# TODO(scaffold): if a public dataset genuinely teaches more than synthetic
-# data for this project, implement the fetch below; otherwise leave this
-# script as the honest no-op it currently is.
+# DECISION FOR THIS PROJECT: no public dataset is used. Scan Context needs a
+# world with several distinguishable PLACES, a trajectory that revisits some
+# of them from known relative headings/offsets, and known-false "new place"
+# visits — that is a labeled-ground-truth requirement no small public LiDAR
+# dataset satisfies out of the box (KITTI/NCLT loop-closure subsets exist but
+# are large, non-commercially-licensed, and still need hand-curated revisit
+# labels). scripts/make_synthetic.py synthesizes exactly this with full
+# ground truth instead (CLAUDE.md paragraph 8: synthetic-first). This script
+# is therefore the honest no-op below, kept only so every project in the
+# repo exposes the same two scripts uniformly.
 #
 # Repo policy (CLAUDE.md paragraph 8) for any real implementation here:
 #   * Idempotent — safe to re-run; skip files that already exist with the
