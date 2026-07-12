@@ -14,6 +14,7 @@ explains its own latest state. Entry format:
 ## Pushes
 
 <!-- Prepend new entries directly below this line (newest first). -->
+- 2026-07-12 — batch 2i: 02.10–02.13 done (71/505); FPFH invariance measured 0.057, 0/8 false loop closures with exact yaw recovery, β-criterion showcase 0-vs-1 clusters, bit-exact DDA with the thin-pole erosion lesson — [push-note](push-notes/2026-07-12-00-phase-2-batch-2i-domain-02-places-maps-dynamics.md)
 - 2026-07-11 — batch 2h: 02.05/02.07/02.08/02.09 done (67/505); threadfence + KNN-termination bugs caught by brute-force anchors, NDT held-and-instrumented (0% vs 84% direction split), walls tighten 42× after deskew, 19.9 Mpts/s normals — [push-note](push-notes/2026-07-11-06-phase-2-batch-2h-domain-02-registration-and-geometry.md)
 - 2026-07-11 — batch 2g: domain-02 pipeline foundations 02.01–02.04 done (63/505); determinism taxonomy (ordering/operators/canonical form), union-find 2 vs 299 sweeps on the snake, RANSAC formula gated analytically, first Thrust project — [push-note](push-notes/2026-07-11-05-phase-2-batch-2g-domain-02-pipeline-foundations.md)
 - 2026-07-11 — batch 2f: **domain 01 complete (24/24)** — 01.21–01.24 done (59/505); disocclusion limitation proven, SR metric lesson, 9 bit-exact ISP twins, Fresnel anchor 3.4e-4 with glass at 0% intensity / 97% DoLP recall — [push-note](push-notes/2026-07-11-04-phase-2-batch-2f-domain-01-complete.md)
